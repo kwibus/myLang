@@ -25,13 +25,7 @@ data BruijnTerm = BLambda Name BruijnTerm
                 | BAppl BruijnTerm BruijnTerm
                 | Bound Index deriving (Show, Eq)
             --  | Freevar  should not exsist
--- instance Show BruijnTerm where
---     show (Bound i)= show i 
---     show (BLambda _ n t) = n++"."++show t
---     show (BAppl t1@ BLambda {} t2)  = parentheses t1 ++ show t2
---     show (BAppl t1@ Bound {}    t2@ BAppl  {}) = show t1 ++ parentheses t2
---     show (BAppl t1@ Bound {}    t2) = show t1 ++ show t2
---     show (BAppl t1@ BAppl {}   t2) = show t1 ++ show t2
+
 lam2Bruijn :: LamTerm -> BruijnTerm
 lam2Bruijn t = go t 0 M.empty 
   where go (Var n) depth  env =  Bound (depth - (env M.! n)-1)
