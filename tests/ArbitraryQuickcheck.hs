@@ -3,15 +3,26 @@ module ArbitraryQuickcheck where
 import Lambda
 import Test.QuickCheck.Gen
 import Test.QuickCheck
-import Debug.Trace
+-- import Debug.Trace
 
-test :: Int -> Gen Int
-test i |i < 10 = elements [i] 
- | otherwise  =test i
-
-test2 = sized test
+instance Arbitrary BruijnTerm where
+    arbitrary = fmap lam2Bruijn arbitrary
+    shrink = shrinkBruijn
 instance Arbitrary  LamTerm where
     arbitrary = resize 100 $sized $ arbitraryTerm []
+
+shrinkBruijn :: BruijnTerm -> [BruijnTerm]
+shrinkBruijn (BAppl t1 t2) = [t1,t2]  ++ [BAppl t1' t2' | (t1',t2')<- shrink (t1,t2)]
+shrinkBruijn (BLambda  n t)= fastShrink t ++eliminated ++ fmap (BLambda  n) (shrinkBruijn t)
+    where fastShrink (Bound {})= []
+          fastShrink _  = [BLambda n (Bound 0)]
+          eliminated = if used 0 t then [] else [t]
+shrinkBruijn __ = []
+
+used :: Index -> BruijnTerm -> Bool
+used i1 (Bound i2) = i1==i2
+used i (BLambda  _ t) =  used (i+1) t
+used i (BAppl t1 t2) = used i t1 || used i  t2
 
 arbitraryTerm :: [Name] -> Int -> Gen LamTerm
 arbitraryTerm [] s = oneof [arbitraryLambda [] s, arbitraryAppl [] s]
@@ -23,7 +34,7 @@ arbitraryLambda :: [Name] -> Int -> Gen LamTerm
 arbitraryLambda names s =do
   boolNewName <- case names of 
         [] -> return True 
-        otherwise -> return True--frequency [(4,return True),(1,return False)]
+        _ -> frequency [(4,return True),(1,return False)]
   name <- if boolNewName 
             then fmap(:[]) $ choose ('a','z')
             else elements names
