@@ -8,7 +8,7 @@ type Name = String
 data LamTerm= Lambda Name LamTerm
             | Appl LamTerm LamTerm
             | Var Name
-
+            deriving Eq
 instance Show LamTerm where
     show (Var n) = n
     show (Lambda n t) = "\\" ++ n ++ "." ++ show t
