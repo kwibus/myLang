@@ -16,16 +16,15 @@ pShow = go False
     where 
       go _ (Var n) = n
       go b (Lambda n t) = "\\" ++ n ++"." ++ go b t
-      go _ (Appl t1@Lambda{} t2@Lambda{}) = parentheses t1 ++ parentheses t2
-      go _ (Appl t1@Lambda{} t2@Appl{}) = parentheses t1 ++ parentheses t2
-      go b (Appl t1@Lambda{} t2) = parentheses t1 ++ go b t2
+      go b (Appl t1@Lambda{} t2@Var{}) = parentheses t1 ++ go b t2
+      go _ (Appl t1@Lambda{} t2) = parentheses t1 ++ parentheses t2
       go b (Appl t1@Var {} t2@Var{} )= go b t1 ++" "++ go b t2
       go b (Appl t1@Var {} t2 )= go b t1 ++ parentheses t2
       go _ (Appl t1@Appl {} t2@Appl{} )= go True t1 ++ parentheses t2
       go True (Appl t1@Appl {} t2@Lambda{})= go True t1 ++ parentheses t2
       go b (Appl t1@Appl {} t2@Var{} )= go True t1 ++" "++ go b t2
       go b (Appl t1@Appl {} t2 )= go True t1 ++ go b t2
-      go _ (Appl t1 t2) = parentheses t1 ++ parentheses t2
+--
 -- instance PrittyShow LamTerm where 
 --     pShow (Var n) = n
 --     pShow (Lambda n t) = "\\" ++ n ++"." ++ pShow t
