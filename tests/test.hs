@@ -18,15 +18,15 @@ tests= testGroup "test" [testLambda,testBruijn , testEval, testParser ]
 testLambda :: TestTree
 testLambda = testGroup "Lambda"
   [ testCase "drop outer parentheses" $
-      pShow (Appl (Var "a") (Var "b")) @?= "a b"
+      pShow (Appl (var "a") (var "b")) @?= "a b"
   , testCase "left associative" $
-      pShow (Appl (Appl (Var "a") (Var "b")) (Var "c")) @?= "a b c"
+      pShow (Appl (Appl (var "a") (var "b")) (var "c")) @?= "a b c"
   , testCase "not right associative" $
-      pShow (Appl (Var "a") (Appl (Var "b") (Var "c"))) @?= "a(b c)"
+      pShow (Appl (var "a") (Appl (var "b") (var "c"))) @?= "a(b c)"
   , testCase " body of an abstraction extends as far right as possible" $
-      pShow ( Lambda "x"(Appl (Var "m") (Var "n"))) @?= "\\x.m n"
+      pShow ( Lambda "x"(Appl (var "m") (var "n"))) @?= "\\x.m n"
   , testCase "apply lambda  " $
-      pShow (Appl ( Lambda "x"(Var "m")) (Var "n")) @?= "(\\x.m)n"
+      pShow (Appl ( Lambda "x"(var "m")) (var "n")) @?= "(\\x.m)n"
   ]
 testBruijn :: TestTree
 testBruijn = testGroup "bruijn index"
@@ -45,17 +45,17 @@ testEval =  testGroup "eval"
   [ testCase "eval id id = Just id"$
        eval (BAppl id id ) @?= Just id
   , testCase "call by vallu termination" $
-      eval (BLambda "z" (BAppl id  (Bound 1 )))@?= Nothing
+      eval (BLambda "z" (BAppl id  (bvar 1 )))@?= Nothing
   ]
 
-id :: BruijnTerm
-id = BLambda "a" (Bound 0)
+id :: BruijnTerm a
+id = BLambda "a" (bvar 0)
 
-bruijnS :: BruijnTerm
-bruijnS = BLambda "x" (BLambda "y" (Bound 1))
+bruijnS :: BruijnTerm a
+bruijnS = BLambda "x" (BLambda "y" (bvar 1))
 
-lambdaS ::LamTerm  
-lambdaS = Lambda "x" (Lambda "y" (Var "x"))
+lambdaS ::LamTerm a
+lambdaS = Lambda "x" (Lambda "y" (var "x"))
 
 testParser :: TestTree
 testParser = testGroup "parser"
@@ -64,9 +64,9 @@ testParser = testGroup "parser"
      let ididid = "(\\a.a)(\\b.b)\\c.c" 
      in (pShow (right (parseString ididid)) @?= ididid)
   , testProperty "parse pShow arbitrary " $
-        \t -> isRight (parseString (pShow (t::LamTerm))) 
+        \t -> isRight (parseString (pShow (t::LamTerm ()))) 
   , testProperty "pShow parse = id " $
-        \t -> pShow (right (parseString (pShow (t::LamTerm )))) == pShow t
+        \t -> pShow (right (parseString (pShow (t::LamTerm () )))) == pShow t
   ]
 
 isRight :: Show a => Either a b -> Bool
