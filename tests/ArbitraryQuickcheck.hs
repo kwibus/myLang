@@ -5,29 +5,35 @@ module ArbitraryQuickcheck (
 import Lambda
 import Test.QuickCheck.Gen
 import Test.QuickCheck
+import Data.Maybe
 
+import Control.Applicative
 instance Arbitrary BruijnTerm where
     arbitrary = fmap lam2Bruijn arbitrary
     shrink = shrinkBruijn
 
 instance Arbitrary  LamTerm where
     arbitrary = resize 100 $sized $ arbitraryTerm []
+    shrink t = fmap bruijn2Lam $ shrink $ lam2Bruijn t
 
 shrinkBruijn :: BruijnTerm -> [BruijnTerm]
-shrinkBruijn (BAppl t1 t2) = [t1,t2]  ++ 
+shrinkBruijn (BAppl t1 t2) = [t1,t2]  ++
                              [BAppl t1' t2' | (t1',t2')<- shrink (t1,t2)]
 shrinkBruijn (BLambda  n t)= fastShrink t ++
-                             eliminated ++ 
+                             eliminated ++
                              fmap (BLambda  n) (shrinkBruijn t)
     where fastShrink (Bound {})= []
           fastShrink _  = [BLambda n (Bound 0)]
-          eliminated = if used 0 t then [] else [t]
+          eliminated = maybeToList  $ eliminatedLambda 0 t
 shrinkBruijn _ = []
 
-used :: Index -> BruijnTerm -> Bool
-used i1 (Bound i2) = i1==i2
-used i (BLambda  _ t) = used (i+1) t
-used i (BAppl t1 t2) = used i t1 || used i  t2
+eliminatedLambda :: Index -> BruijnTerm -> Maybe BruijnTerm
+eliminatedLambda i1 (Bound i2)
+    | i1==i2  = Nothing
+    | i2 > i1 = Just $ Bound (i2-1)
+    | otherwise = Just $ Bound i2
+eliminatedLambda i (BLambda  n t) = BLambda n <$> eliminatedLambda (i+1) t
+eliminatedLambda i (BAppl t1 t2) = BAppl<$> eliminatedLambda  i t1 <*>  eliminatedLambda i t2
 
 arbitraryTerm :: [Name] -> Int -> Gen LamTerm
 arbitraryTerm [] s = oneof [arbitraryLambda [] s, arbitraryAppl [] s]

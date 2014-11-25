@@ -3,22 +3,43 @@ module Lambda where
 import qualified Data.IntMap as IM
 import qualified Data.Map as M
 
+
 type Name = String
 
 data LamTerm= Lambda Name LamTerm
             | Appl LamTerm LamTerm
             | Var Name
-            deriving Eq
-instance Show LamTerm where
-    show (Var n) = n
-    show (Lambda n t) = "\\" ++ n ++ "." ++ show t
-    show (Appl t1@ Lambda {} t2)  = parentheses t1 ++ show t2
-    show (Appl t1@ Var {}    t2@ Appl  {}) = show t1 ++ parentheses t2
-    show (Appl t1@ Var {}    t2) = show t1 ++ show t2
-    show (Appl t1@ Appl {}   t2) = show t1 ++ show t2
+            deriving (Eq,Show)
 
-parentheses :: Show a => a -> String
-parentheses s = "(" ++ show s ++ ")"
+pShow :: LamTerm -> String 
+pShow = go False
+    where 
+      go _ (Var n) = n
+      go b (Lambda n t) = "\\" ++ n ++"." ++ go b t
+      go _ (Appl t1@Lambda{} t2@Lambda{}) = parentheses t1 ++ parentheses t2
+      go _ (Appl t1@Lambda{} t2@Appl{}) = parentheses t1 ++ parentheses t2
+      go b (Appl t1@Lambda{} t2) = parentheses t1 ++ go b t2
+      go b (Appl t1@Var {} t2@Var{} )= go b t1 ++" "++ go b t2
+      go b (Appl t1@Var {} t2 )= go b t1 ++ parentheses t2
+      go _ (Appl t1@Appl {} t2@Appl{} )= go True t1 ++ parentheses t2
+      go True (Appl t1@Appl {} t2@Lambda{})= go True t1 ++ parentheses t2
+      go b (Appl t1@Appl {} t2@Var{} )= go True t1 ++" "++ go b t2
+      go b (Appl t1@Appl {} t2 )= go True t1 ++ go b t2
+      go _ (Appl t1 t2) = parentheses t1 ++ parentheses t2
+-- instance PrittyShow LamTerm where 
+--     pShow (Var n) = n
+--     pShow (Lambda n t) = "\\" ++ n ++"." ++ pShow t
+--     pShow (Appl t1@ Lambda {} t2@Appl{})  = parentheses t1 ++ " " ++ parentheses t2
+--     pShow (Appl t1@ Lambda {} t2)  = parentheses t1 ++ " " ++ pShow t2
+--     pShow (Appl t1@ Var{}    t2@ Appl  {}) = pShow t1 ++ parentheses t2
+--     pShow (Appl t1@ Var{}    t2) = pShow t1 ++ " " ++pShow t2
+--     pShow (Appl (Appl t11@Lambda {} t12@Lambda {} ) t2@Appl{}) = parentheses t11 ++ parentheses t12  ++ parentheses t2
+--     pShow (Appl t1@ Appl{}   t2@Appl{}) = pShow t1 ++ " " ++ parentheses t2
+--     pShow (Appl (Appl t11@Lambda {} t12@Lambda {})   t2) = parentheses t11 ++ parentheses t12 ++ pShow t2
+--     pShow (Appl t1@ Appl {}   t2) = pShow t1 ++ " " ++ pShow t2
+
+parentheses :: LamTerm  -> String
+parentheses s = "(" ++ pShow s ++ ")"
 
 type Index = Int
 data BruijnTerm = BLambda Name BruijnTerm
