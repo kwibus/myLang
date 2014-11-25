@@ -1,19 +1,20 @@
 {-# OPTIONS_GHC -fno-warn-orphans #-}
-module ArbitraryQuickcheck (
-    ) where
+module ArbitraryQuickcheck 
+     where
 
 import Lambda
+
 import Test.QuickCheck.Gen
 import Test.QuickCheck
 import Data.Maybe
-
 import Control.Applicative
+
 instance Arbitrary BruijnTerm where
     arbitrary = fmap lam2Bruijn arbitrary
     shrink = shrinkBruijn
 
 instance Arbitrary  LamTerm where
-    arbitrary = resize 100 $sized $ arbitraryTerm []
+    arbitrary = sized $ arbitraryTerm []
     shrink t = fmap bruijn2Lam $ shrink $ lam2Bruijn t
 
 shrinkBruijn :: BruijnTerm -> [BruijnTerm]
@@ -32,15 +33,16 @@ eliminatedLambda i1 (Bound i2)
     | i1==i2  = Nothing
     | i2 > i1 = Just $ Bound (i2-1)
     | otherwise = Just $ Bound i2
-eliminatedLambda i (BLambda  n t) = BLambda n <$> eliminatedLambda (i+1) t
+eliminatedLambda i (BLambda  n t) = BLambda n <$> eliminatedLambda (i-1) t
 eliminatedLambda i (BAppl t1 t2) = BAppl<$> eliminatedLambda  i t1 <*>  eliminatedLambda i t2
 
 arbitraryTerm :: [Name] -> Int -> Gen LamTerm
-arbitraryTerm [] s = oneof [arbitraryLambda [] s, arbitraryAppl [] s]
+arbitraryTerm [] 0 = arbitraryLambda [] 0
+arbitraryTerm [] s = oneof [arbitraryLambda [] s,arbitraryAppl [] s ]
 arbitraryTerm n s
-    | s /= 0 = frequency [(3,arbitraryLambda n s),
+    | s > 0 = frequency [(3,arbitraryLambda n s),
                          (1,arbitraryVar n),
-                         (1,arbitraryAppl n s)
+                         (3,arbitraryAppl n s)
                         ]
     | otherwise = arbitraryVar n
 
@@ -55,7 +57,7 @@ arbitraryLambda names s =do
   let newnames =  if boolNewName
         then name : names
         else  names
-  term <- arbitraryTerm  newnames (s+1)
+  term <- arbitraryTerm  newnames (s-1)
   return $ Lambda name term
 
 arbitraryVar :: [Name ] -> Gen LamTerm
