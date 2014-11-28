@@ -7,34 +7,33 @@ import qualified Data.Map as M
 
 type Name = String
 
-data LamTerm a = Lambda Name (LamTerm a)
-            | Appl (LamTerm a) (LamTerm a)
-            | Var (Variable a)
+data LamTerm = Lambda Name LamTerm
+            | Appl LamTerm LamTerm 
+            | Var Variable 
             deriving (Eq,Show)
 
-var ::Name -> LamTerm a
+var ::Name -> LamTerm 
 var = Var . VarVar
 
-val ::Vallue a -> LamTerm a
+val ::Vallue -> LamTerm 
 val = Var . Val
 
-data Variable a = VarVar Name | Val (Vallue a) deriving (Eq )
-data Vallue a where
-     MyDouble :: Double -> Vallue Double
+data Variable  = VarVar Name | Val Vallue deriving (Eq )
+data Vallue  = MyDouble Double 
 
 -- instance Show (Vallue a) where
 --     show (MyDouble d)  = show d
-instance Show (Variable a) where
-    show (VarVar n )= n
+instance Show Variable  where
+    show (VarVar n) = n
     show (Val v) =  show v
 
-instance Show (Vallue a)where
+instance Show Vallue where
     show (MyDouble a) = show a
 
-instance Eq ( Vallue  a) where
+instance Eq Vallue  where
     (MyDouble a ) == (MyDouble b) = a == b
 
-pShow ::  LamTerm  a -> String
+pShow ::  LamTerm  -> String
 pShow = go False where
       go _ (Var n) =show n
       go b (Lambda n t) = "\\" ++ n ++"." ++ go b t
@@ -48,38 +47,38 @@ pShow = go False where
       go b (Appl t1@Appl {} t2 )= go True t1 ++ go b t2
 
 
-parentheses :: LamTerm a -> String
+parentheses :: LamTerm -> String
 parentheses s = "(" ++ pShow s ++ ")"
 
 type Index = Int
-data BruijnTerm a = BLambda Name (BruijnTerm a)
-                | BAppl (BruijnTerm a) (BruijnTerm a)
-                | BVar (Bvariable a) deriving (Eq,Show)
+data BruijnTerm = BLambda Name BruijnTerm 
+                | BAppl BruijnTerm  BruijnTerm
+                | BVar Bvariable deriving (Eq,Show)
             --  | Freevar  should not exsist
 
-bvar ::Int -> BruijnTerm a
+bvar ::Int -> BruijnTerm
 bvar = BVar . Bound
 
-bval ::Vallue a -> BruijnTerm a
+bval ::Vallue -> BruijnTerm
 bval = BVar . BVal
 
-data Bvariable a = Bound Index | BVal (Vallue a) deriving (Show, Eq)
+data Bvariable = Bound Index | BVal Vallue deriving (Show, Eq)
 
-lam2Bruijn :: LamTerm a -> BruijnTerm a
+lam2Bruijn :: LamTerm -> BruijnTerm
 lam2Bruijn t = go t 0 M.empty
   where go (Var (VarVar n)) depth  env =  bvar (depth - (env M.! n)-1)
         go (Var (Val v)) _ _ = bval v
         go (Lambda  n t1) depth env = BLambda  n $ go  t1 (depth +1) (M.insert n depth env)
         go (Appl t1 t2) depth  env = BAppl (go t1 depth env)(go t2 depth env)
 
-bruijn2Lam :: BruijnTerm a -> LamTerm a
+bruijn2Lam :: BruijnTerm -> LamTerm
 bruijn2Lam t = go t 0 IM.empty
   where go (BVar (Bound i)) depth env = var $ env IM.!  (depth - i -1 )
         go (BVar (BVal v)) _ _ = val  v
         go (BAppl t1 t2 ) depth env = Appl (go t1 depth env)(go t2 depth env)
         go (BLambda  n t1) depth env = Lambda n $ go t1 (depth +1)(IM.insert depth n env)
 
-eval :: BruijnTerm a -> Maybe (BruijnTerm a)
+eval :: BruijnTerm -> Maybe BruijnTerm 
 eval (BVar {}) = Nothing
 eval (BLambda {}) = Nothing --fmap (BLambda n ) $ eval t
 eval (BAppl (BLambda _ t) t2) = Just $ substitute t 0 t2
@@ -87,13 +86,13 @@ eval (BAppl t1 t2 )
     | isvalue t1  = fmap (\t -> BAppl t t1 ) $ eval  t2
     | otherwise = fmap (BAppl t1 ) $eval t2
 
-substitute ::  BruijnTerm a -> Index -> BruijnTerm a -> BruijnTerm a
+substitute ::  BruijnTerm -> Index -> BruijnTerm -> BruijnTerm
 substitute t1 i1 t2@(BVar (Bound i2)) = if i1 == i2 then t1 else t2
 substitute t1 i1 (BLambda n t2) = BLambda n $ substitute t1 (i1+1) t2
 substitute t i (BAppl t1 t2) = BAppl (substitute t i t1) (substitute t i t2)
 substitute _ _  t2 = t2
 
-isvalue :: BruijnTerm a -> Bool
+isvalue :: BruijnTerm -> Bool
 isvalue BVar {} = True
 isvalue BAppl {} = False
 isvalue BLambda {} = True
