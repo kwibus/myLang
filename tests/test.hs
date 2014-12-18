@@ -5,6 +5,9 @@ import Test.Tasty
 import Test.Tasty.HUnit
 import Test.Tasty.QuickCheck
 import ArbitraryQuickcheck ()
+import TestArbitrary
+
+import Test.QuickCheck
 
 import Lambda
 import Parser
@@ -13,7 +16,14 @@ main :: IO ()
 main = defaultMain tests
 
 tests :: TestTree
-tests = testGroup "test" [testLambda, testBruijn , testEval, testParser]
+tests = testGroup "tests"
+    [ testLambda
+    , testBruijn
+    , testBruijn
+    , testEval
+    , testParser
+    , testArbitrary
+    ]
 
 testLambda :: TestTree
 testLambda = testGroup "Lambda"

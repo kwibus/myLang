@@ -39,12 +39,12 @@ eliminatedLambda i (BAppl t1 t2) = BAppl <$> eliminatedLambda i t1 <*> eliminate
 
 arbitraryTerm :: [Name] -> Int -> Gen LamTerm
 arbitraryTerm [] 0 = oneof [arbitraryLambda [] 0, arbitraryVallue ]
-arbitraryTerm [] s = oneof [arbitraryLambda [] s, arbitraryAppl [] s, arbitraryVallue ]
+arbitraryTerm [] s = oneof [arbitraryLambda [] s, arbitraryAppl [] s ]
 arbitraryTerm n s
-    | s > 0 = frequency [(3, arbitraryLambda n s)
-                        , (1, arbitraryVar n)
+    | s > 0 = frequency [(9, arbitraryLambda n s)
+                        , (2, arbitraryVar n)
                         , (1, arbitraryVallue)
-                        , (3, arbitraryAppl n s)
+                        , (9, arbitraryAppl n s)
                         ]
     | otherwise = arbitraryVar n
 

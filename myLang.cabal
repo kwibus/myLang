@@ -35,6 +35,16 @@ executable interperter
   hs-source-dirs:      src/Interperter/
   default-language:    Haskell2010
 
+executable Sample
+  main-is:             Sample.hs
+  build-depends:       base >=4.7 && <4.8
+                      ,myLang
+                      ,QuickCheck
+                      ,checkers
+                      ,random
+
+  hs-source-dirs:      tests
+  default-language:    Haskell2010
 
 library
   build-depends:       base >=4.7 && <4.8
