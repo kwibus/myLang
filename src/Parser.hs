@@ -5,7 +5,7 @@ import Text.Parsec
 import Text.Parsec.String
 
 import Lambda
-import Lexer 
+import Lexer
 
 
 pLambda :: Parser LamTerm
@@ -21,14 +21,17 @@ pApplication = do
     terms <- many pLambdaTerm'
     return $ foldl1 Appl terms
 
+pVallue::  Parser Variable
+pVallue = fmap Val $ choice [fmap MyDouble double]
+
 pLambdaTerm' :: Parser LamTerm
-pLambdaTerm' = choice [pLambda , pVar, pParentheses]
+pLambdaTerm' = choice [pLambda, pVar, pParentheses ]
 
 pLambdaTerm :: Parser LamTerm
-pLambdaTerm = choice [pLambda, pApplication, pVar, pParentheses]
+pLambdaTerm = choice [pLambda, pApplication, pVar, pParentheses ]
 
 pVar :: Parser LamTerm
-pVar = fmap (Var . VarVar) identifier
+pVar = fmap (Var .  VarVar) identifier <|> fmap Var  pVallue
 
 pLine :: Parser LamTerm
 pLine = do

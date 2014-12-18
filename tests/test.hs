@@ -66,7 +66,7 @@ testParser = testGroup "parser"
   , testProperty "parse pShow arbitrary " $
         \ t -> isRight (parseString (pShow (t :: LamTerm )))
   , testProperty "pShow parse = id " $
-        \ t -> pShow (right (parseString (pShow (t :: LamTerm )))) == pShow t
+        \ t -> (right (parseString (pShow (t :: LamTerm )))) == t
   ]
 
 isRight :: Show a => Either a b -> Bool

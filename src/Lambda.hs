@@ -8,36 +8,34 @@ import qualified Data.Map as M
 type Name = String
 
 data LamTerm = Lambda Name LamTerm
-            | Appl LamTerm LamTerm 
-            | Var Variable 
-            deriving (Eq,Show)
+            | Appl LamTerm LamTerm
+            | Var Variable
+            deriving (Eq, Show)
 
-var ::Name -> LamTerm 
+var :: Name -> LamTerm
 var = Var . VarVar
 
-val ::Vallue -> LamTerm 
+val :: Vallue -> LamTerm
 val = Var . Val
 
-data Variable  = VarVar Name | Val Vallue deriving (Eq )
-data Vallue  = MyDouble Double 
+data Variable = VarVar Name | Val Vallue deriving (Eq, Show )
+data Vallue = MyDouble Double deriving Show
 
--- instance Show (Vallue a) where
---     show (MyDouble d)  = show d
-instance Show Variable  where
-    show (VarVar n) = n
-    show (Val v) =  show v
+instance Eq Vallue where
+    (==) (MyDouble a) (MyDouble b) = abs (a - b) < 0.0001
 
-instance Show Vallue where
-    show (MyDouble a) = show a
+pShowVar :: Variable -> String
+pShowVar (VarVar n) = n
+pShowVar (Val v) = pShowVal v
 
-instance Eq Vallue  where
-    (MyDouble a ) == (MyDouble b) = a == b
+pShowVal :: Vallue -> String
+pShowVal (MyDouble a) = show a
 
-pShow ::  LamTerm  -> String
+pShow :: LamTerm -> String
 pShow = go False where
-      go _ (Var n) =show n
-      go b (Lambda n t) = "\\" ++ n ++"." ++ go b t
-      go b (Appl t1@Lambda{} t2@Var{}) = parentheses t1 ++ go b t2
+      go _ (Var n) = pShowVar n
+      go b (Lambda n t) = "\\" ++ n ++ "." ++ go b t
+      go b (Appl t1@Lambda{} t2@Var {}) = parentheses t1 ++ go b t2
       go _ (Appl t1@Lambda{} t2) = parentheses t1 ++ parentheses t2
       go b (Appl t1@Var {} t2@Var{} )= go b t1 ++" "++ go b t2
       go b (Appl t1@Var {} t2 )= go b t1 ++ parentheses t2
