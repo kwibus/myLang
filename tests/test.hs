@@ -7,8 +7,6 @@ import Test.Tasty.QuickCheck
 import ArbitraryQuickcheck ()
 import TestArbitrary
 
-import Test.QuickCheck
-
 import Lambda
 import Parser
 
@@ -40,7 +38,11 @@ testLambda = testGroup "Lambda"
   ]
 testBruijn :: TestTree
 testBruijn = testGroup "bruijn index"
-  [ testCase "test S combinator from lambda  S=\\x.\\y.x" $
+  [ testCase "bruijn2Lam id " $
+      bruijn2Lam bruijnId @?= lambdaId
+  , testCase "lam2Bruijn id " $
+      lam2Bruijn lambdaId @?= bruijnId
+  , testCase "test S combinator from lambda  S=\\x.\\y.x" $
       lam2Bruijn lambdaS @?= bruijnS
   , testCase "test S combinator from bruijn S=\\\\1" $
       bruijn2Lam bruijnS @?= lambdaS
@@ -53,13 +55,16 @@ testBruijn = testGroup "bruijn index"
 testEval :: TestTree
 testEval = testGroup "eval"
   [ testCase "eval id id = Just id" $
-       eval (BAppl id id ) @?= Just id
+       eval (BAppl bruijnId bruijnId ) @?= Just bruijnId
   , testCase "call by vallu termination" $
-      eval (BLambda "z" (BAppl id (bvar 1 ))) @?= Nothing
+      eval (BLambda "z" (BAppl bruijnId (bvar 1 ))) @?= Nothing
   ]
 
-id :: BruijnTerm
-id = BLambda "a" (bvar 0)
+bruijnId :: BruijnTerm
+bruijnId = BLambda "a" $ bvar 0
+
+lambdaId :: LamTerm
+lambdaId = Lambda "a" $ var "a"
 
 bruijnS :: BruijnTerm
 bruijnS = BLambda "x" (BLambda "y" (bvar 1))
