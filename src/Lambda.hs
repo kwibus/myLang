@@ -79,11 +79,12 @@ bruijn2Lam t = go t 0 IM.empty
 eval :: BruijnTerm -> Maybe BruijnTerm 
 eval (BVar {}) = Nothing
 eval (BLambda {}) = Nothing --fmap (BLambda n ) $ eval t
-eval (BAppl (BLambda _ t) t2) = Just $ substitute t 0 t2
+eval (BAppl (BLambda _ t) t2) = Just $ substitute t2 0 t
 eval (BAppl t1 t2 )
-    | isvalue t1  = fmap (\t -> BAppl t t1 ) $ eval  t2
+    | isvalue t1 = fmap (\t -> BAppl t t1 ) $ eval t2
     | otherwise = fmap (BAppl t1 ) $eval t2
-
+--
+--Todo remove inita index
 substitute ::  BruijnTerm -> Index -> BruijnTerm -> BruijnTerm
 substitute t1 i1 t2@(BVar (Bound i2)) = if i1 == i2 then t1 else t2
 substitute t1 i1 (BLambda n t2) = BLambda n $ substitute t1 (i1+1) t2

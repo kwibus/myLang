@@ -6,6 +6,7 @@ import Test.Tasty.HUnit
 import Test.Tasty.QuickCheck
 import ArbitraryQuickcheck ()
 import TestArbitrary
+import Data.Maybe
 
 import Lambda
 import Parser
@@ -54,11 +55,26 @@ testBruijn = testGroup "bruijn index"
 
 testEval :: TestTree
 testEval = testGroup "eval"
-  [ testCase "eval id id = Just id" $
+  [ testCase "omega omega" $
+      eval (BAppl bruijOmega bruijOmega) @?= Just (BAppl bruijOmega bruijOmega)
+  , testCase "eval id id = Just id" $
        eval (BAppl bruijnId bruijnId ) @?= Just bruijnId
   , testCase "call by vallu termination" $
       eval (BLambda "z" (BAppl bruijnId (bvar 1 ))) @?= Nothing
+  , testProperty "welformd presevation eval" $
+      \ t -> let result = fmap welFormd $ eval t
+            in isNothing result || fromJust result
   ]
+
+welFormd :: BruijnTerm -> Bool
+welFormd t0 = go t0 0
+    where go (BLambda _ t) dept = go t (dept + 1)
+          go (BAppl t1 t2) dept = go t1 dept && go t2 dept
+          go (BVar (Bound i )) dept = i <= dept
+          go (BVar {}) _ = True
+
+bruijOmega :: BruijnTerm
+bruijOmega = BLambda "a" $ BAppl (bvar 0) (bvar 0)
 
 bruijnId :: BruijnTerm
 bruijnId = BLambda "a" $ bvar 0
