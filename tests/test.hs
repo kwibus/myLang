@@ -49,13 +49,13 @@ testBruijn = testGroup "bruijn index"
       bruijn2Lam bruijnS @?= lambdaS
   , testProperty "inverse test" $
       \ t -> bruijn2Lam (lam2Bruijn t) == t
-  , testProperty "keep normalisation under eval" $
-      \ t -> fmap (lam2Bruijn . bruijn2Lam) (eval t) == eval t
   ]
 
 testEval :: TestTree
 testEval = testGroup "eval"
-  [ testCase "omega omega" $
+  [ testCase  "eval id(id(\\z.id z))=id(\\z.id z)" $
+      eval (BAppl bruijnId ( BAppl bruijnId  (BLambda "z" (BAppl bruijnId (bvar 0))))) @?= Just ( BAppl bruijnId ( BLambda "z" (BAppl bruijnId (bvar 0))))
+  , testCase "omega omega" $
       eval (BAppl bruijOmega bruijOmega) @?= Just (BAppl bruijOmega bruijOmega)
   , testCase "eval id id = Just id" $
        eval (BAppl bruijnId bruijnId ) @?= Just bruijnId
@@ -64,6 +64,8 @@ testEval = testGroup "eval"
   , testProperty "welformd presevation eval" $
       \ t -> let result = fmap welFormd $ eval t
             in isNothing result || fromJust result
+  , testProperty "keep normalisation under eval" $
+      \ t -> fmap (lam2Bruijn . bruijn2Lam) (eval t) == eval t
   ]
 
 welFormd :: BruijnTerm -> Bool

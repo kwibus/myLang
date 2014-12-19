@@ -52,6 +52,7 @@ library
                       ,containers
                       ,parsec
                       ,parsec-numbers
+                      ,mtl
 
   hs-source-dirs:      src/
   exposed-modules:     Lambda,Parser,Lexer

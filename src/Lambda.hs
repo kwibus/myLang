@@ -1,9 +1,10 @@
-{-# LANGUAGE  GADTs #-}
+-- {-# LANGUAGE  GADTs #-}
+{-# LANGUAGE ExistentialQuantification #-}
 module Lambda where
 
 import qualified Data.IntMap as IM
 import qualified Data.Map as M
-
+import Control.Monad.State.Strict
 
 type Name = String
 
@@ -18,8 +19,43 @@ var = Var . VarVar
 val :: Vallue -> LamTerm
 val = Var . Val
 
+-- TODO rename VarVar
 data Variable = VarVar Name | Val Vallue deriving (Eq, Show )
-data Vallue = MyDouble Double deriving Show
+data Vallue = MyDouble Double
+    |BuildIn { name :: Name
+             , arrity :: Int
+             , evaluator :: State Stack Vallue
+             , stack :: Stack}
+
+type Stack = [Vallue]
+
+push :: Vallue -> State  Stack ()
+push v = modify (v:)
+data Type = TDouble|TBool
+
+pop ::State Stack Vallue
+pop = do
+    s <- get
+    put $ tail s
+    return $ head s
+
+
+plus :: Vallue
+plus = BuildIn {name ="plus"
+               ,arrity = 2
+               ,evaluator = evalPlus
+               ,stack = []
+               }
+evalPlus :: State Stack Vallue
+evalPlus = do 
+    MyDouble a <- pop
+    MyDouble b <- pop 
+    return $ MyDouble $ a + b
+
+
+instance Show Vallue where
+    show (MyDouble a) = show a
+    show BuildIn {name = n} = n
 
 instance Eq Vallue where
     (==) (MyDouble a) (MyDouble b) = abs (a - b) < 0.0001
@@ -30,6 +66,8 @@ pShowVar (Val v) = pShowVal v
 
 pShowVal :: Vallue -> String
 pShowVal (MyDouble a) = show a
+
+pShowVal BuildIn {name = n} = n
 
 pShow :: LamTerm -> String
 pShow = go False where
@@ -49,7 +87,7 @@ parentheses :: LamTerm -> String
 parentheses s = "(" ++ pShow s ++ ")"
 
 type Index = Int
-data BruijnTerm = BLambda Name BruijnTerm 
+data BruijnTerm = BLambda Name BruijnTerm
                 | BAppl BruijnTerm  BruijnTerm
                 | BVar Bvariable deriving (Eq,Show)
             --  | Freevar  should not exsist
@@ -76,14 +114,20 @@ bruijn2Lam t = go t 0 IM.empty
         go (BAppl t1 t2 ) depth env = Appl (go t1 depth env)(go t2 depth env)
         go (BLambda  n t1) depth env = Lambda n $ go t1 (depth +1)(IM.insert depth n env)
 
-eval :: BruijnTerm -> Maybe BruijnTerm 
+eval :: BruijnTerm -> Maybe BruijnTerm
 eval (BVar {}) = Nothing
 eval (BLambda {}) = Nothing --fmap (BLambda n ) $ eval t
 eval (BAppl (BLambda _ t) t2) = Just $ substitute t2 0 t
-eval (BAppl t1 t2 )
-    | isvalue t1 = fmap (\t -> BAppl t t1 ) $ eval t2
-    | otherwise = fmap (BAppl t1 ) $eval t2
---
+eval (BAppl (BVar (BVal (t@BuildIn{}))) (BVar (BVal v  ))) = Just $ bval $ apply t v
+eval (BAppl t1@BAppl{} t2@BVar{}) =  fmap (\t -> BAppl t t2 ) $ eval t1
+eval (BAppl t1@BAppl{} t2) =  fmap (BAppl t1 ) $eval t2
+eval (BAppl t1 t2) = fmap (\t -> BAppl t t2 ) $ eval t1
+
+apply :: Vallue -> Vallue -> Vallue
+apply   BuildIn{arrity = 1,evaluator = e,stack = s  } v = evalState e (v:s )
+apply t@BuildIn{arrity = n,stack = s  } v =t {arrity = n - 1 , stack = v:s} 
+apply _ _= error "apply vallue"
+
 --Todo remove inita index
 substitute ::  BruijnTerm -> Index -> BruijnTerm -> BruijnTerm
 substitute t1 i1 t2@(BVar (Bound i2)) = if i1 == i2 then t1 else t2
@@ -95,3 +139,4 @@ isvalue :: BruijnTerm -> Bool
 isvalue BVar {} = True
 isvalue BAppl {} = False
 isvalue BLambda {} = True
+
