@@ -2,12 +2,14 @@
 module ArbitraryQuickcheck
      where
 
-import Lambda
-
 import Test.QuickCheck.Gen
 import Test.QuickCheck
 import Data.Maybe
 import Control.Applicative
+
+import BruijnTerm
+import Lambda
+import ArbitraryVallue
 
 instance Arbitrary BruijnTerm where
     arbitrary = fmap lam2Bruijn arbitrary
@@ -38,12 +40,12 @@ eliminatedLambda i (BLambda n t) = BLambda n <$> eliminatedLambda (i - 1) t
 eliminatedLambda i (BAppl t1 t2) = BAppl <$> eliminatedLambda i t1 <*> eliminatedLambda i t2
 
 arbitraryTerm :: [Name] -> Int -> Gen LamTerm
-arbitraryTerm [] 0 = oneof [arbitraryLambda [] 0, arbitraryVallue ]
+arbitraryTerm [] 0 = oneof [arbitraryLambda [] 0, arbitraryVal ]
 arbitraryTerm [] s = oneof [arbitraryLambda [] s, arbitraryAppl [] s ]
 arbitraryTerm n s
     | s > 0 = frequency [(9, arbitraryLambda n s)
                         , (2, arbitraryVar n)
-                        , (1, arbitraryVallue)
+                        , (1, arbitraryVal)
                         , (9, arbitraryAppl n s)
                         ]
     | otherwise = arbitraryVar n
@@ -67,8 +69,8 @@ arbitraryVar names = do
   name <- elements names
   return $ var name
 
-arbitraryVallue :: Gen LamTerm
-arbitraryVallue = fmap (val . MyDouble) arbitrary
+arbitraryVal :: Gen LamTerm
+arbitraryVal = fmap val arbitraryVallue
 
 arbitraryAppl :: [Name] -> Int -> Gen LamTerm
 arbitraryAppl names s = do

@@ -6,9 +6,10 @@ import Text.Parsec
 import Text.Parsec.String
 import Text.Parsec.Expr
 
-import Lambda
+import Vallue 
+import Lambda 
 import Lexer
-
+import Opperator 
 
 pLambda :: Parser LamTerm
 pLambda = do

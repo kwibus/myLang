@@ -1,11 +1,11 @@
 module TestArbitrary ( testArbitrary) where
+
 import Test.Tasty
+import Test.Tasty.QuickCheck
+import ArbitraryQuickcheck ()
 
 import Lambda
-
-import Test.Tasty.QuickCheck
-
-import ArbitraryQuickcheck ()
+import BruijnTerm
 
 testArbitrary :: TestTree
 testArbitrary = testGroup "arbitrary" [testshrink]

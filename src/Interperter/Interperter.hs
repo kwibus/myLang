@@ -2,6 +2,8 @@ module Main
 where
 import Lambda
 import Parser
+import BruijnTerm
+import Eval
 import System.Console.Haskeline
 
 main :: IO ()
@@ -21,7 +23,3 @@ readEvalPrint input = case parseString input of
     Right ast -> outputStrLn $ pShow $ bruijn2Lam $ fullEval $ lam2Bruijn ast
     Left e -> outputStrLn $ show e
 
-fullEval :: BruijnTerm -> BruijnTerm
-fullEval t = case eval t of
-    Nothing -> t
-    Just r -> fullEval r
