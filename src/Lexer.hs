@@ -16,12 +16,12 @@ identifier = do
   return $ first : rest
 
 
-symbol :: Char -> Parser Char
+symbol :: Char -> Parser ()
 symbol c = do
     -- spaces
     s <- char c
     spaces
-    return s
+    -- return s
 
 double :: Parser Double
 double = do
