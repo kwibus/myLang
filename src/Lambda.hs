@@ -43,15 +43,28 @@ pop = do
 plus :: Vallue
 plus = BuildIn {name ="plus"
                ,arrity = 2
-               ,evaluator = evalPlus
+               ,evaluator = evalplus
                ,stack = []
                }
-evalPlus :: State Stack Vallue
-evalPlus = do 
+
+evalplus :: State Stack Vallue
+evalplus = do 
     MyDouble a <- pop
     MyDouble b <- pop 
     return $ MyDouble $ a + b
 
+multiply:: Vallue
+multiply= BuildIn {name ="multiply"
+               ,arrity = 2
+               ,evaluator = evalMultiply 
+               ,stack = []
+               }
+
+evalMultiply:: State Stack Vallue
+evalMultiply= do 
+    MyDouble a <- pop
+    MyDouble b <- pop 
+    return $ MyDouble $ a * b
 
 instance Show Vallue where
     show (MyDouble a) = show a

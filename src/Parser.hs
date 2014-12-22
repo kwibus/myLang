@@ -48,19 +48,19 @@ pLine = do
 tabel ::[[ Operator String () Identity LamTerm]]
 tabel = [[oMulti ],[oPlus]]
 
+binOperator :: Char -> Vallue -> Assoc-> Operator String () Identity LamTerm
+binOperator s v a= Infix ( do
+    symbol s 
+    return (\t1 t2-> Appl(Appl (val v ) t1 )t2)) a
+
 oMulti :: Operator String () Identity LamTerm
-oMulti = Infix ( do
-    symbol '*'
-    return (\t1 t2-> Appl(Appl (val plus) t1 )t2))AssocLeft
+oMulti =  binOperator '*' multiply AssocLeft
 
 oPlus:: Operator String () Identity LamTerm
-oPlus = Infix ( do
-    symbol '+'
-    return (\t1 t2-> Appl(Appl (val plus) t1 )t2))AssocLeft
+oPlus =  binOperator '+' plus AssocLeft
 
 operator :: Parser LamTerm
 operator =buildExpressionParser tabel  pLambdaTerm''
--- term =  pParentheses <|> pVar
 
 pParentheses :: Parser LamTerm
 pParentheses = do
