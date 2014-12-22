@@ -130,11 +130,17 @@ bruijn2Lam t = go t 0 IM.empty
 eval :: BruijnTerm -> Maybe BruijnTerm
 eval (BVar {}) = Nothing
 eval (BLambda {}) = Nothing --fmap (BLambda n ) $ eval t
-eval (BAppl (BLambda _ t) t2) = Just $ substitute t2 0 t
-eval (BAppl (BVar (BVal (t@BuildIn{}))) (BVar (BVal v  ))) = Just $ bval $ apply t v
-eval (BAppl t1@BAppl{} t2@BVar{}) =  fmap (\t -> BAppl t t2 ) $ eval t1
-eval (BAppl t1@BAppl{} t2) =  fmap (BAppl t1 ) $eval t2
-eval (BAppl t1 t2) = fmap (\t -> BAppl t t2 ) $ eval t1
+eval (BAppl t1 t2) 
+    | isvalue t2 = case t1 of
+        (BLambda _ t11) -> Just $ substitute t2 0 t11
+        (BVar (BVal (t11@BuildIn{})))-> Just $ bval $ apply t11 $ vallue t2
+        (t11@BAppl{}) -> fmap (\t->BAppl t t2 ) $ eval t11
+        _ -> Nothing
+    | otherwise = fmap (BAppl t1 ) $ eval t2
+
+vallue :: BruijnTerm -> Vallue
+vallue (BVar (BVal v )) = v
+vallue t = error $"type error vallue "++ show t++ "is not a vallue" 
 
 apply :: Vallue -> Vallue -> Vallue
 apply   BuildIn{arrity = 1,evaluator = e,stack = s  } v = evalState e (v:s )
