@@ -2,15 +2,16 @@ module Vallue where
 
 import Control.Monad.State.Strict
 
-type Stack = [Vallue]
+import Type
 
-data Type = TDouble
+type Stack = [Vallue]
 
 data Vallue = MyDouble Double
     | BuildIn { prettyName :: String
               , name :: String
               , arrity :: Int
               , isinfix :: Bool
+              , myType :: Type
               , evaluator :: State Stack Vallue
               , stack :: Stack
               }
