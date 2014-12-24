@@ -13,11 +13,11 @@ import ArbitraryVallue
 
 instance Arbitrary BruijnTerm where
     arbitrary = fmap lam2Bruijn arbitrary
-    shrink = shrinkBruijn
+    -- shrink = shrinkBruijn
 
 instance Arbitrary LamTerm where
     arbitrary = sized $ arbitraryTerm []
-    shrink t = fmap bruijn2Lam $ shrink $ lam2Bruijn t
+    -- shrink t = fmap bruijn2Lam $ shrink $ lam2Bruijn t
 
 shrinkBruijn :: BruijnTerm -> [BruijnTerm ]
 shrinkBruijn (BAppl t1 t2) = [t1, t2] ++
@@ -40,12 +40,12 @@ eliminatedLambda i (BLambda n t) = BLambda n <$> eliminatedLambda (i - 1) t
 eliminatedLambda i (BAppl t1 t2) = BAppl <$> eliminatedLambda i t1 <*> eliminatedLambda i t2
 
 arbitraryTerm :: [Name] -> Int -> Gen LamTerm
-arbitraryTerm [] 0 = oneof [arbitraryLambda [] 0, arbitraryVal ]
+arbitraryTerm [] 0 = oneof [arbitraryLambda [] 0, arbitraryVallue ]
 arbitraryTerm [] s = oneof [arbitraryLambda [] s, arbitraryAppl [] s ]
 arbitraryTerm n s
     | s > 0 = frequency [(9, arbitraryLambda n s)
                         , (2, arbitraryVar n)
-                        , (1, arbitraryVal)
+                        , (1, arbitraryVallue)
                         , (9, arbitraryAppl n s)
                         ]
     | otherwise = arbitraryVar n
@@ -68,9 +68,6 @@ arbitraryVar :: [Name ] -> Gen LamTerm
 arbitraryVar names = do
   name <- elements names
   return $ var name
-
-arbitraryVal :: Gen LamTerm
-arbitraryVal = fmap val arbitraryVallue
 
 arbitraryAppl :: [Name] -> Int -> Gen LamTerm
 arbitraryAppl names s = do

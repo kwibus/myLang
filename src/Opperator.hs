@@ -13,10 +13,14 @@ pop = do
     put $ tail s
     return $ head s
 
+operators :: [Vallue]
+operators = [plus, multiply]
 
 plus :: Vallue
-plus = BuildIn { name = "plus"
+plus = BuildIn { prettyName = "+"
+               , name = "plus"
                , arrity = 2
+               , isinfix = True
                , evaluator = evalplus
                , stack = []
                }
@@ -28,8 +32,10 @@ evalplus = do
     return $ MyDouble $ a + b
 
 multiply :: Vallue
-multiply = BuildIn { name = "multiply"
+multiply = BuildIn { prettyName = "*"
+                   , name = "multiply"
                    , arrity = 2
+                   , isinfix = True
                    , evaluator = evalMultiply
                    , stack = []
                    }
