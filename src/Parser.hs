@@ -24,20 +24,20 @@ pApplication = do
     terms <- many pLambdaTerm'
     return $ foldl1 Appl terms
 
-pVallue::  Parser Variable
-pVallue = fmap Val $ choice [fmap MyDouble double]
+pVallue::  Parser LamTerm 
+pVallue = fmap Val $choice [fmap MyDouble double]
 
 pLambdaTerm'' :: Parser LamTerm
-pLambdaTerm'' = choice [pLambda, pVar, pParentheses]
+pLambdaTerm'' = choice [pLambda, pVar, pParentheses,pVallue]
 
 pLambdaTerm' :: Parser LamTerm
-pLambdaTerm' = choice [operator,pLambda, pVar, pParentheses]
+pLambdaTerm' = choice [operator,pLambda, pVar, pParentheses,pVallue]
 
 pLambdaTerm :: Parser LamTerm
 pLambdaTerm =  pApplication
 
 pVar :: Parser LamTerm
-pVar = fmap (Var .  VarVar) identifier <|> fmap Var  pVallue
+pVar = fmap Var  identifier 
 
 pLine :: Parser LamTerm
 pLine = do
@@ -52,7 +52,7 @@ tabel = [[oMulti ],[oPlus]]
 binOperator :: Char -> Vallue -> Assoc-> Operator String () Identity LamTerm
 binOperator s v a= Infix ( do
     symbol s 
-    return (\t1 t2-> Appl(Appl (val v ) t1 )t2)) a
+    return (\t1 t2-> Appl(Appl (Val v ) t1 )t2)) a
 
 oMulti :: Operator String () Identity LamTerm
 oMulti =  binOperator '*' multiply AssocLeft

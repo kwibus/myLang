@@ -14,9 +14,7 @@ arbitraryBuildIn = do
     operator <- elements operators
     a <- arbitraryMyDouble
     b <- arbitraryMyDouble
-    return $ Appl (Appl (val operator) a )b
+    return $ Appl (Appl (Val operator) a ) b
 
-
-
-arbitraryMyDouble:: Gen LamTerm
-arbitraryMyDouble = fmap (val . MyDouble) arbitrary
+arbitraryMyDouble :: Gen LamTerm
+arbitraryMyDouble = fmap (Val . MyDouble) arbitrary

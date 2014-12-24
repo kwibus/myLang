@@ -7,17 +7,18 @@ import Test.QuickCheck
 import Data.Maybe
 import Control.Applicative
 
+import Vallue
 import BruijnTerm
 import Lambda
 import ArbitraryVallue
 
 instance Arbitrary BruijnTerm where
     arbitrary = fmap lam2Bruijn arbitrary
-    -- shrink = shrinkBruijn
+    shrink = shrinkBruijn
 
 instance Arbitrary LamTerm where
     arbitrary = sized $ arbitraryTerm []
-    -- shrink t = fmap bruijn2Lam $ shrink $ lam2Bruijn t
+    shrink t = fmap bruijn2Lam $ shrink $ lam2Bruijn t
 
 shrinkBruijn :: BruijnTerm -> [BruijnTerm ]
 shrinkBruijn (BAppl t1 t2) = [t1, t2] ++
@@ -25,17 +26,17 @@ shrinkBruijn (BAppl t1 t2) = [t1, t2] ++
 shrinkBruijn (BLambda n t) = fastShrink t ++
                              eliminated ++
                              fmap (BLambda n) (shrinkBruijn t)
-    where fastShrink (BVar {}) = []
-          fastShrink _ = [BLambda n (BVar (Bound 0))]
+    where fastShrink (Bound {}) = []
+          fastShrink _ = [BVal (MyDouble 1.0)]
           eliminated = maybeToList $ eliminatedLambda 0 t
 shrinkBruijn _ = []
 
 eliminatedLambda :: Index -> BruijnTerm -> Maybe BruijnTerm
-eliminatedLambda i1 (BVar (Bound i2))
+eliminatedLambda i1 (Bound i2)
     | i1 == i2 = Nothing
-    | i2 > i1 = Just $ BVar $ Bound (i2 - 1)
-    | otherwise = Just $ BVar $ Bound i2
-eliminatedLambda _ (t@BVar {}) = Just t
+    | i2 > i1 = Just $ Bound (i2 - 1)
+    | otherwise = Just $ Bound i2
+eliminatedLambda _ (t@BVal {}) = Just t
 eliminatedLambda i (BLambda n t) = BLambda n <$> eliminatedLambda (i - 1) t
 eliminatedLambda i (BAppl t1 t2) = BAppl <$> eliminatedLambda i t1 <*> eliminatedLambda i t2
 
@@ -67,7 +68,7 @@ arbitraryLambda names s = do
 arbitraryVar :: [Name ] -> Gen LamTerm
 arbitraryVar names = do
   name <- elements names
-  return $ var name
+  return $ Var name
 
 arbitraryAppl :: [Name] -> Int -> Gen LamTerm
 arbitraryAppl names s = do

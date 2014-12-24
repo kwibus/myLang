@@ -1,6 +1,7 @@
 module Vallue where
 
 import Control.Monad.State.Strict
+
 type Stack = [Vallue]
 
 data Type = TDouble
@@ -10,8 +11,6 @@ data Vallue = MyDouble Double
               , name :: String
               , arrity :: Int
               , isinfix :: Bool
-              -- , inputType :: [Type]
-              -- , outputType :: [Type]
               , evaluator :: State Stack Vallue
               , stack :: Stack
               }

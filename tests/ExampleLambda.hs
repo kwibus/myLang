@@ -3,7 +3,7 @@ module ExampleLambda where
 import Lambda
 
 id :: LamTerm
-id = Lambda "a" $ var "a"
+id = Lambda "a" $ Var "a"
 
 s :: LamTerm
-s = Lambda "x" (Lambda "y" (var "x"))
+s = Lambda "x" (Lambda "y" (Var "x"))
