@@ -4,6 +4,7 @@ import Test.Tasty
 import Test.Tasty.QuickCheck
 import ArbitraryQuickcheck ()
 
+import Vallue
 import Lambda
 import BruijnTerm
 
@@ -13,7 +14,7 @@ testArbitrary = testGroup "arbitrary" [testshrink]
 testshrink :: TestTree
 testshrink = testGroup "shrink"
     [testProperty "keep falid shrink BruijnTerm" $
-        \ t -> seq (shrink (t :: BruijnTerm)) True
+        \ t -> seq (shrink (t :: BruijnTerm Vallue )) True
     , testProperty "keep falid LamTerm" $
-        \ t -> seq (shrink (t :: LamTerm)) True
+        \ t -> seq (shrink (t :: LamTerm Vallue Name)) True
     ]

@@ -3,17 +3,17 @@ import Vallue
 
 type Name = String
 
-data LamTerm = Lambda Name LamTerm
-            | Appl LamTerm LamTerm
-            | Var Name
-            | Val Vallue
+data LamTerm v i = Lambda Name (LamTerm v i)
+            | Appl (LamTerm v i) (LamTerm v i)
+            | Var i
+            | Val v
             deriving (Eq, Show)
 
-isinfixLam :: LamTerm -> Bool
+isinfixLam :: LamTerm Vallue i -> Bool
 isinfixLam (Val v) = isinfixVallue v
 isinfixLam _ = False
 
-pShow :: LamTerm -> String
+pShow :: LamTerm Vallue Name -> String
 pShow = go False where
       go _ (Var n) = n
       go _ (Val v) = pShowVal v
@@ -34,5 +34,5 @@ pShow = go False where
       go b (Appl t1@Appl {} t2@Val {}) = go True t1 ++ " " ++ go b t2
       go b (Appl t1@Appl {} t2 ) = go True t1 ++ go b t2
 
-parentheses :: LamTerm -> String
+parentheses :: LamTerm Vallue Name -> String
 parentheses s = "(" ++ pShow s ++ ")"

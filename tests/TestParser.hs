@@ -16,9 +16,9 @@ testParser = testGroup "parser"
      let ididid = "(\\a.a)(\\b.b)\\c.c"
      in (pShow (right (parseString ididid)) @?= ididid)
   , testProperty "parse pShow arbitrary " $
-        \ t -> isRight (parseString (pShow (t :: LamTerm )))
+        \ t -> isRight (parseString (pShow t  ))
   , testProperty "pShow parse = id " $
-        \ t -> (right (parseString (pShow (t :: LamTerm )))) == t
+        \ t -> (right (parseString (pShow t ))) == t
   ]
 
 isRight :: Show a => Either a b -> Bool

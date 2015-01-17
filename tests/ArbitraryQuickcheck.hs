@@ -1,4 +1,5 @@
-{-# OPTIONS_GHC -fno-warn-orphans #-}
+{-# OPTIONS_GHC -fno-warn-orphans  #-}
+{-# LANGUAGE FlexibleInstances #-}
 module ArbitraryQuickcheck
      where
 
@@ -12,35 +13,35 @@ import BruijnTerm
 import Lambda
 import ArbitraryVallue
 
-instance Arbitrary BruijnTerm where
+instance  Arbitrary (BruijnTerm Vallue) where
     arbitrary = fmap lam2Bruijn arbitrary
     shrink = shrinkBruijn
 
-instance Arbitrary LamTerm where
+instance Arbitrary (LamTerm Vallue Name) where
     arbitrary = sized $ arbitraryTerm []
     shrink t = fmap bruijn2Lam $ shrink $ lam2Bruijn t
 
-shrinkBruijn :: BruijnTerm -> [BruijnTerm ]
-shrinkBruijn (BAppl t1 t2) = [t1, t2] ++
-                             [BAppl t1' t2' | (t1', t2') <- shrink (t1, t2)]
-shrinkBruijn (BLambda n t) = fastShrink t ++
+shrinkBruijn :: BruijnTerm Vallue -> [BruijnTerm Vallue ]
+shrinkBruijn (Appl t1 t2) = [t1, t2] ++
+                             [Appl t1' t2' | (t1', t2') <- shrink (t1, t2)]
+shrinkBruijn (Lambda n t) = fastShrink t ++
                              eliminated ++
-                             fmap (BLambda n) (shrinkBruijn t)
-    where fastShrink (Bound {}) = []
-          fastShrink _ = [BVal (MyDouble 1.0)]
+                             fmap (Lambda n) (shrinkBruijn t)
+    where fastShrink (Var {}) = []
+          fastShrink _ = [Val (MyDouble 1.0)]
           eliminated = maybeToList $ eliminatedLambda 0 t
 shrinkBruijn _ = []
 
-eliminatedLambda :: Index -> BruijnTerm -> Maybe BruijnTerm
-eliminatedLambda i1 (Bound i2)
+eliminatedLambda :: Index -> BruijnTerm Vallue -> Maybe (BruijnTerm Vallue)
+eliminatedLambda i1 (Var i2)
     | i1 == i2 = Nothing
-    | i2 > i1 = Just $ Bound (i2 - 1)
-    | otherwise = Just $ Bound i2
-eliminatedLambda _ (t@BVal {}) = Just t
-eliminatedLambda i (BLambda n t) = BLambda n <$> eliminatedLambda (i - 1) t
-eliminatedLambda i (BAppl t1 t2) = BAppl <$> eliminatedLambda i t1 <*> eliminatedLambda i t2
+    | i2 > i1 = Just $ Var (i2 - 1)
+    | otherwise = Just $ Var i2
+eliminatedLambda _ (t@Val {}) = Just t
+eliminatedLambda i (Lambda n t) = Lambda n <$> eliminatedLambda (i - 1) t
+eliminatedLambda i (Appl t1 t2) = Appl <$> eliminatedLambda i t1 <*> eliminatedLambda i t2
 
-arbitraryTerm :: [Name] -> Int -> Gen LamTerm
+arbitraryTerm :: [Name] -> Int -> Gen (LamTerm Vallue Name)
 arbitraryTerm [] 0 = oneof [arbitraryLambda [] 0, arbitraryVallue ]
 arbitraryTerm [] s = oneof [arbitraryLambda [] s, arbitraryAppl [] s ]
 arbitraryTerm n s
@@ -51,7 +52,7 @@ arbitraryTerm n s
                         ]
     | otherwise = arbitraryVar n
 
-arbitraryLambda :: [Name] -> Int -> Gen LamTerm
+arbitraryLambda :: [Name] -> Int -> Gen (LamTerm Vallue Name)
 arbitraryLambda names s = do
   boolNewName <- case names of
         [] -> return True
@@ -65,12 +66,12 @@ arbitraryLambda names s = do
   term <- arbitraryTerm newnames (s - 1)
   return $ Lambda name term
 
-arbitraryVar :: [Name ] -> Gen LamTerm
+arbitraryVar :: [Name ] -> Gen (LamTerm Vallue Name)
 arbitraryVar names = do
   name <- elements names
   return $ Var name
 
-arbitraryAppl :: [Name] -> Int -> Gen LamTerm
+arbitraryAppl :: [Name] -> Int -> Gen (LamTerm Vallue Name )
 arbitraryAppl names s = do
      t1 <- arbitraryTerm names $ s `div` 2
      t2 <- arbitraryTerm names $ s `div` 2
