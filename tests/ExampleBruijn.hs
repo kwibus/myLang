@@ -1,12 +1,14 @@
 module ExampleBruijn where
 
 import BruijnTerm
+import Vallue
+import Lambda
 
-omega :: BruijnTerm
-omega = BLambda "a" $ BAppl (Bound 0) (Bound 0)
+omega :: BruijnTerm Vallue
+omega = Lambda "a" $ Appl (Var 0) (Var 0)
 
-id :: BruijnTerm
-id = BLambda "a" $ Bound 0
+id :: BruijnTerm Vallue
+id = Lambda "a" $ Var 0
 
-s :: BruijnTerm
-s = BLambda "x" (BLambda "y" (Bound 1))
+s :: BruijnTerm Vallue
+s = Lambda "x" (Lambda "y" (Var 1))
