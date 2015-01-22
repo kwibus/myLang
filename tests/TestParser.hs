@@ -1,13 +1,12 @@
 module TestParser (testParser ) where
 
-
 import Test.Tasty
 import Test.Tasty.HUnit
 import Test.Tasty.QuickCheck
 import ArbitraryQuickcheck ()
 
 import Parser
-import Lambda
+import Expresion 
 
 testParser :: TestTree
 testParser = testGroup "parser"
@@ -24,7 +23,6 @@ testParser = testGroup "parser"
 isRight :: Show a => Either a b -> Bool
 isRight (Right _) = True
 isRight (Left a) = error $ show a
-
 
 right :: Show a => Either a b -> b
 right (Right b) = b

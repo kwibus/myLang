@@ -1,5 +1,6 @@
 module Type where
 
-type VarType = Int
-data Type = SimpleType MonoType | Forall VarType Type
-data MonoType = D MonoType | TDouble
+import Lambda
+
+type Type = LamTerm MonoType Int
+data MonoType = TDouble

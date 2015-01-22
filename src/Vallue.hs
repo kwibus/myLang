@@ -1,11 +1,10 @@
 module Vallue where
 
 import Control.Monad.State.Strict
-
 import Type
-
+import Lambda
 type Stack = [Vallue]
-
+-- TODO make every type a build in
 data Vallue = MyDouble Double
     | BuildIn { prettyName :: String
               , name :: String
@@ -15,6 +14,10 @@ data Vallue = MyDouble Double
               , evaluator :: State Stack Vallue
               , stack :: Stack
               }
+-- TODO remove if every type is build in
+vtype :: Vallue -> Type
+vtype MyDouble {} = Val TDouble
+vtype BuildIn {myType = t} = t
 
 isinfixVallue :: Vallue -> Bool
 isinfixVallue v@BuildIn {} = isinfix v

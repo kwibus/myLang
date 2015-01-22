@@ -2,7 +2,7 @@ module Main (main ) where
 
 import ArbitraryQuickcheck ()
 import Test.QuickCheck
-import Lambda
+import Expresion 
 
 main :: IO ()
 main = do

@@ -1,6 +1,6 @@
 module Main
 where
-import Lambda
+import Expresion 
 import Parser
 import BruijnTerm
 import Eval

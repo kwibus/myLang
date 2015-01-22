@@ -22,3 +22,15 @@ bruijn2Lam t = go t 0 IM.empty
         go (Val v) _ _ = Val v
         go (Appl t1 t2 ) depth env = Appl (go t1 depth env) (go t2 depth env)
         go (Lambda n t1) depth env = Lambda n $ go t1 (depth + 1) (IM.insert depth n env)
+
+transform :: Monad m => (LamTerm v1 i1 -> m (LamTerm v2 i2))
+                       -> LamTerm v1 i1
+                       -> m (LamTerm v2 i2)
+transform f (Appl e1 e2) =
+  do e1' <- transform f e1
+     e2' <- transform f e2
+     return $ Appl e1' e2'
+transform f (Lambda n e) =
+  do e' <- transform f e
+     return $ Lambda n e'
+transform f t = f t

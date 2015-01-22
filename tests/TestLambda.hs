@@ -4,6 +4,9 @@ import Test.Tasty
 import Test.Tasty.HUnit
 
 import Lambda
+import Expresion
+
+-- Todo consider rename TestExpresion  or TestPrintExpresion
 
 testLambda :: TestTree
 testLambda = testGroup "Lambda"
