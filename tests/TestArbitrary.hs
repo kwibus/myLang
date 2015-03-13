@@ -38,6 +38,7 @@ testshrink = testGroup "shrink"
     , testProperty "keep falid LamTerm" $
         \ t -> seq (shrink (t :: LamTerm Vallue Name)) True
     ]
+
 -- TODO move to different file
 size :: LamTerm a i -> Int
 size (Lambda _ e ) = (size e) + 1

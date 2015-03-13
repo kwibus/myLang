@@ -2,7 +2,7 @@
 {-# LANGUAGE FlexibleInstances #-}
 module ArbitraryQuickcheck
      where
-import Prelude hiding (all,any)
+import Prelude hiding (all, any)
 import Data.Foldable hiding (toList)
 import Data.Maybe
 import Control.Monad.Logic
@@ -22,7 +22,6 @@ import BruijnTerm
 import Lambda
 import Enviroment
 import Type
-
 
 instance Arbitrary (LamTerm Vallue Name ) where
     arbitrary = fmap bruijn2Lam arbitrary
@@ -52,10 +51,9 @@ eliminatedLambda _ (t@Val {}) = Just t
 eliminatedLambda i (Lambda n t) = Lambda n <$> eliminatedLambda (i - 1) t
 eliminatedLambda i (Appl t1 t2) = Appl <$> eliminatedLambda i t1 <*> eliminatedLambda i t2
 
-myArbitraryTerm :: Int -> Type Free -> Gen(Maybe (BruijnTerm Vallue))
+myArbitraryTerm :: Int -> Type Free -> Gen ( Maybe (BruijnTerm Vallue))
 myArbitraryTerm n t =
     fmap listToMaybe $ observeManyT 1 $ fmap snd $ arbitraryTerm n t [] fEmtyEnv defualtGenState
-
 
 arbitraryTerm :: Int -> Type Free ->[Type Free] -> FreeEnv (Type Free) -> GenState ->
     LogicT Gen (FreeEnv (Type Free), BruijnTerm Vallue)
@@ -64,7 +62,7 @@ arbitraryTerm n t maxlist env s
                        , arbitraryVar t env s
                        ]
     -- shorter and parmiterzerd size
-  | otherwise = if any(\tt -> tSize tt > 10) (map (`apply` env) maxlist) || 10 < tSize (apply t env) 
+  | otherwise = if any(\ tt -> tSize tt > 10) (map (`apply` env) maxlist) || 10 < tSize (apply t env)
         then mzero
         else oneOfLogic [ arbitraryAppl n t maxlist env s
                         , arbitraryLambda n t maxlist env s
@@ -75,7 +73,7 @@ arbitraryVar :: Type Free -> FreeEnv (Type Free) -> GenState ->
 arbitraryVar t env s = do
   (i, (_, f)) <- elementsLogic $ toList $ dictionary s
   (env2 , expr) <- case  (unify t (TVar f )env ) of
-        Right env' -> return ( env' ,Var (Bound ( bruiDepth (dictionary s) - i - 1 )))
+        Right env' -> return ( env', Var (Bound ( bruiDepth (dictionary s) - i - 1 )))
         Left _ -> mzero
   assert ( (bruiDepth (dictionary s) - i - 1 ) >= 0)
    assert (snd (bLookup (Bound (bruiDepth (dictionary s) - i - 1 )) (dictionary s)) == f)
