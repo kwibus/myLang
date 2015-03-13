@@ -27,8 +27,7 @@ pShow = go False where
       go _ (Appl t1@Appl {} t2@Appl {}) = go True t1 ++ parentheses t2
       go True (Appl t1@Appl {} t2@Lambda {}) = go True t1 ++ parentheses t2
       go b (Appl t1@Appl {} t2@Var {}) = go True t1 ++ " " ++ go b t2
-      go b (Appl t1@Appl {} t2@Val {}) = go True t1 ++ " " ++ go b t2
+      go b (Appl t1@Appl {} t2@Val {}) = go True t1 ++ " " ++ go b t2 
       go b (Appl t1@Appl {} t2 ) = go True t1 ++ go b t2
-
 parentheses :: Expresion -> String
 parentheses s = "(" ++ pShow s ++ ")"

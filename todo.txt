@@ -1,0 +1,115 @@
+lookat llvm grin jhc
+
+    typecheck
+    cogen
+    error messages
+    add test
+
+make data type recor (like of as builtin)
+add more data types
+make plus parse same int Double (maybe after typecheck)
+test
+
+todo small
+     refactor:
+        code style imports https://ghc.haskell.org/trac/ghc/wiki/Commentary/CodingStyle
+        code review ( apply, less verbose types, chrink,generate lambda check)
+        change coerce in bound2free
+        commentary
+        check env size no -o- no unreachaable terms
+
+    vallues
+        myDouble buildin
+        thunk type
+
+
+    Test
+        generate untyped lambda
+        generate lambda
+        generate string program "random space"
+        smallcheck -- maybe unneeded with logicT but inefficient
+        test complexity  (libary complexity)
+        test sampling uniformity
+
+todo shortterm
+    save code postion for error message
+    warning
+    case
+    let
+    more vallue types (int bool)
+todo longterm
+
+    Parser
+        storing double as double ?
+        infix
+        user defined infix
+        mixfix
+        bnf specification
+        lrparser
+
+    macro system
+        ifdefs
+        lisp macro
+        compiletime compilation
+        src as argument
+        runtime code change ore generation
+
+    type
+        poly
+        full f
+        linear types : types with only one inhabita at a time,(one world, one console , one opengl context)
+            * main gets world type.
+            * linear type can be produse from a difrent linear type.
+            * static garantie only one type
+            * newtype Io a = World -> (World, a)
+
+        proof properties
+        gadt
+        recodt poly
+        pointer type
+        voide type
+        depdent types
+        sub typping
+        vallue as a type / type computations
+
+    analyse
+        data flow
+        dependency analyse
+        space analyse
+        execution order
+        termination analyse
+
+    codegen
+        cps anf
+        tailcall cps
+        corotines  -- via closure
+        closure via chanign stack pointer
+        stack (cps
+        c compataible
+        calling convention
+        ffi
+        in-line llvm
+
+    philosofie guidlines intendent usecase
+
+    Vallues
+
+        regions
+        gpu (regions)
+        linear vallues
+        superscript (linear different vallue same type)  x_1 same place as  x_2 different value check
+        stream abstract
+        string abstract
+        arrays
+    linking
+        monomorfic
+        install/ ahead of time compliation optimazation
+
+
+    debug mode
+    cps
+    supercompilation
+
+
+
+    while :: (a -> Bool ) (a-> a) -> a

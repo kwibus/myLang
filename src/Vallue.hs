@@ -2,7 +2,9 @@ module Vallue where
 
 import Control.Monad.State.Strict
 import Type
-import Lambda
+import Data.Coerce
+import Enviroment
+
 type Stack = [Vallue]
 -- TODO make every type a build in
 data Vallue = MyDouble Double
@@ -10,14 +12,17 @@ data Vallue = MyDouble Double
               , name :: String
               , arrity :: Int
               , isinfix :: Bool
-              , myType :: Type
+              , myType :: Type Bound
               , evaluator :: State Stack Vallue
               , stack :: Stack
               }
 -- TODO remove if every type is build in
-vtype :: Vallue -> Type
-vtype MyDouble {} = Val TDouble
-vtype BuildIn {myType = t} = t
+btype :: Vallue -> Type Bound
+btype MyDouble {} = TVal TDouble
+btype BuildIn {myType = t} = t
+
+ftype :: Vallue -> Type Free
+ftype = coerce . btype
 
 isinfixVallue :: Vallue -> Bool
 isinfixVallue v@BuildIn {} = isinfix v

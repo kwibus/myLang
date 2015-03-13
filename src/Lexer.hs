@@ -17,7 +17,7 @@ identifier = do
 
 symbol :: Char -> Parser ()
 symbol c = do
-    s <- char c
+    _ <- char c
     spaces
 
 double :: Parser Double

@@ -1,20 +1,38 @@
 module ArbitraryVallue where
 
+
+import Control.Monad.Logic
 import Test.QuickCheck
 
 import Vallue
 import Opperator
 import Lambda
+import GenState
+import Enviroment
+import Type
+import BruijnTerm
 
-arbitraryVallue :: Gen (LamTerm Vallue Name)
-arbitraryVallue = oneof [arbitraryMyDouble, arbitraryBuildIn ]
+import TypeCheck
+import Logic
 
-arbitraryBuildIn :: Gen (LamTerm Vallue Name)
-arbitraryBuildIn = do
-    operator <- elements operators
-    a <- arbitraryMyDouble
-    b <- arbitraryMyDouble
-    return $ Appl (Appl (Val operator) a ) b
+arbitraryVallue :: Type Free -> FreeEnv (Type Free) -> GenState ->
+                    LogicT Gen (FreeEnv (Type Free), BruijnTerm Vallue)
+arbitraryVallue t env _ = oneOfLogic [arbitraryMyDouble t env
+                                     ,arbitraryBuildIn t env
+                                     ]
 
-arbitraryMyDouble :: Gen (LamTerm Vallue Name)
-arbitraryMyDouble = fmap (Val . MyDouble) arbitrary
+arbitraryBuildIn ::Type Free -> FreeEnv (Type Free)-> LogicT Gen (FreeEnv (Type Free),BruijnTerm Vallue)
+arbitraryBuildIn t env = do
+    operator <- elementsLogic operators
+    case unify t (ftype operator) env of
+        Left {} -> mzero
+        Right env1 -> return (env1,Val operator) 
+      
+arbitraryMyDouble ::Type Free ->  FreeEnv (Type Free) -> LogicT Gen (FreeEnv (Type Free),BruijnTerm Vallue )
+arbitraryMyDouble t env= do
+  let u = unify t (TVal TDouble) env
+  case u of
+    Left {} -> mzero
+    Right env1 -> do
+      d <- lift arbitrary 
+      return (env1,Val (MyDouble d ))

@@ -5,7 +5,8 @@ import Test.Tasty.HUnit
 
 import Lambda
 import Expresion
-
+import Opperator
+import Vallue
 -- Todo consider rename TestExpresion  or TestPrintExpresion
 
 testLambda :: TestTree
@@ -20,4 +21,10 @@ testLambda = testGroup "Lambda"
       pShow ( Lambda "x" (Appl (Var "m") (Var "n"))) @?= "\\x.m n"
   , testCase "apply lambda  " $
       pShow (Appl ( Lambda "x" (Var "m")) (Var "n")) @?= "(\\x.m)n"
+  , testCase "+"$
+     pShow (Val plus ) @?= "+"
+  , testCase "1 + "$
+     pShow (Appl (Val plus) (Val (MyDouble 1.0))) @?= "1.0 +"
+  , testCase "\\a.1 + "$
+     pShow (Lambda "a" (Appl (Val plus) (Val (MyDouble 1.0)))) @?= "\\a.1.0 +"
   ]
