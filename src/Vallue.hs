@@ -2,7 +2,6 @@ module Vallue where
 
 import Control.Monad.State.Strict
 import Type
-import Data.Coerce
 import Enviroment
 
 data Fixity = PreFix | InFix Precedence Associativity
@@ -26,7 +25,7 @@ btype MyDouble {} = TVal TDouble
 btype BuildIn {myType = t} = t
 
 ftype :: Vallue -> Type Free
-ftype = coerce . btype
+ftype = bound2Free . btype
 
 isInfixVallue :: Vallue -> Bool
 isInfixVallue BuildIn {fixity = InFix {} } = True

@@ -8,7 +8,6 @@ import Data.Foldable
 newtype Bound = Bound Int deriving (Eq, Show)
 newtype Free = Free Int deriving (Eq, Show)
 
-
 data BruiEnv a = BruiState
      { bruiDepth :: Int
      , bruiMap :: IM.IntMap a

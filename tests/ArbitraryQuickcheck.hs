@@ -116,7 +116,7 @@ arbitraryLambda size t maxlist env (state@State { dictionary = dic}) = do
       let newnewstate = newState { dictionary = newdic}
       (newEnv, expr) <- arbitraryTerm (size - 1) (TVar var2 ) maxlist env4 newnewstate
       assert (check expr (TVar var2) newEnv (fmap snd newdic))
-       assert (check (Lambda n expr) t newEnv (fmap snd dic )) -- explain
+       assert (check (Lambda n expr) t newEnv (fmap snd dic ))
        return $ (newEnv, Lambda n expr)
 
 check :: BruijnTerm Vallue -> Type Free -> FreeEnv (Type Free) ->

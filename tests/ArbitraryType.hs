@@ -7,12 +7,10 @@ import Test.QuickCheck
 import Type
 import Enviroment
 
-import Data.Coerce
-
 instance Arbitrary (Type Bound ) where
     arbitrary = sized $ arbitraryType
 instance Arbitrary (Type Free) where
-    arbitrary = fmap coerce (arbitrary :: Gen (Type Bound) )
+    arbitrary = fmap bound2Free (arbitrary :: Gen (Type Bound) )
 
 -- TODO Beter Arbitrary type  possible ?
 arbitraryType :: Int -> Gen (Type Bound)

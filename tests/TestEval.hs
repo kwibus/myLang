@@ -20,6 +20,8 @@ import TestUtils
 import ArbitraryQuickcheck ()
 import Enviroment
 
+import Type(bound2Free)
+
 testEval :: TestTree
 testEval = testGroup "eval"
   [ testCase "eval id(id(\\z.id z))=id(\\z.id z)" $
@@ -65,5 +67,5 @@ testEval = testGroup "eval"
                Just expr2 -> isRight $ do 
                     t1 <- solver expr2 
                     t2 <- solver e
-                    return $ unifys (coerce t1) (coerce t2) fEmtyEnv
+                    return $ unifys (bound2Free t1) (bound2Free t2) fEmtyEnv
   ]

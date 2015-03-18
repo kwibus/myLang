@@ -12,7 +12,6 @@ import Type
 import TypeCheck
 import TestUtils
 import Enviroment
-import Data.Coerce
 
 testArbitrary :: TestTree
 testArbitrary = testGroup "arbitrary" [testshrink]
@@ -29,7 +28,7 @@ testshrink = testGroup "shrink"
     , testProperty "corect type" $
             (\ n -> forAll ( myArbitraryTerm n (TVal TDouble ))
                 (\ e -> isJust e ==> case solver (fromJust e) of
-                    (Right t) -> unifys (coerce t) (TVal TDouble ) fEmtyEnv
+                    (Right t) -> unifys (bound2Free t) (TVal TDouble ) fEmtyEnv
                     _ -> False
                 )
             )

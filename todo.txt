@@ -13,9 +13,8 @@ test
 todo small
      refactor:
         code style imports https://ghc.haskell.org/trac/ghc/wiki/Commentary/CodingStyle
-        code review ( apply, less verbose types, chrink,generate lambda check)
+        code review ( apply, less verbose types, chrink,generate lambda check, correct new var name gen arbi)
         rename Test.. ..Test
-        change coerce in bound2free
         commentary
         rename val const ?
         uniplate option ?

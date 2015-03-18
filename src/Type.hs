@@ -1,8 +1,12 @@
 module Type where
 
-
+import Data.Coerce
 import Enviroment
 import Control.Monad.State
+
+-- TODO move location
+bound2Free :: Type Bound -> Type Free
+bound2Free = coerce
 
 data MonoType = TDouble deriving (Eq, Show)
 data Type i = TVal MonoType
