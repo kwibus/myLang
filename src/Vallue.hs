@@ -5,13 +5,17 @@ import Type
 import Data.Coerce
 import Enviroment
 
+data Fixity = PreFix | InFix Precedence Associativity
+type Precedence = Int
+data Associativity = AssoRight | AssoLeft
+
 type Stack = [Vallue]
 -- TODO make every type a build in
 data Vallue = MyDouble Double
     | BuildIn { prettyName :: String
               , name :: String
               , arrity :: Int
-              , isinfix :: Bool
+              , fixity :: Fixity
               , myType :: Type Bound
               , evaluator :: State Stack Vallue
               , stack :: Stack
@@ -24,9 +28,9 @@ btype BuildIn {myType = t} = t
 ftype :: Vallue -> Type Free
 ftype = coerce . btype
 
-isinfixVallue :: Vallue -> Bool
-isinfixVallue v@BuildIn {} = isinfix v
-isinfixVallue _ = False
+isInfixVallue :: Vallue -> Bool
+isInfixVallue BuildIn {fixity = InFix {} } = True
+isInfixVallue _ = False
 
 pShowVal :: Vallue -> String
 pShowVal (MyDouble a) = show a

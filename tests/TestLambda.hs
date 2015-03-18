@@ -21,10 +21,13 @@ testLambda = testGroup "Lambda"
       pShow ( Lambda "x" (Appl (Var "m") (Var "n"))) @?= "\\x.m n"
   , testCase "apply lambda  " $
       pShow (Appl ( Lambda "x" (Var "m")) (Var "n")) @?= "(\\x.m)n"
-  , testCase "+"$
+  , testCase "+" $
      pShow (Val plus ) @?= "+"
-  , testCase "1 + "$
+  , testCase "1 + " $
      pShow (Appl (Val plus) (Val (MyDouble 1.0))) @?= "1.0 +"
-  , testCase "\\a.1 + "$
+  , testCase "\\a.1.0+ " $
      pShow (Lambda "a" (Appl (Val plus) (Val (MyDouble 1.0)))) @?= "\\a.1.0 +"
+  , testCase "\\a.a(+)(*) " $
+        pShow (Lambda "a" (Appl (Appl (Var "a") (Val plus)) (Val multiply)))
+        @?= "\\a.a(+)(*)"
   ]

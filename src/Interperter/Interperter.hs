@@ -20,6 +20,6 @@ main = runInputT defaultSettings loop
 
 readEvalPrint :: String -> InputT IO ()
 readEvalPrint input = case parseString input of
-    Right ast -> outputStrLn $ pShow $ bruijn2Lam $ fullEval $ lam2Bruijn ast
+    Right ast -> outputStrLn $ show $ bruijn2Lam $  lam2Bruijn ast
     Left e -> outputStrLn $ show e
 

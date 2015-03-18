@@ -43,7 +43,7 @@ substitute t1 (Bound i1) (Lambda n t2) = Lambda n $
 substitute t i (Appl t1 t2) = Appl (substitute t i t1) (substitute t i t2)
 substitute _ _ t2 = t2
 
-isvalue :: BruijnTerm Vallue -> Bool
+isvalue :: LamTerm Vallue n -> Bool
 isvalue Var {} = True
 isvalue Val {} = True
 isvalue Appl {} = False

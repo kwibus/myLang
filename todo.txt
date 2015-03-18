@@ -14,13 +14,17 @@ todo small
      refactor:
         code style imports https://ghc.haskell.org/trac/ghc/wiki/Commentary/CodingStyle
         code review ( apply, less verbose types, chrink,generate lambda check)
+        rename Test.. ..Test
         change coerce in bound2free
         commentary
+        rename val const ?
+        uniplate option ?
+        speed up arbitrary
         check env size no -o- no unreachaable terms
 
     vallues
         myDouble buildin
-        thunk type
+        thunk type -- (this has to change thunk should life in a enviroment not on a stack, src langue does not contain thunks and ts faster)
 
 
     Test
