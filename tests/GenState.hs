@@ -13,7 +13,6 @@ letters :: [String]
 letters = [1 ..] >>= flip replicateM ['a' .. 'z']
 
 defualtGenState :: GenState
-defualtGenState = State { -- names = []
-                        dictionary = bEmtyEnv
+defualtGenState = State { dictionary = bEmtyEnv
                         , freeNames = letters
                         }

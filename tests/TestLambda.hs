@@ -3,31 +3,31 @@ module TestLambda (testLambda) where
 import Test.Tasty
 import Test.Tasty.HUnit
 
-import Lambda
 import Expresion
 import Opperator
-import Vallue
+import MakeTerm
+
 -- Todo consider rename TestExpresion  or TestPrintExpresion
 
 testLambda :: TestTree
 testLambda = testGroup "Lambda"
   [ testCase "drop outer parentheses" $
-      pShow (Appl (Var "a") (Var "b")) @?= "a b"
+      pShow (appl (var "a") (var "b")) @?= "a b"
   , testCase "left associative" $
-      pShow (Appl (Appl (Var "a") (Var "b")) (Var "c")) @?= "a b c"
+      pShow (appl (appl (var "a") (var "b")) (var "c")) @?= "a b c"
   , testCase "not right associative" $
-      pShow (Appl (Var "a") (Appl (Var "b") (Var "c"))) @?= "a(b c)"
+      pShow (appl (var "a") (appl (var "b") (var "c"))) @?= "a(b c)"
   , testCase " body of an abstraction extends as far right as possible" $
-      pShow ( Lambda "x" (Appl (Var "m") (Var "n"))) @?= "\\x.m n"
+      pShow ( lambda "x" (appl (var "m") (var "n"))) @?= "\\x.m n"
   , testCase "apply lambda  " $
-      pShow (Appl ( Lambda "x" (Var "m")) (Var "n")) @?= "(\\x.m)n"
+      pShow (appl ( lambda "x" (var "m")) (var "n")) @?= "(\\x.m)n"
   , testCase "+" $
-     pShow (Val plus ) @?= "+"
+     pShow (val plus ) @?= "+"
   , testCase "1 + " $
-     pShow (Appl (Val plus) (Val (MyDouble 1.0))) @?= "1.0 +"
+     pShow (appl (val plus) (double 1.0)) @?= "1.0 +"
   , testCase "\\a.1.0+ " $
-     pShow (Lambda "a" (Appl (Val plus) (Val (MyDouble 1.0)))) @?= "\\a.1.0 +"
+     pShow (lambda "a" (appl (val plus) (double 1.0))) @?= "\\a.1.0 +"
   , testCase "\\a.a(+)(*) " $
-        pShow (Lambda "a" (Appl (Appl (Var "a") (Val plus)) (Val multiply)))
+        pShow (lambda "a" (appl (appl (var "a") (val plus)) (val multiply)))
         @?= "\\a.a(+)(*)"
   ]

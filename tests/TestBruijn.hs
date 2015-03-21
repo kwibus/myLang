@@ -9,8 +9,7 @@ import qualified ExampleLambda as L
 import BruijnTerm
 import ArbitraryQuickcheck ()
 
-import Lambda
-import Vallue
+import Expresion
 
 testBruijn :: TestTree
 testBruijn = testGroup "bruijn index"
@@ -23,5 +22,5 @@ testBruijn = testGroup "bruijn index"
   , testCase "test S combinator from bruijn S=\\\\1" $
       bruijn2Lam B.s @?= L.s
   , testProperty "inverse test" $
-      \ t -> bruijn2Lam (lam2Bruijn t) == (t:: LamTerm Vallue Name)
+      \ t -> bruijn2Lam (lam2Bruijn t) == (t :: Expresion)
   ]

@@ -12,6 +12,7 @@ import Type
 import TypeCheck
 import TestUtils
 import Enviroment
+import Expresion
 
 testArbitrary :: TestTree
 testArbitrary = testGroup "arbitrary" [testshrink]
@@ -35,7 +36,7 @@ testshrink = testGroup "shrink"
     , testProperty "keep falid shrink BruijnTerm" $
         \ t -> seq (shrink (t :: BruijnTerm Vallue )) True
     , testProperty "keep falid LamTerm" $
-        \ t -> seq (shrink (t :: LamTerm Vallue Name)) True
+        \ t -> seq (shrink (t :: Expresion)) True
     ]
 
 -- TODO move to different file

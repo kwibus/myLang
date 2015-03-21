@@ -11,50 +11,26 @@ import Data.Either
 import Data.Maybe
 
 import Eval
-import Vallue
 import TypeCheck
 import BruijnTerm
-import Lambda
 import qualified ExampleBruijn as B
 import TestUtils
 import ArbitraryQuickcheck ()
 import Enviroment
-
+import MakeTerm
 import Type(bound2Free)
 
 testEval :: TestTree
 testEval = testGroup "eval"
   [ testCase "eval id(id(\\z.id z))=id(\\z.id z)" $
-      eval (Appl B.id ( Appl B.id (Lambda "z" (Appl B.id (Var(Bound 0)))))) @?=
-         Just ( Appl B.id ( Lambda "z" (Appl B.id (Var(Bound 0)))))
+      eval (appl B.id ( appl B.id (lambda "z" (appl B.id (bvar 0))))) @?=
+         Just ( appl B.id ( lambda "z" (appl B.id (bvar 0))))
   , testCase "omega omega" $
-      eval (Appl B.omega B.omega) @?= Just (Appl B.omega B.omega)
+      eval (appl B.omega B.omega) @?= Just (appl B.omega B.omega)
   , testCase "eval id id = Just id" $
-       eval (Appl B.id B.id) @?= Just B.id
+       eval (appl B.id B.id) @?= Just B.id
   , testCase "call by vallu termination" $
-      eval (Lambda "z" (Appl B.id (Var( Bound 1) ))) @?= Nothing
-  , testCase "eval long expresion" $
-    eval (Appl
-            (Lambda "n" (Appl
-                (Lambda "d" (Lambda "y" (Var (Bound 2))))
-                (Lambda "a" (Appl
-                    (Appl
-                        (Var (Bound 1))
-                        (Appl
-                              (Lambda "c" (Val (MyDouble ( 12.211578327506952))))
-                              (Lambda "g" (Val (MyDouble ( 19.667726379140998))))))
-                    (Var (Bound 0))))))
-            (Lambda "i" (Lambda "o" (Lambda "k" (Var (Bound 2))))))
-    @?=
-    return (Appl
-        (Lambda "d" (Lambda "y" (Lambda "i" (Lambda "o" (Lambda "k" (Var (Bound 2)))))))
-        (Lambda "a" (Appl
-            (Appl
-                (Lambda "i" (Lambda "o" (Lambda "k" (Var (Bound 2)))))
-                (Appl
-                    (Lambda "c" (Val (MyDouble ( 12.211578327506952))))
-                    (Lambda "g" (Val (MyDouble ( 19.667726379140998))))))
-            (Var (Bound 0)))))
+      eval (lambda "z" (appl B.id (bvar 1))) @?= Nothing
   , testProperty "welformd presevation eval" $
       \ t -> let result = fmap welFormd $ eval t
             in  isNothing result || fromJust result
