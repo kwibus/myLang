@@ -16,6 +16,7 @@ import Enviroment
 import ArbitraryType ()
 import TestUtils
 import ArbitraryQuickcheck ()
+import TypeError 
 
 testTypeChecker :: TestTree
 testTypeChecker = testGroup "typeChecker"
@@ -107,7 +108,7 @@ testSolver = testGroup "Solver"
                     (bvar 0)
                 ))
         @?=
-        throwError "infintType"
+        throwError ( Infinit undefined undefined)
 
    , testCase "check (\\a.a (a 1.0))" $
         solver (lambda "a" (appl

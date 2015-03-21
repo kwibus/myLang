@@ -15,6 +15,7 @@ import Lambda
 import Type
 import BruijnTerm
 import Enviroment
+import TypeError
 
 close :: Type Free -> Type Bound
 close t = fst3 $ go t fEmtyEnv 0
@@ -29,11 +30,11 @@ close t = fst3 $ go t fEmtyEnv 0
 fst3 :: (a, b, c) -> a
 fst3 (a, _, _) = a
 
-solver :: BruijnTerm i -> Either String (Type Bound)
+solver :: BruijnTerm i -> Either (TypeError i )(Type Bound)
 solver e = fmap ( close . uncurry apply ) $ solveWith e fEmtyEnv bEmtyEnv
 
 solveWith :: BruijnTerm i -> FreeEnv (Type Free ) -> BruiEnv Free ->
-    Either String (Type Free, FreeEnv (Type Free))
+    Either (TypeError i) (Type Free, FreeEnv (Type Free))
 solveWith (Lambda _ _ e2) env dic = do
     let (env1, k) = newFreeVar env
     let (dic1, _) = bInsert k dic
@@ -48,12 +49,12 @@ solveWith (Appl _ e1 e2) env dic = do
     return (apply (TVar var) env4 , env4)
 
 solveWith (Val _ v) env _ = return (ftype v, env)
-solveWith (Var _ i) env dic = if bMember i dic
-        then return (apply ( TVar (bLookup i dic)) env, env)
-        else throwError "fuck"
+solveWith (Var i n) env dic = if bMember n dic
+        then return (apply ( TVar (bLookup n dic)) env, env)
+        else throwError $ UndefinedVar i
 
 unify :: (Type Free) -> (Type Free) -> FreeEnv (Type Free) ->
-    Either String (FreeEnv (Type Free)) -- retunr type
+    Either (TypeError i) (FreeEnv (Type Free)) -- retunr type
 unify (TVar i) t env = bind i t env
 unify t (TVar i) env = bind i t env
 -- unify (Lambda _ t1 ) t2 env = unify t1 t2 env  -- for full F
@@ -64,10 +65,10 @@ unify (TAppl t11 t12 ) (TAppl t21 t22) env =
      return (env3)
 unify (TVal v1) (TVal v2) env = if (v1 == v2)
     then return env
-    else throwError "error"
-unify t1 t2 env = throwError $
-    show "unify t1 :: " ++ show t1 ++ " t2 ::" ++ show t2 ++ " env\n"
-         ++ show env ++ "\n"
+    else throwError VarVar 
+unify t1 t2 env = throwError $ Unify t1 t2
+   
+  
 
 -- TODO remove either
 apply :: Type Free -> FreeEnv (Type Free) -> Type Free
@@ -81,11 +82,11 @@ apply (TAppl t1 t2) env =
 apply t _ = t
 
 bind :: Free -> Type Free -> FreeEnv (Type Free) ->
-     Either String (FreeEnv (Type Free))
+     Either (TypeError i )(FreeEnv (Type Free))
 bind i1 t1 env
     | TVar i1 == t1 = return env
     | fMember i1 env = unify (fLookup i1 env) t1 env
-    | infinit i1 t1 env = throwError $ "infintType"
+    | infinit i1 t1 env = throwError $ Infinit i1 t1
     | otherwise = case t1 of
         TVar i2 -> if fMember i2 env
                         then unify (TVar i1 ) (fLookup i2 env) env

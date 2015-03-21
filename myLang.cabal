@@ -72,6 +72,8 @@ library
                       ,Enviroment
                       ,InfixFix
                       ,Info
+                      ,TypeError
+                    
   default-language:    Haskell2010
 
 test-suite tests
