@@ -7,6 +7,7 @@ import Control.Monad.Error
 -- import Control.Monad.Except
 
 import qualified ExampleBruijn as B
+import BruijnTerm
 import TypeCheck
 import MakeTerm
 import Type
@@ -147,10 +148,11 @@ testSolver = testGroup "Solver"
                              (TVar (Bound 0)))
                 )
     , testProperty "idempotence" $
-        \ e -> case solveWith e fEmtyEnv bEmtyEnv of
+        \ e -> case solveWith (e :: BruijnTerm ()) fEmtyEnv bEmtyEnv of
                 Left _ -> False
                 Right (t1, env1) -> case solveWith e env1 bEmtyEnv of
                     Left _ -> False
                     Right (t2, _) -> close t1 == close t2 -- && env1 == env2
-    , testProperty "typeable" $ isRight . solver
+    , testProperty "typeable" $
+        \ e -> isRight $ solver (e :: BruijnTerm () )
     ]

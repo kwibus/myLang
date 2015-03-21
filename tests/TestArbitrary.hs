@@ -5,14 +5,12 @@ import Test.Tasty.QuickCheck
 import ArbitraryQuickcheck (myArbitraryTerm)
 import Data.Maybe
 
-import Vallue
 import Lambda
 import BruijnTerm
 import Type
 import TypeCheck
 import TestUtils
 import Enviroment
-import Expresion
 
 testArbitrary :: TestTree
 testArbitrary = testGroup "arbitrary" [testshrink]
@@ -20,10 +18,10 @@ testArbitrary = testGroup "arbitrary" [testshrink]
 testshrink :: TestTree
 testshrink = testGroup "shrink"
     [testProperty "all normalised" $
-       welFormd
+       \ e -> welFormd (e :: BruijnTerm () )
     , testProperty "corect size" $
        forAll (suchThat (arbitrary :: Gen Int) (> 1)) (\ n ->
-            (forAll (resize n (arbitrary :: Gen (BruijnTerm Vallue) ))
+            (forAll (resize n (arbitrary :: Gen (BruijnTerm ()) ))
                  (\ t -> size t == n)))
 
     , testProperty "corect type" $
@@ -34,14 +32,14 @@ testshrink = testGroup "shrink"
                 )
             )
     , testProperty "keep falid shrink BruijnTerm" $
-        \ t -> seq (shrink (t :: BruijnTerm Vallue )) True
+        \ t -> seq (shrink (t :: BruijnTerm ())) True
     , testProperty "keep falid LamTerm" $
-        \ t -> seq (shrink (t :: Expresion)) True
+        \ t -> seq (shrink (t :: LamTerm () Name)) True
     ]
 
 -- TODO move to different file
 size :: LamTerm a i -> Int
-size (Lambda _ e ) = (size e) + 1
-size (Appl e1 e2) = size e1 + size e2
+size (Lambda _ _ e ) = (size e) + 1
+size (Appl _ e1 e2) = size e1 + size e2
 size Val {} = 1
 size Var {} = 1

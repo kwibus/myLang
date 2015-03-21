@@ -1,11 +1,10 @@
 module ExampleLambda where
 
-import Vallue
 import Lambda
 import MakeTerm
 
-id :: LamTerm Vallue Name
+id :: LamTerm () Name
 id = lambda "a" $ var "a"
 
-s :: LamTerm Vallue Name
+s :: LamTerm () Name
 s = lambda "x" (lambda "y" (var "x"))

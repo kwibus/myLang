@@ -5,59 +5,69 @@ import Text.Parsec
 import Text.Parsec.String
 
 import InfixFix
-import Vallue 
-import Lambda 
+import Expresion
+import Vallue
+import Lambda
 import Lexer
-import Opperator 
+import Opperator
+import Info
 
-pLambda :: Parser (LamTerm Vallue Name)
+pLambda :: Parser Expresion
 pLambda = do
     symbol '\\'
-    name <-identifier
+    i <- getPosition
+    n <- identifier
     symbol '.'
     term <- pLambdaTerm
-    return $ Lambda name term
+    return $ Lambda i n term
 
-pApplication :: Parser (LamTerm Vallue Name)
+pApplication :: Parser Expresion
 pApplication = do
     terms <- many pLambdaTerm'
-    return $ foldl1 Appl $ fixInfix terms
+    return $ foldl1 (\e1 e2 -> Appl (getposition e1) e1 e2 )$ fixInfix terms
 
-pVallue::  Parser (LamTerm Vallue Name) 
-pVallue = fmap Val $choice [fmap MyDouble double]
+pVallue::  Parser Expresion
+pVallue = do i <- getPosition 
+             v <- choice [fmap MyDouble double]
+             return $ Val i v
 
-pLambdaTerm' :: Parser (LamTerm Vallue Name,Bool)
-pLambdaTerm' = choice parsers 
+pLambdaTerm' :: Parser (Expresion,Bool)
+pLambdaTerm' = choice parsers
     where parsers =  operator : fmap (fmap (\p-> (p,False)))  [pLambda , pVar, pParentheses,pVallue]
 
-pLambdaTerm :: Parser (LamTerm Vallue Name)
+pLambdaTerm :: Parser Expresion
 pLambdaTerm =  pApplication
 
-pVar :: Parser (LamTerm Vallue Name)
-pVar = fmap Var  identifier 
+pVar :: Parser Expresion
+pVar = do i <- getPosition
+          n <- identifier
+          return $ Var i n
 
-pLine :: Parser (LamTerm Vallue Name)
+pLine :: Parser Expresion
 pLine = do
     spaces
     term <- pLambdaTerm
     eof
     return term
 
-operator :: Parser (LamTerm Vallue Name,Bool)
-operator = fmap (\o->(Val o, True))$choice  [pPlus,pMultiply ]
+operator :: Parser (Expresion, Bool)
+operator = do 
+    i <- getPosition 
+    o <- choice  [pPlus,pMultiply ]
+    return $(Val i o, True)
 
-pPlus:: Parser Vallue 
+pPlus:: Parser Vallue
 pPlus = symbol '+' >>  return plus
 
-pMultiply :: Parser Vallue 
+pMultiply :: Parser Vallue
 pMultiply = symbol '*' >>  return multiply
 
-pParentheses :: Parser (LamTerm Vallue Name)
+pParentheses :: Parser Expresion
 pParentheses = do
     symbol '('
     term <- pLambdaTerm
     symbol ')'
     return term
 
-parseString :: String -> Either ParseError (LamTerm Vallue Name)
+parseString :: String -> Either ParseError Expresion
 parseString = parse pLine ""

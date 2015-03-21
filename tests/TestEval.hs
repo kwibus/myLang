@@ -1,7 +1,5 @@
 module TestEval (testEval
-)where
-
-import Data.Coerce
+) where
 
 import Test.Tasty
 import Test.Tasty.HUnit
@@ -18,7 +16,7 @@ import TestUtils
 import ArbitraryQuickcheck ()
 import Enviroment
 import MakeTerm
-import Type(bound2Free)
+import Type (bound2Free)
 
 testEval :: TestTree
 testEval = testGroup "eval"
@@ -32,16 +30,16 @@ testEval = testGroup "eval"
   , testCase "call by vallu termination" $
       eval (lambda "z" (appl B.id (bvar 1))) @?= Nothing
   , testProperty "welformd presevation eval" $
-      \ t -> let result = fmap welFormd $ eval t
-            in  isNothing result || fromJust result
+      \ t -> let result = fmap welFormd $ eval (t :: BruijnTerm ())
+            in isNothing result || fromJust result
   , testProperty "keep normalisation under eval" $
-      \ t -> fmap (lam2Bruijn . bruijn2Lam ) (eval t) == eval t
+      \ t -> fmap (lam2Bruijn . bruijn2Lam ) (eval t) == eval (t :: BruijnTerm ())
   , testProperty "keep type under eval" $
-      \ e -> let result = eval e 
+      \ e -> let result = eval (e :: BruijnTerm ())
             in isJust result ==> case eval e of
                Nothing -> True
-               Just expr2 -> isRight $ do 
-                    t1 <- solver expr2 
+               Just expr2 -> isRight $ do
+                    t1 <- solver expr2
                     t2 <- solver e
                     return $ unifys (bound2Free t1) (bound2Free t2) fEmtyEnv
   ]

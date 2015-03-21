@@ -6,11 +6,18 @@ import Test.Tasty.QuickCheck
 import ArbitraryQuickcheck ()
 import Data.Either
 
+import Lambda
 import Opperator
 import Parser
-import Expresion 
+import Expresion
 import MakeTerm
+import Info
 import qualified ExampleLambda as L
+
+import Text.Parsec.Error
+instance Eq ParseError where
+   (==) a b = show a == show b
+
 testParser :: TestTree
 testParser = testGroup "parser"
   [
@@ -18,58 +25,57 @@ testParser = testGroup "parser"
      let ididid = "(\\a.a)(\\b.b)\\c.c"
      in (pShow (right (parseString ididid)) @?= ididid)
   , testCase "+" $
-     right (parseString "+") @?= (val plus)
-
+     fmap removeInfo (parseString "+") @?= return (val plus)
   , testCase "1 +" $
-     right (parseString "1.0 +")
-     @?= 
-     (appl (val plus) (double 1))
-  , testCase "+ 1" $
-     right (parseString "+ 1.0")
-     @?= 
-     (appl(lambda "#"(appl (val plus)( var "#") ))(double 1))
-  , testCase "1 + 2" $
-     right (parseString "1.0 + 2.0")
-     @?= 
-     appl (appl (val plus) (double 1)) (double 2)
-  , testCase "1 * 2 + 3" $
-     right (parseString "1.0 * 2.0 + 3.0")
+     fmap removeInfo (parseString "1.0 +")
      @?=
-     appl (appl (val plus)
+     return (appl (val plus) (double 1))
+  , testCase "+ 1" $
+     fmap removeInfo (parseString "+ 1.0")
+     @?=
+     return (appl(lambda "#"(appl (val plus)( var "#") ))(double 1))
+  , testCase "1 + 2" $
+     fmap removeInfo (parseString "1.0 + 2.0")
+     @?=
+     return (appl (appl (val plus) (double 1)) (double 2))
+  , testCase "1 * 2 + 3" $
+     fmap removeInfo (parseString "1.0 * 2.0 + 3.0")
+     @?=
+     return( appl (appl (val plus)
                 (appl (appl (val multiply) (double 1.0)) (double 2.0)))
-          (double  3.0) 
+          (double  3.0))
   , testCase "1 + 2 * 3" $
-     right (parseString "1.0 + 2.0 *3.0")
-     @?= 
-     (appl (appl (val plus) (double 1)) 
-           (appl (appl 
+     fmap removeInfo(parseString "1.0 + 2.0 *3.0")
+     @?=
+     return (appl (appl (val plus) (double 1))
+           (appl (appl
                       (val multiply )
                       (double 2 ))
                  (double 3)))
   , testCase "1 * 2 + 3 * 4 " $
-     right (parseString "1.0 * 2.0 + 3.0 * 4.0"  )
+     fmap removeInfo (parseString "1.0 * 2.0 + 3.0 * 4.0"  )
      @?=
-     appl (appl (val plus)
+     return ( appl (appl (val plus)
                 (appl (appl (val multiply) (double 1.0)) (double  2.0)))
-                (appl (appl (val multiply) (double 3.0)) (double  4.0))
+                (appl (appl (val multiply) (double 3.0)) (double  4.0)))
 
   , testCase "*\\a.a" $
-     right (parseString "*\\a.a"  )
+     fmap removeInfo (parseString "*\\a.a"  )
      @?=
-     (appl (lambda "#" $ appl (val multiply)( var "#" )) L.id )
+     return (appl (lambda "#" $ appl (val multiply)( var "#" )) L.id )
 
   , testCase "(\\a.a)(*)" $
-     right (parseString "(\\a.a)(*)"  )
+     fmap removeInfo(parseString "(\\a.a)(*)"  )
      @?=
-     ( appl  L.id (val multiply))
+     return ( appl  L.id (val multiply))
   , testCase "(\\a.a)*" $
-     right (parseString "(\\a.a)*"  )
+     fmap removeInfo (parseString "(\\a.a)*"  )
      @?=
-     ( appl  (val multiply) L.id )
+     return( appl  (val multiply) L.id )
   , testProperty "parse pShow arbitrary " $
-        \ t -> isRight (parseString (pShow t  ))
+        \ t -> isRight (parseString (pShow (t:: LamTerm () Name  )))
   , testProperty "pShow parse = id " $
-        \ t -> (right (parseString (pShow t ))) == t
+        \ t -> (fmap removeInfo (parseString (pShow (t:: LamTerm () Name )))) == return t
   ]
 
 

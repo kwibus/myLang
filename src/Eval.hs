@@ -9,20 +9,20 @@ import Vallue
 import Enviroment
 import Type
 
-eval :: BruijnTerm Vallue -> Maybe (BruijnTerm Vallue)
+eval :: BruijnTerm i -> Maybe (BruijnTerm i)
 eval (Lambda {}) = Nothing
-eval (Appl t1 t2)
+eval (Appl i t1 t2)
     | isvalue t2 = case t1 of
-        (Lambda _ t11) -> Just $ substitute t2 (Bound 0) t11
-        (Val (t11@BuildIn {})) -> Just $ Val $ apply t11 $ vallue t2
-        (t11@Appl {}) -> fmap (\ t -> Appl t t2 ) $ eval t11
+        (Lambda _ _ t11) -> Just $ substitute t2 (Bound 0) t11
+        (Val i1 (t11@BuildIn {})) -> Just $ Val i1 $ apply t11 $ vallue t2
+        (t11@Appl {}) -> fmap (\ t -> Appl i t t2 ) $ eval t11
         _ -> Nothing
-    | otherwise = fmap (Appl t1 ) $ eval t2
+    | otherwise = fmap (Appl i t1 ) $ eval t2
 eval (_) = Nothing
 
-vallue :: BruijnTerm Vallue -> Vallue
-vallue (Val v ) = v
-vallue t = error $ "type error vallue " ++ show t ++ "is not a vallue"
+vallue :: BruijnTerm i -> Vallue
+vallue (Val _ v ) = v
+vallue _ = error $ "type error vallue, is not a vallue"
 
 apply :: Vallue -> Vallue -> Vallue
 apply BuildIn {arrity = 1, evaluator = e, stack = s } v = evalState e (v : s )
@@ -35,21 +35,20 @@ tDrop (TAppl _ t ) = t
 tDrop _ = error "apply non function"
 
 -- Todo remove inita index
-substitute :: BruijnTerm Vallue -> Bound -> BruijnTerm Vallue ->
-    BruijnTerm Vallue
-substitute t1 i1 t2@(Var i2) = if i1 == i2 then t1 else t2
-substitute t1 (Bound i1) (Lambda n t2) = Lambda n $
+substitute :: BruijnTerm i -> Bound -> BruijnTerm i -> BruijnTerm i
+substitute t1 n1 t2@(Var _ n2) = if n1 == n2 then t1 else t2
+substitute t1 (Bound i1) (Lambda i n t2) = Lambda i n $
                     substitute t1 (Bound (i1 + 1)) t2
-substitute t i (Appl t1 t2) = Appl (substitute t i t1) (substitute t i t2)
+substitute t n (Appl i t1 t2) = Appl i (substitute t n t1) (substitute t n t2)
 substitute _ _ t2 = t2
 
-isvalue :: LamTerm Vallue n -> Bool
+isvalue :: LamTerm i n -> Bool
 isvalue Var {} = True
 isvalue Val {} = True
 isvalue Appl {} = False
 isvalue Lambda {} = True
 
-fullEval :: BruijnTerm Vallue -> BruijnTerm Vallue
+fullEval :: BruijnTerm i -> BruijnTerm i
 fullEval t = case eval t of
     Nothing -> t
     Just r -> fullEval r

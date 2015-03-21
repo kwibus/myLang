@@ -29,26 +29,26 @@ close t = fst3 $ go t fEmtyEnv 0
 fst3 :: (a, b, c) -> a
 fst3 (a, _, _) = a
 
-solver :: BruijnTerm Vallue -> Either String (Type Bound)
+solver :: BruijnTerm i -> Either String (Type Bound)
 solver e = fmap ( close . uncurry apply ) $ solveWith e fEmtyEnv bEmtyEnv
 
-solveWith :: BruijnTerm Vallue -> FreeEnv (Type Free ) -> BruiEnv Free ->
+solveWith :: BruijnTerm i -> FreeEnv (Type Free ) -> BruiEnv Free ->
     Either String (Type Free, FreeEnv (Type Free))
-solveWith (Lambda _ e2) env dic = do
+solveWith (Lambda _ _ e2) env dic = do
     let (env1, k) = newFreeVar env
     let (dic1, _) = bInsert k dic
     (t2, env2) <- solveWith e2 env1 dic1
     return $ (apply (TAppl (TVar k) t2) env2, env2)
 
-solveWith (Appl e1 e2) env dic = do
+solveWith (Appl _ e1 e2) env dic = do
     (t1, env1) <- solveWith e1 env dic -- preverence left
     (t2, env2) <- solveWith e2 env1 dic
     let (env3, var) = newFreeVar env2
     env4 <- unify (apply t1 env3) (apply (TAppl t2 (TVar var)) env3) env3
     return (apply (TVar var) env4 , env4)
 
-solveWith (Val v) env _ = return (ftype v, env)
-solveWith (Var i) env dic = if bMember i dic
+solveWith (Val _ v) env _ = return (ftype v, env)
+solveWith (Var _ i) env dic = if bMember i dic
         then return (apply ( TVar (bLookup i dic)) env, env)
         else throwError "fuck"
 
