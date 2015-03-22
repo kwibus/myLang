@@ -8,6 +8,7 @@ import Data.Foldable
 newtype Bound = Bound Int deriving (Eq, Show)
 newtype Free = Free Int deriving (Eq, Show)
 
+
 data BruiEnv a = BruiState
      { bruiDepth :: Int
      , bruiMap :: IM.IntMap a
@@ -47,7 +48,7 @@ finsertAt a (Free i ) e@FreeState {freeMap = m, freeVars = n } =
 resetDepth :: BruiEnv a -> BruiEnv a -> BruiEnv a
 resetDepth BruiState {bruiDepth = dept} b = b {bruiDepth = dept}
 
-bLookup :: Show a => Bound -> BruiEnv a -> a
+bLookup :: Bound -> BruiEnv a -> a
 bLookup (Bound i) BruiState {bruiDepth = depth, bruiMap = m} =
     assert (IM.member (depth - i - 1 ) m)
     assert (i >= 0)

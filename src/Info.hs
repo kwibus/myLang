@@ -1,3 +1,5 @@
+{-# LANGUAGE OverlappingInstances, FlexibleInstances, UndecidableInstances #-}
+
 module Info where
 import Text.Parsec.Pos
 import Lambda
@@ -18,3 +20,12 @@ removeInfo (Lambda _ n e) = Lambda () n $ removeInfo e
 removeInfo (Appl _ e1 e2) = Appl () (removeInfo e1 ) $ removeInfo e2
 removeInfo (Val _ v) = Val () v
 removeInfo (Var _ n) = Var () n
+
+class Position a where
+    position :: a -> Maybe SourcePos
+
+instance Position a where
+    position _ = Nothing
+
+instance Position Info where
+    position a = Just a

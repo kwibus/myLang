@@ -58,8 +58,8 @@ myArbitraryTerm n t =
     fmap listToMaybe $ observeManyT 1 $ fmap snd $
     arbitraryTerm n t [] fEmtyEnv defualtGenState
 
-arbitraryTerm :: Int -> Type Free -> [Type Free] -> FreeEnv (Type Free) ->
-    GenState -> LogicT Gen (FreeEnv (Type Free), BruijnTerm ())
+arbitraryTerm :: Int -> Type Free -> [Type Free] -> FreeEnv ((),Type Free) ->
+    GenState -> LogicT Gen (FreeEnv ((),Type Free), BruijnTerm ())
 arbitraryTerm n t maxlist env s
   | n <= 1 = oneOfLogic [ arbitraryVallue t env s
                        , arbitraryVar t env s
@@ -72,20 +72,20 @@ arbitraryTerm n t maxlist env s
                         , arbitraryLambda n t maxlist env s
                         ]
 
-arbitraryVar :: Type Free -> FreeEnv (Type Free) -> GenState ->
-    LogicT Gen (FreeEnv (Type Free), BruijnTerm ())
+arbitraryVar :: Type Free -> FreeEnv ((),Type Free) -> GenState ->
+    LogicT Gen (FreeEnv ((),Type Free), BruijnTerm ())
 arbitraryVar t env s = do
-  (i, (_, f)) <- elementsLogic $ toList $ dictionary s
-  (env2 , expr) <- case (unify t (TVar f) env ) of
+  (i, (_,((), f))) <- elementsLogic $ toList $ dictionary s
+  (env2 , expr) <- case (unify ((),t) ((),TVar f) env ) of
      Right env' -> return ( env', Var () (Bound ( bruiDepth (dictionary s) - i - 1 )))
      Left _ -> mzero
   assert ( (bruiDepth (dictionary s) - i - 1 ) >= 0)
-   assert (snd (bLookup (Bound (bruiDepth (dictionary s) - i - 1 )) (dictionary s)) == f)
+   assert (snd (bLookup (Bound (bruiDepth (dictionary s) - i - 1 )) (dictionary s)) ==(() ,f))
    assert (check expr t env2 (fmap snd (dictionary s )))
    return (env2 , expr)
 
-arbitraryAppl :: Int -> Type Free -> [Type Free] -> FreeEnv (Type Free) ->
-    GenState -> LogicT Gen (FreeEnv (Type Free), BruijnTerm ())
+arbitraryAppl :: Int -> Type Free -> [Type Free] -> FreeEnv ((),Type Free) ->
+    GenState -> LogicT Gen (FreeEnv ((),Type Free), BruijnTerm ())
 arbitraryAppl size t maxlist env state = do
   sizeLeft <- chooseLogic (1, size - 1)
   let (newEnv, var) = newFreeVar $ env
@@ -107,26 +107,26 @@ arbitraryAppl size t maxlist env state = do
   assert (check expr t env3 (fmap snd (dictionary state )))
    return (env3, expr)
 
-arbitraryLambda :: Int -> Type Free -> [Type Free] -> FreeEnv (Type Free) -> GenState ->
-    LogicT Gen (FreeEnv (Type Free), BruijnTerm ())
+arbitraryLambda :: Int -> Type Free -> [Type Free] -> FreeEnv ((),Type Free) -> GenState ->
+    LogicT Gen (FreeEnv ((),Type Free), BruijnTerm ())
 arbitraryLambda size t maxlist env (state@State { dictionary = dic}) = do
   let (env1, var1) = newFreeVar $ env
   let (env2, var2) = newFreeVar $ env1
-  case unify t (TAppl (TVar var1) (TVar var2)) env2 of
+  case unify ((),t) ((),TAppl (TVar var1) (TVar var2)) env2 of
     Left {} -> mzero
     Right env4 -> do
       (n, newState) <- newVarName state
-      let (newdic, _) = bInsert (n, var1) dic
+      let (newdic, _) = bInsert (n, ((),var1)) dic
       let newnewstate = newState { dictionary = newdic}
       (newEnv, expr) <- arbitraryTerm (size - 1) (TVar var2 ) maxlist env4 newnewstate
       assert (check expr (TVar var2) newEnv (fmap snd newdic))
        assert (check (Lambda () n expr) t newEnv (fmap snd dic ))
        return $ (newEnv, Lambda () n expr)
 
-check :: BruijnTerm () -> Type Free -> FreeEnv (Type Free) ->
-    BruiEnv Free -> Bool
+check :: BruijnTerm () -> Type Free -> FreeEnv ((),Type Free) ->
+    BruiEnv ((),Free )-> Bool
 check expr t1 env dic = case solveWith expr env dic of
-  Right (t2, env2) -> case unify (apply t1 env) (apply t2 env2) fEmtyEnv of
+  Right (_,t2, env2) -> case unify ((),apply t1 env) ((),apply t2 env2) fEmtyEnv of
        Left _ -> False
        Right {} -> True
   Left _ -> False

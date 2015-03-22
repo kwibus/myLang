@@ -15,24 +15,24 @@ import BruijnTerm
 import TypeCheck
 import Logic
 
-arbitraryVallue :: Type Free -> FreeEnv (Type Free) -> GenState ->
-                    LogicT Gen (FreeEnv (Type Free), BruijnTerm ())
+arbitraryVallue :: Type Free -> FreeEnv ((),Type Free) -> GenState ->
+                    LogicT Gen (FreeEnv ((),Type Free), BruijnTerm ())
 arbitraryVallue t env _ = oneOfLogic [ arbitraryMyDouble t env
                                      , arbitraryBuildIn t env
                                      ]
 
-arbitraryBuildIn :: Type Free -> FreeEnv (Type Free) ->
-    LogicT Gen (FreeEnv (Type Free), BruijnTerm ())
+arbitraryBuildIn :: Type Free -> FreeEnv ((),Type Free) ->
+    LogicT Gen (FreeEnv ((),Type Free), BruijnTerm ())
 arbitraryBuildIn t env = do
     operator <- elementsLogic operators
-    case unify t (ftype operator) env of
+    case unify ((),t) ((),ftype operator) env of
         Left {} -> mzero
         Right env1 -> return (env1, Val () operator)
 
-arbitraryMyDouble :: Type Free -> FreeEnv (Type Free) ->
-    LogicT Gen (FreeEnv (Type Free), BruijnTerm ())
+arbitraryMyDouble :: Type Free -> FreeEnv ((),Type Free) ->
+    LogicT Gen (FreeEnv ((),Type Free), BruijnTerm ())
 arbitraryMyDouble t env = do
-  let u = unify t (TVal TDouble) env
+  let u = unify ((),t) ((),TVal TDouble) env
   case u of
     Left {} -> mzero
     Right env1 -> do

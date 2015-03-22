@@ -27,7 +27,7 @@ testshrink = testGroup "shrink"
     , testProperty "corect type" $
             (\ n -> forAll ( myArbitraryTerm n (TVal TDouble ))
                 (\ e -> isJust e ==> case solver (fromJust e) of
-                    (Right t) -> unifys (bound2Free t) (TVal TDouble ) fEmtyEnv
+                    (Right t) -> unifys ((),bound2Free t) ((),TVal TDouble ) fEmtyEnv
                     _ -> False
                 )
             )

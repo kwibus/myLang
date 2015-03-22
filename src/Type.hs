@@ -24,9 +24,9 @@ tSize (TVal {}) = 1
 tSize (TVar {}) = 1
 tSize (TAppl t1 t2) = tSize t1 + tSize t2
 
-tShow :: Type Bound -> String
-tShow t = evalState (go t) (bEmtyEnv , ['a' .. 'z'])
-    where go :: Type Bound -> State (BruiEnv String , [Char]) String
+tShow :: Type Free -> String
+tShow t = evalState (go t) (fEmtyEnv , ['a' .. 'z'])
+    where go :: Type Free -> State (FreeEnv String , [Char]) String
           go (TVal v) = return (pShowType v)
           go (TAppl t1 t2) = do
             s1 <- go t1
@@ -37,11 +37,14 @@ tShow t = evalState (go t) (bEmtyEnv , ['a' .. 'z'])
             return $ s1' ++ " -> " ++ s2
           go (TVar i ) = do
             (m, names) <- get
-            if bMember i m
-                then return ( bLookup i m)
+            if fMember i m
+                then return ( fLookup i m)
                 else let newname = [head names]
-                         newMap = binsertAt newname i m
+                         newMap = finsertAt newname i m
                      in put (newMap, (tail names) ) >> return newname
+
+genNames :: Type  i -> (BruiEnv String )
+genNames = undefined
 
 pShowType :: MonoType -> String
 pShowType TDouble = "Double"

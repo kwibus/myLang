@@ -6,7 +6,7 @@ import Enviroment
 
 data GenState = State
     { freeNames :: [String]
-    , dictionary :: BruiEnv (String, Free)
+    , dictionary :: BruiEnv (String, ((), Free))
     }
 
 letters :: [String]

@@ -41,5 +41,5 @@ testEval = testGroup "eval"
                Just expr2 -> isRight $ do
                     t1 <- solver expr2
                     t2 <- solver e
-                    return $ unifys (bound2Free t1) (bound2Free t2) fEmtyEnv
+                    return $ unifys ((),bound2Free t1) ((),bound2Free t2) fEmtyEnv
   ]
