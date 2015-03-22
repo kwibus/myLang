@@ -1,9 +1,10 @@
 module BruijnTerm where
 
+import Control.Monad.Error
 import qualified Data.IntMap as IM
 import qualified Data.Map as M
 import Control.Exception.Base
-
+import Control.Applicative
 import Enviroment
 import Lambda
 import Type
@@ -13,13 +14,17 @@ type BruijnTerm i = LamTerm i Bound
 toList :: BruiEnv a -> [(Int, a)]
 toList BruiState {bruiMap = m} = IM.toList m
 
-lam2Bruijn :: LamTerm i Name -> BruijnTerm i
+data UndefinedVar = UndefinedVar deriving (Show, Eq)
+
+lam2Bruijn :: LamTerm i Name -> Either UndefinedVar (BruijnTerm i)
 lam2Bruijn t = go t 0 M.empty
-  where go (Var i n) depth env = Var i $ Bound (depth - (env M.! n) - 1)
-        go (Val i v) _ _ = Val i v
-        go (Lambda i n t1) depth env = Lambda i n $
+  where go (Var i n) depth env = case M.lookup n env of
+            Just n' -> return $ Var i $ Bound (depth - n' - 1)
+            Nothing -> throwError UndefinedVar
+        go (Val i v) _ _ = return $ Val i v
+        go (Lambda i n t1) depth env = Lambda i n <$>
                      go t1 (depth + 1) (M.insert n depth env)
-        go (Appl i t1 t2) depth env = Appl i (go t1 depth env) (go t2 depth env)
+        go (Appl i t1 t2) depth env = Appl i <$> (go t1 depth env) <*> (go t2 depth env)
 
 newFreeVar :: FreeEnv (Type Free) -> (FreeEnv (Type Free), Free)
 newFreeVar b@FreeState {freeVars = n } =

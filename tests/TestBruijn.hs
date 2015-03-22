@@ -16,11 +16,11 @@ testBruijn = testGroup "bruijn index"
   [ testCase "bruijn2Lam id " $
       bruijn2Lam B.id @?= L.id
   , testCase "lam2Bruijn id " $
-      lam2Bruijn L.id @?= B.id
+      lam2Bruijn L.id @?= return B.id
   , testCase "test S combinator from lambda  S=\\x.\\y.x" $
-      lam2Bruijn L.s @?= B.s
+      lam2Bruijn L.s @?= return B.s
   , testCase "test S combinator from bruijn S=\\\\1" $
       bruijn2Lam B.s @?= L.s
   , testProperty "inverse test" $
-      \ t -> bruijn2Lam (lam2Bruijn t) == (t :: LamTerm () Name)
+      \ t -> fmap bruijn2Lam (lam2Bruijn t) == return (t :: LamTerm () Name)
   ]

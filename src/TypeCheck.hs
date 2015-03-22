@@ -51,7 +51,7 @@ solveWith (Appl _ e1 e2) env dic = do
 solveWith (Val _ v) env _ = return (ftype v, env)
 solveWith (Var i n) env dic = if bMember n dic
         then return (apply ( TVar (bLookup n dic)) env, env)
-        else throwError $ UndefinedVar i
+        else throwError $ A UndefinedVar
 
 unify :: (Type Free) -> (Type Free) -> FreeEnv (Type Free) ->
     Either (TypeError i) (FreeEnv (Type Free)) -- retunr type

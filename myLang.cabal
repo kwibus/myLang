@@ -29,6 +29,7 @@ cabal-version:       >=1.10
 executable interperter
   main-is:             Interperter.hs
   build-depends:       base >=4.7 && <4.8
+                      ,either-unwrap
                       ,myLang
                       ,haskeline
   hs-source-dirs:      src/Interperter/

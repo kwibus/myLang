@@ -33,7 +33,7 @@ testEval = testGroup "eval"
       \ t -> let result = fmap welFormd $ eval (t :: BruijnTerm ())
             in isNothing result || fromJust result
   , testProperty "keep normalisation under eval" $
-      \ t -> fmap (lam2Bruijn . bruijn2Lam ) (eval t) == eval (t :: BruijnTerm ())
+      \ t -> fmap (lam2Bruijn . bruijn2Lam ) (eval t) == fmap return (eval (t :: BruijnTerm ()))
   , testProperty "keep type under eval" $
       \ e -> let result = eval (e :: BruijnTerm ())
             in isJust result ==> case eval e of

@@ -5,7 +5,7 @@ import Parser
 import BruijnTerm
 import Eval
 import System.Console.Haskeline
-
+import Data.Either.Unwrap
 main :: IO ()
 main = runInputT defaultSettings loop
  where
@@ -19,7 +19,11 @@ main = runInputT defaultSettings loop
 
 
 readEvalPrint :: String -> InputT IO ()
-readEvalPrint input = case parseString input of
-    Right ast -> outputStrLn $ show $ bruijn2Lam $  lam2Bruijn ast
-    Left e -> outputStrLn $ show e
+readEvalPrint input = outputStrLn $ merge $ do
+    ast <- mapLeft show $ parseString input 
+    bruij <- mapLeft show $ lam2Bruijn ast
+    return  $ pShow $ bruijn2Lam bruij
 
+merge :: Either a a -> a
+merge (Right a) = a
+merge (Left a) = a
