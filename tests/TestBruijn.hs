@@ -4,6 +4,7 @@ import Test.Tasty
 import Test.Tasty.HUnit
 import Test.Tasty.QuickCheck
 
+import Names
 import qualified ExampleBruijn as B
 import qualified ExampleLambda as L
 import BruijnTerm

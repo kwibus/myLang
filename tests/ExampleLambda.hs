@@ -1,5 +1,6 @@
 module ExampleLambda where
 
+import Names
 import Lambda
 import MakeTerm
 

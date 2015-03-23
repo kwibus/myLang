@@ -1,5 +1,8 @@
 module Type where
 
+import qualified Data.IntMap as IM
+
+import Names
 import Data.Coerce
 import Enviroment
 import Control.Monad.State
@@ -18,33 +21,50 @@ data Type i = TVal MonoType
  instance Show Type where
      show =tShow
 -}
+class ToInt a where
+    toInt :: a -> Int
+
+instance ToInt Bound where
+    toInt = coerce
+
+instance ToInt Free where
+    toInt = coerce
 
 tSize :: Type i -> Int
 tSize (TVal {}) = 1
 tSize (TVar {}) = 1
 tSize (TAppl t1 t2) = tSize t1 + tSize t2
 
-tShow :: Type Free -> String
-tShow t = evalState (go t) (fEmtyEnv , ['a' .. 'z'])
-    where go :: Type Free -> State (FreeEnv String , [Char]) String
-          go (TVal v) = return (pShowType v)
-          go (TAppl t1 t2) = do
-            s1 <- go t1
-            s2 <- go t2
+tShow :: ToInt i => Type i -> String
+tShow t = evalState (tShowEnv t) initState
+
+tShowEnv :: ToInt i => Type i -> State (IM.IntMap String , [String]) String
+tShowEnv (TVal v) = return (pShowType v)
+tShowEnv (TAppl t1 t2) = do
+            s1 <- tShowEnv t1
+            s2 <- tShowEnv t2
             let s1' = case t1 of
                  TAppl {} -> "(" ++ s1 ++ ")"
                  _ -> s1
             return $ s1' ++ " -> " ++ s2
-          go (TVar i ) = do
+tShowEnv (TVar i ) = do
             (m, names) <- get
-            if fMember i m
-                then return ( fLookup i m)
-                else let newname = [head names]
-                         newMap = finsertAt newname i m
-                     in put (newMap, (tail names) ) >> return newname
+            case IM.lookup (toInt i) m of
+                Just str -> return str
+                Nothing ->
+                    let newname = head names
+                        newMap = IM.insert (toInt i) newname m
+                    in put (newMap, (tail names) ) >> return newname
 
-genNames :: Type  i -> (BruiEnv String )
-genNames = undefined
+initState :: (IM.IntMap String, [String] )
+initState = (IM.empty , letters)
+
+genNames :: ToInt i => Type i -> State (IM.IntMap String , [String]) ()
+genNames (TVal _) = return ()
+genNames (TVar i) = do
+    (m , names) <- get
+    put (IM.insert (toInt i) (head names) m, init names)
+genNames (TAppl t1 t2) = genNames t1 >> genNames t2
 
 pShowType :: MonoType -> String
 pShowType TDouble = "Double"

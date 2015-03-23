@@ -22,6 +22,7 @@ import BruijnTerm
 import Lambda
 import Enviroment
 import Type
+import Names
 
 instance Arbitrary (LamTerm () Name ) where
     arbitrary = fmap bruijn2Lam arbitrary

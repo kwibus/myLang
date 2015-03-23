@@ -3,6 +3,7 @@ import BruijnTerm
 import Lambda
 import Vallue
 import Enviroment
+import Names
 
 val :: Vallue -> LamTerm () n
 val = Val ()

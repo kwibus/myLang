@@ -1,5 +1,5 @@
 module BruijnTerm where
-
+import Names
 import Control.Monad.Error
 import qualified Data.IntMap as IM
 import qualified Data.Map as M

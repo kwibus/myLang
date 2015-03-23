@@ -6,6 +6,7 @@ import Test.Tasty.QuickCheck
 import ArbitraryQuickcheck ()
 import Data.Either
 
+import Names
 import Lambda
 import Opperator
 import Parser

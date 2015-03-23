@@ -2,7 +2,7 @@ module Expresion where
 
 import Vallue
 import Lambda
-
+import Names
 import Text.Parsec.Pos
 type Info = SourcePos
 type Expresion = LamTerm Info Name

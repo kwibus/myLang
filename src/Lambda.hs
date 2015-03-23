@@ -1,8 +1,8 @@
 module Lambda where
 
+import Names
 import Vallue
 
-type Name = String
 
 data LamTerm i n = Lambda i Name (LamTerm i n)
             | Appl i (LamTerm i n) (LamTerm i n)

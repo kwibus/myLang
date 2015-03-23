@@ -1,7 +1,6 @@
 module GenState where
 
-import Control.Monad
-
+import Names
 import Enviroment
 
 data GenState = State
@@ -9,8 +8,6 @@ data GenState = State
     , dictionary :: BruiEnv (String, ((), Free))
     }
 
-letters :: [String]
-letters = [1 ..] >>= flip replicateM ['a' .. 'z']
 
 defualtGenState :: GenState
 defualtGenState = State { dictionary = bEmtyEnv

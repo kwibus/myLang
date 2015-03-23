@@ -4,6 +4,7 @@ import Enviroment
 import Type
 import BruijnTerm
 
+import Control.Monad.State
 data TypeError i =
       Infinit (i, Free) (i, Type Free) (FreeEnv (i, Type Free))
     | Unify (i, Type Free) (i, Type Free) (FreeEnv (i, Type Free))
@@ -20,3 +21,9 @@ instance Eq (TypeError i) where
 
 instance Show (TypeError i) where
     show (Infinit (i1,f) (i2,t) env) = "can`t construct infinit Type " -- ++tShow (TVar f) ++ "= " 
+    show (Unify (i1,t1) (i2,t2) env) =
+        let namestate = genNames t1 >> genNames t2 
+        in  "can`t unify " ++ evalState (namestate >> tShowEnv t1) initState ++
+            "with" ++  evalState (namestate >> tShowEnv t2) initState
+
+

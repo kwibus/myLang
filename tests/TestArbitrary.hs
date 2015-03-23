@@ -5,6 +5,7 @@ import Test.Tasty.QuickCheck
 import ArbitraryQuickcheck (myArbitraryTerm)
 import Data.Maybe
 
+import Names
 import Lambda
 import BruijnTerm
 import Type
