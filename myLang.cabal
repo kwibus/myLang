@@ -74,6 +74,7 @@ library
                       ,InfixFix
                       ,Info
                       ,TypeError
+                      ,Names
                     
   default-language:    Haskell2010
 
