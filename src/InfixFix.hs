@@ -27,12 +27,12 @@ unwindStacks (v1:v2:vs) (o:os) = let pos = getposition v2
                                  in  uncurry unwindStacks ((Appl pos (Appl pos o v2) v1):vs,os)
 unwindStacks (v:vs) (o:os) = ((Appl (getposition v) o v) :vs,os)
 
-getpres::  LamTerm Info n -> (Precedence , Associativity)
+getpres::  LamTerm i n -> (Precedence , Associativity)
 getpres (Val _ BuildIn{fixity=InFix p a}) = (p,a)
 getpres _ = error "no infix"
 
 --TODO correct associative
-higer :: [LamTerm Info n] -> LamTerm Info n -> Bool
+higer :: [LamTerm i n] -> LamTerm i n -> Bool
 higer [] _ = True
 higer (x:xs) y= compare (getpres x) (getpres y)
     where compare (p1,a1) (p2,a2) = p1 > p2

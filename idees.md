@@ -1,10 +1,10 @@
 # polymorfisme
     explicit forrall -> dynamic
-    remove polymorfisme to concrete type 
+    remove polymorfisme to concrete type  (monomorfic)
 # linear
     linear Vallue ; can be used ones as linear but many read only 
     linear closure ; can be used ones but no read 
-
+ 
 # void type (c compatible )
 # Language
 lengte x = go x 0 {
@@ -81,37 +81,67 @@ list = [Show 1 , Show 'c'] -- Show is constructer
 Now car{name = t } =  car{name = t+1}
 car = car@name +1 
 
-## extend data types / subtyping
+## extend data types / subtyping  / row polymorfisme  
 ### example
 
+with producd types 
 ``` haskell
-data Bnf a = Terminal a | NonTerminal index [bnf] 
-    -- define bnf rule of terminal and 
-    -- noterminal that have unique index and  are made of  other symbols
-    -- bad exampel
-data NamedBnf = bnf , extend  Nonterminal withe Name
-or 
-data NameBnf = Terminal a | Nonterminal index Name [bnf]
+data P1 = P Int Int
+data P2 = P .. Color
 
-getTerminals ::  Bnf a -> [a]
--- getterminals also acept also NameBnf a
+distance  :: P1 -> P1 -> Double
+distance ( P 1 2 Red ) (P 1 3 blue ) -- correct
 
-pprint ::Show a => Bnf a -> String
-pprint ::  Show a =>  NameBnf a -> String
--- overloading
+move:: P1 p => p -> P1 -> p 
+move ( P 1 2 Red ) (P 1 3  ) == P 2 5 Red-- correct
+
+h :: P1 p , show p => p -> (String,Int)
+h p@P(i,_) = (show p , i)
 ```
+with sum types
+``` haskell
+data Exp  = Val Int | Plus Exp Exp
+data Exp2 = Exp +| Min Exp Exp
 
+eval2 :: Exp2 -> Int
+eval2 (Val i) = i
+eval2 (plus e1 e2) = eval2 e1 + eval2 e2
+eval2 (Min e1 e2 ) = eval2 e1 - eval2 e2
+
+eval2 (e::Exp2) -- correct
+eval2 (e:: Exp) -- correct
+
+eval1 :: Exp -> Int
+eval1 (Val i) = i
+eval1 (plus e1 e2) = eval1 e1 + eval1 e2
+eval1 e = e 
+
+eval1 (Min (Val 1) (Val ) :: Exp2) == Min (Val 1) (Val ) -- correct
+eval1 (e:: Exp) -- correct
+```
+with product and sum
+
+``` haskell
+data A1 = A Int Int
+        | B Int
+data A2 = A .. Color
+        +| C
+```
 ###  pro/con
 con 
-
-* overloading is already implement with typclase
-* can already be done  withe previous name typclasse  extension
-
+ * make type system more complicated 
+ * makes searching for fiting  function more diffecult, you can`t see from te type signature P2 that it can be applied inplace of P1
+ * more ways to do things
+ * some opptimazations are inposiable ore harder ?
+ * sum type generates error when there no default action (eval1 )
+ * you need open functions to use this with sum types efective
 pro
 
-* removes boilerplate
-* suptyping is know sometime usefol 
-* 
+ * removes boilerplate
+ * if structere are past by refrence than ther is no need for code duplications in funcion call.
+    because the size is know at the location were the variable is defined
+    but the size is not need in funcioncall becaus it only need offset and because P2 extend P1 those are the same   
+
 ## linear/unique types
 
 Variable withe one active reference

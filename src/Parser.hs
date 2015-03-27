@@ -56,6 +56,9 @@ operator = do
     o <- choice  [pPlus,pMultiply ]
     return $(Val i o, True)
 
+-- getLoc :: Parser Loc 
+-- getLoc 
+
 pPlus:: Parser Vallue
 pPlus = symbol '+' >>  return plus
 

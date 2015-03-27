@@ -3,11 +3,9 @@ module Expresion where
 import Vallue
 import Lambda
 import Names
-import Text.Parsec.Pos
-type Info = SourcePos
-type Expresion = LamTerm Info Name
---
---TODO fix location
+import Info
+type Expresion = LamTerm Loc Name
+
 isinfixLam :: LamTerm i n -> Bool
 isinfixLam (Val _ v) = isInfixVallue v
 isinfixLam _ = False
