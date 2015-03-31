@@ -39,16 +39,10 @@ executable Sample
   main-is:             Sample.hs
   build-depends:       base >=4.7 && <4.8
                       ,myLang
-                      ,tasty
-                      ,tasty-hunit
-                      ,tasty-quickcheck
                       ,QuickCheck
                       ,mtl
-                      ,logict
-                      ,random
-                      ,containers
-                      ,parsec
-                      ,parsec-numbers
+                      ,transformers
+
   hs-source-dirs:      tests
   default-language:    Haskell2010
 
@@ -58,7 +52,9 @@ library
                       ,parsec
                       ,parsec-numbers
                       ,mtl
+                      ,transformers
                       ,ansi-wl-pprint
+
   hs-source-dirs:      src/
   exposed-modules:     Lambda
                       ,Parser
@@ -88,13 +84,12 @@ test-suite tests
                       ,tasty-hunit
                       ,tasty-quickcheck
                       ,QuickCheck
-                      ,smallcheck
                       ,mtl
-                      ,logict
-                     --  ,random
                       ,containers
                       ,parsec
                       ,parsec-numbers
+                      ,transformers
+                      ,ansi-wl-pprint
   Ghc-Options:          -Wall   -fprof-auto  
 --  -threaded -with-rtsopts=-N
   default-language:    Haskell2010

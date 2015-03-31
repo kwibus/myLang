@@ -3,8 +3,7 @@ import Data.Either
 import Test.Tasty
 import Test.Tasty.HUnit
 import Test.Tasty.QuickCheck
-import Control.Monad.Error
--- import Control.Monad.Except
+import Control.Monad.Except
 
 import qualified ExampleBruijn as B
 import BruijnTerm
@@ -149,9 +148,9 @@ testSolver = testGroup "Solver"
                              (TVar (Bound 0)))
                 )
     , testProperty "idempotence" $
-        \ e -> case solveWith (e :: BruijnTerm ()) fEmtyEnv bEmtyEnv of
+        \ e -> case runInfer $solveWith (e :: BruijnTerm ()) fEmtyEnv bEmtyEnv of
                 Left _ -> False
-                Right (_,t1, env1) -> case solveWith e env1 bEmtyEnv of
+                Right (_,t1, env1) -> case runInfer $ solveWith e env1 bEmtyEnv of
                     Left _ -> False
                     Right (_,t2, _) -> close t1 == close t2 -- && env1 == env2
     , testProperty "typeable" $

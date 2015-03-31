@@ -7,7 +7,6 @@ import Control.Exception.Base
 import Control.Applicative
 import Enviroment
 import Lambda
-import Type
 
 type BruijnTerm i = LamTerm i Bound
 
@@ -27,9 +26,6 @@ lam2Bruijn t = go t 0 M.empty
                      go t1 (depth + 1) (M.insert n depth env)
         go (Appl i t1 t2) depth env = Appl i <$> (go t1 depth env) <*> (go t2 depth env)
 
-newFreeVar :: FreeEnv (i,Type Free) -> (FreeEnv (i,Type Free), Free)
-newFreeVar b@FreeState {freeVars = n } =
-   let newVar = (n + 1) in (b {freeVars = n + 1}, Free newVar)
 
 bSupsitute :: Free -> a -> BruiEnv a -> BruiEnv a
 bSupsitute (Free i) a env@BruiState {bruiMap = m} =

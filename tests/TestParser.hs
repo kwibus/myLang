@@ -15,10 +15,6 @@ import MakeTerm
 import Info
 import qualified ExampleLambda as L
 
-import Text.Parsec.Error
-instance Eq ParseError where
-   (==) a b = show a == show b
-
 testParser :: TestTree
 testParser = testGroup "parser"
   [

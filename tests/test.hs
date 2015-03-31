@@ -10,6 +10,7 @@ import TestEval
 import TestLambda
 import TestParser
 import TestType
+import TestLogic
 -- import SmallCheck
 -- import Type
 -- import Key
@@ -19,7 +20,8 @@ main = defaultMain tests
 
 tests :: TestTree
 tests = testGroup "tests"
-    [ testTypeChecker
+    [ testLogic 
+    , testTypeChecker
     , testType
     , testLambda
     , testBruijn

@@ -1,15 +1,9 @@
-module TypeCheck
-    ( solver
-    , solveWith
-    , unify
-    , unifys
-    , close
-    , apply
-    ) where
+module TypeCheck where
 
-import Control.Monad.Error
 import Data.Either
-
+import Control.Monad.Trans.Except
+import Control.Monad.State
+import Control.Monad.Except
 import Vallue
 import Lambda
 import Type
@@ -31,27 +25,46 @@ fst3 :: (a, b, c) -> a
 fst3 (a, _, _) = a
 
 solver :: BruijnTerm i -> Either (TypeError i )(Type Bound)
-solver e = fmap ( \ (_,t ,env)-> close  (apply t env)) $ solveWith e fEmtyEnv bEmtyEnv
+solver e = fmap ( \ (_,t ,env) -> close (apply t env)) $ runInfer $solveWith e fEmtyEnv bEmtyEnv
+
+type Infer i a = ExceptT (TypeError i ) ( State Int ) a
+
+
+runInfer ::Infer i a ->  Either (TypeError i) a
+runInfer infer = evalState ( runExceptT infer) 0
+
+newFreeVar :: Infer i Free
+newFreeVar = do i <- get
+                put (i+1)
+                return $ Free i
 
 solveWith :: BruijnTerm i -> FreeEnv (i,Type Free ) -> BruiEnv (i ,Free) ->
-    Either (TypeError i) (i,Type Free, FreeEnv (i,Type Free))
+    Infer i (i,Type Free, FreeEnv (i,Type Free))
 solveWith (Lambda i _ e2) env dic = do
-    let (env1, k) = newFreeVar env
+    k <- newFreeVar
     let (dic1, _) = bInsert (i,k) dic
-    (i2,t2, env2) <- solveWith e2 env1 dic1
+    (i2,t2, env2) <- solveWith e2 env dic1
     return $ (i,apply (TAppl (TVar k) t2) env2, env2)
 
 solveWith (Appl i e1 e2) env dic = do
     (i1,t1, env1) <- solveWith e1 env dic -- preverence left
     (i2,t2, env2) <- solveWith e2 env1 dic
-    let (env3, var) = newFreeVar env2
-    env4 <- unify (i1,apply t1 env3) (i2,apply (TAppl t2 (TVar var)) env3) env3
+    var <- newFreeVar 
+    env4 <- toExcept $ unify (i1,apply t1 env1) (i2,apply (TAppl t2 (TVar var)) env2) env2
     return (i,apply (TVar var) env4 , env4)
 
 solveWith (Val i v) env _ = return (i,ftype v, env)
 solveWith (Var i n) env dic = if bMember n dic
         then return (i,apply ( TVar (snd (bLookup n dic))) env, env)
         else throwError $ ICE (undefined ) -- i n )
+
+toExcept ::Monad m =>  Either a b -> ExceptT a m b
+toExcept e = case e of 
+    Left e -> throwE e
+    Right a -> return a 
+
+unifyEnv :: FreeEnv (i,Type Free) -> FreeEnv (i,Type Free) -> Either (TypeError i) (FreeEnv (i,Type Free))
+unifyEnv = undefined
 
 unify :: (i,Type Free) -> (i,Type Free) -> FreeEnv (i,Type Free) ->
     Either (TypeError i) (FreeEnv (i,Type Free)) -- retunr type

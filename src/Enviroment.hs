@@ -6,7 +6,7 @@ import Control.Exception.Base
 import Data.Foldable
 
 newtype Bound = Bound Int deriving (Eq, Show)
-newtype Free = Free Int deriving (Eq, Show)
+newtype Free = Free Int deriving (Eq,Show)
 
 
 data BruiEnv a = BruiState
@@ -14,10 +14,7 @@ data BruiEnv a = BruiState
      , bruiMap :: IM.IntMap a
      } deriving (Show, Eq, Foldable, Functor)
 
-data FreeEnv a = FreeState
-     { freeVars :: Int
-     , freeMap :: IM.IntMap a
-     } deriving (Show, Eq, Foldable, Functor)
+type FreeEnv a = IM.IntMap a
 
 bEmtyEnv :: BruiEnv a
 bEmtyEnv = BruiState
@@ -26,10 +23,7 @@ bEmtyEnv = BruiState
     }
 
 fEmtyEnv :: FreeEnv a
-fEmtyEnv = FreeState
-    { freeVars = 0
-    , freeMap = IM.empty
-    }
+fEmtyEnv = IM.empty
 
 bInsert :: a -> BruiEnv a -> (BruiEnv a, Bound)
 bInsert a b@BruiState {bruiDepth = depth, bruiMap = m} =
@@ -41,9 +35,7 @@ binsertAt a (Bound i ) e@BruiState {bruiMap = m, bruiDepth = dept} =
     in e {bruiMap = IM.insert newDept a m, bruiDepth = newDept + 1 }
 
 finsertAt :: a -> Free -> FreeEnv a -> FreeEnv a
-finsertAt a (Free i ) e@FreeState {freeMap = m, freeVars = n } =
-    let newFreeVars = if i > n then i else n
-    in e {freeMap = IM.insert (i) a m, freeVars = newFreeVars}
+finsertAt a (Free i) m = IM.insert i a m
 
 resetDepth :: BruiEnv a -> BruiEnv a -> BruiEnv a
 resetDepth BruiState {bruiDepth = dept} b = b {bruiDepth = dept}
@@ -55,7 +47,7 @@ bLookup (Bound i) BruiState {bruiDepth = depth, bruiMap = m} =
     m IM.! (depth - i - 1)
 
 fLookup :: Free -> FreeEnv a -> a
-fLookup (Free i) FreeState {freeMap = m} =
+fLookup (Free i) m =
     assert (IM.member i m)
     assert (i >= 0)
     m IM.! i
@@ -65,4 +57,4 @@ bMember (Bound i) BruiState {bruiDepth = depth, bruiMap = m}
     = IM.member (depth - i - 1) m
 
 fMember :: Free -> FreeEnv a -> Bool
-fMember (Free i) FreeState {freeMap = m} = IM.member i m
+fMember (Free i) m = IM.member i m
