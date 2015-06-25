@@ -1,7 +1,6 @@
 module TypeCheck where
 
 import qualified Data.IntMap  as IM
-import Control.Arrow (second)
 import Control.Monad.Error.Class
 -- import Data.Either
 import Data.Either.Unwrap

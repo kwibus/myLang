@@ -7,7 +7,6 @@ import Control.Monad
 import Control.Monad.Trans.Class
 import Test.QuickCheck.Gen
 import Test.QuickCheck
-import Control.Applicative
 
 import Logic
 import GenState

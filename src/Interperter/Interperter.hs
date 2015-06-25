@@ -1,10 +1,9 @@
 module Main
 where
-import Data.List
+
 import System.Console.Haskeline
 import Data.Either.Unwrap
 
-import Expresion 
 import Parser
 import TypeCheck
 import BruijnTerm
