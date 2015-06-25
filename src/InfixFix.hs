@@ -34,5 +34,5 @@ getpres _ = error "no infix"
 --TODO correct associative
 higer :: [LamTerm i n] -> LamTerm i n -> Bool
 higer [] _ = True
-higer (x:xs) y= compare (getpres x) (getpres y)
-    where compare (p1,a1) (p2,a2) = p1 > p2
+higer (x:_) y= comparePres (getpres x) (getpres y)
+    where comparePres (p1,_) (p2,_) = p1 > p2

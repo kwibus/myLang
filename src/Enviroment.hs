@@ -3,7 +3,6 @@ module Enviroment where
 
 import qualified Data.IntMap as IM
 import Control.Exception.Base
-import Data.Foldable
 
 newtype Bound = Bound Int deriving (Eq, Show)
 newtype Free = Free Int deriving (Eq,Show)
@@ -12,7 +11,7 @@ newtype Free = Free Int deriving (Eq,Show)
 data BruiEnv a = BruiState
      { bruiDepth :: Int
      , bruiMap :: IM.IntMap a
-     } deriving (Show, Eq, Foldable, Functor)
+     } deriving (Show, Eq, Foldable, Functor,Read)
 
 type FreeEnv a = IM.IntMap a
 

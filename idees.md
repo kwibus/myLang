@@ -75,16 +75,16 @@ class Show where
 list :: Show a => Show [a] -- is typeclass still necesari
 list = [Show 1 , Show 'c'] -- Show is constructer
 ```
-
 ## syntax sugar modify record 
 
 Now car{name = t } =  car{name = t+1}
 car = car@name +1 
 
-## extend data types / subtyping  / row polymorfisme  
+## extend data types / subtyping  / row polymorfisme
 ### example
 
 with producd types 
+
 ``` haskell
 data P1 = P Int Int
 data P2 = P .. Color
@@ -108,8 +108,12 @@ eval2 (Val i) = i
 eval2 (plus e1 e2) = eval2 e1 + eval2 e2
 eval2 (Min e1 e2 ) = eval2 e1 - eval2 e2
 
+
+eval3 (Min e1 e2 ) = eval3 e1 - eval3 e2
+eval3 t = eval1  t -- fail recutions
+
 eval2 (e::Exp2) -- correct
-eval2 (e:: Exp) -- correct
+eval2 (e:: Exp) -- incorect
 
 eval1 :: Exp -> Int
 eval1 (Val i) = i
@@ -119,6 +123,7 @@ eval1 e = e
 eval1 (Min (Val 1) (Val ) :: Exp2) == Min (Val 1) (Val ) -- correct
 eval1 (e:: Exp) -- correct
 ```
+
 with product and sum
 
 ``` haskell
@@ -293,6 +298,20 @@ add rules
 rule a :: <N, N<M -> <M
 ```
 # implementation
+
+## optimization
+* use nullpointer at list and maybe
+
+* remove unneeded patter matches 
+
+```haskell
+  f = g Just 1 -- jump to @
+
+  g Nothing = 1
+  g Just _= @ 2
+```
+* remove unneeded polymofisme 
+    let a = a    ===  \a -> a
 
 ## floating
 

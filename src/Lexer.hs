@@ -5,7 +5,6 @@ import Text.ParserCombinators.Parsec.Number
 import Text.Parsec.String
 import Text.Parsec
 
-import Control.Applicative hiding (many)
 
 identifier :: Parser String
 identifier = do

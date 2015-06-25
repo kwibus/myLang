@@ -1,9 +1,11 @@
 module TypeCheck where
 
-import Data.Either
-import Control.Monad.Trans.Except
-import Control.Monad.State
-import Control.Monad.Except
+import Data.IntMap (unionWith)
+import Control.Arrow (second)
+import Control.Monad.Error.Class
+
+import Control.Monad.State hiding (sequence)
+import Control.Monad.Except ()
 import Vallue
 import Lambda
 import Type
@@ -34,26 +36,28 @@ runInfer ::Infer i a ->  Either (TypeError i) a
 runInfer infer = evalState ( runExceptT infer) 0
 
 newFreeVar :: Infer i Free
-newFreeVar = do i <- get
-                put (i+1)
-                return $ Free i
+newFreeVar = do
+    i <- get
+    put (i + 1)
+    return $ Free i
 
-solveWith :: BruijnTerm i -> FreeEnv (i,Type Free ) -> BruiEnv (i ,Free) ->
-    Infer i (i,Type Free, FreeEnv (i,Type Free))
+solveWith :: BruijnTerm i -> FreeEnv (i, Type Free ) -> BruiEnv (i, Free) ->
+    Infer i (i, Type Free, FreeEnv (i, Type Free))
 solveWith (Lambda i _ e2) env dic = do
     k <- newFreeVar
-    let (dic1, _) = bInsert (i,k) dic
-    (i2,t2, env2) <- solveWith e2 env dic1
-    return $ (i,apply (TAppl (TVar k) t2) env2, env2)
+    let (dic1, _) = bInsert (i, k) dic
+    (_ , t2, env2) <- solveWith e2 env dic1
+    return $ (i, apply (TAppl (TVar k) t2) env2, env2)
 
 solveWith (Appl i e1 e2) env dic = do
-    (i1,t1, env1) <- solveWith e1 env dic -- preverence left
-    (i2,t2, env2) <- solveWith e2 env1 dic
-    var <- newFreeVar 
-    env4 <- toExcept $ unify (i1,apply t1 env1) (i2,apply (TAppl t2 (TVar var)) env2) env2
-    return (i,apply (TVar var) env4 , env4)
+    (i1, t1, env1) <- solveWith e1 env dic -- preverence left
+    (i2, t2, env2) <- solveWith e2 env dic
+    newenv <- toExcept $ unifyEnv env1 env2
+    var <- newFreeVar
+    env4 <- toExcept $ unify (i1, apply t1 newenv) (i2, apply (TAppl t2 (TVar var)) newenv) newenv
+    return (i, apply (TVar var) env4, env4)
 
-solveWith (Val i v) env _ = return (i,ftype v, env)
+solveWith (Val i v) env _ = return (i, ftype v, env)
 solveWith (Var i n) env dic = if bMember n dic
         then return (i,apply ( TVar (snd (bLookup n dic))) env, env)
         else throwError $ ICE (undefined ) -- i n )
@@ -72,17 +76,16 @@ unify (i1,TVar n) (i2,t) env = bind (i1,n) (i2,t) env
 unify (i1,t) (i2,TVar n) env = bind (i2,n) (i1,t) env
 -- unify (Lambda _ t1 ) t2 env = unify t1 t2 env  -- for full F
 -- unify t2 (Lambda _ t1 ) env = unify t1 t2 env
-unify (i1,TAppl t11 t12 ) (i2,TAppl t21 t22) env =
-  do env2 <- unify (i1, t11) (i2,t21) env
-     env3 <- unify (i1,(apply t12 env2)) (i2,(apply t22 env2)) env2
+unify (i1, TAppl t11 t12 ) (i2, TAppl t21 t22) env =
+  do env2 <- unify (i1, t11) (i2, t21) env
+     env3 <- unify (i1, (apply t12 env2)) (i2, (apply t22 env2)) env2
      return (env3)
-unify (i1,TVal v1) (i2,TVal v2) env = if (v1 == v2)
+unify (i1, TVal v1) (i2, TVal v2) env = if (v1 == v2)
     then return env
     else throwError VarVar 
 unify t1 t2 env = throwError $  Unify t1 t2 env
 
--- TODO remove either
-apply :: Type Free -> FreeEnv (i,Type Free) -> (Type Free)
+apply :: Type Free -> FreeEnv (i, Type Free) -> Type Free
 apply (TVar i) env = if fMember i env
     then apply (snd (fLookup i env)) env
     else TVar i

@@ -1,10 +1,9 @@
 module BruijnTerm where
 import Names
-import Control.Monad.Error
+import Control.Monad.Except
 import qualified Data.IntMap as IM
 import qualified Data.Map as M
 import Control.Exception.Base
-import Control.Applicative
 import Enviroment
 import Lambda
 
@@ -18,7 +17,8 @@ data UndefinedVar i = UndefinedVar i Name
 
 lam2Bruijn :: LamTerm i Name -> Either (UndefinedVar i) (BruijnTerm i)
 lam2Bruijn t = go t 0 M.empty
-  where go (Var i n) depth env = case M.lookup n env of
+  where go :: LamTerm i Name -> Int -> M.Map Name Int -> Either (UndefinedVar i) (BruijnTerm i)
+        go (Var i n) depth env = case M.lookup n env of
             Just n' -> return $ Var i $ Bound (depth - n' - 1)
             Nothing -> throwError $ UndefinedVar i n
         go (Val i v) _ _ = return $ Val i v
@@ -29,7 +29,7 @@ lam2Bruijn t = go t 0 M.empty
 
 bSupsitute :: Free -> a -> BruiEnv a -> BruiEnv a
 bSupsitute (Free i) a env@BruiState {bruiMap = m} =
-    assert (IM.member (-i) m ) $ env {bruiMap = IM.insert (-i) a m}
+    assert (IM.member (i) m ) $ env {bruiMap = IM.insert (i) a m}
 
 bruijn2Lam :: BruijnTerm i -> LamTerm i Name
 bruijn2Lam t = go t bEmtyEnv
