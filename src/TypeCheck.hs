@@ -64,7 +64,8 @@ solveWith (Var i n) env dic = if bMember n dic
         then return (i,apply ( TVar (snd (bLookup n dic))) env, env)
         else throwError $ ICE (undefined ) -- i n )
 
-toExcept ::Monad m =>  Either a b -> ExceptT a m b
+-- replace with libary funciont
+toExcept ::Monad m =>  Either a b -> ExceptT a m b 
 toExcept e = case e of 
     Left e -> throwError e
     Right a -> return a 
