@@ -4,6 +4,7 @@ import Test.Tasty
 import Test.Tasty.HUnit
 import Test.Tasty.QuickCheck
 import Control.Monad.Except
+import Data.IntMap
 
 import qualified ExampleBruijn as B
 import BruijnTerm
@@ -17,9 +18,11 @@ import TestUtils
 import ArbitraryQuickcheck ()
 import TypeError 
 
+
 testTypeChecker :: TestTree
 testTypeChecker = testGroup "typeChecker"
                     [ testUnify
+                    , testUnifyEnv
                     , testSolver
                     , testClose
                     ]
@@ -50,10 +53,29 @@ testUnify = testGroup "unify"
                                      Right env2 -> env == env2
     ]
 
+testUnifyEnv :: TestTree 
+testUnifyEnv = testGroup " Unify Env "
+    [testCase "unifyEnv error" $
+        let env1 = fromList [(1,((),TVal TDouble)) ] 
+            env2 = fromList [(1,((),TAppl (TVal TDouble) (TVal TDouble)))] 
+        in  isLeft (unifyEnv env1 env2) @?= True
+
+    ,testCase "unifyEnv error sum" $
+        let env1 = fromList [(1,((),TVal TDouble))
+                            ,(2,((),TVal TDouble)) ] 
+            env2 = fromList [(1,((),TAppl (TVal TDouble) (TVal TDouble)))
+                            ,(2,((),TAppl (TVal TDouble) (TVal TDouble)))] 
+        in (case (unifyEnv env1 env2) of
+                Left (UnifyEnv es) -> length es == 2  
+                _ -> False
+          )@?= True
+    ]
+    
 testClose :: TestTree
 testClose = testGroup "close"
     [testProperty "welformd close" $
         welFormdType . close ]
+
 testSolver :: TestTree
 testSolver = testGroup "Solver"
    [ testCase "check Double" $

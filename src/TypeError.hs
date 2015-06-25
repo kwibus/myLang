@@ -12,7 +12,7 @@ import Text.Parsec.Pos
 data TypeError i =
       Infinit (i, Free) (i, Type Free) (FreeEnv (i, Type Free))
     | Unify (i, Type Free) (i, Type Free) (FreeEnv (i, Type Free))
-    | UnifyEnv (i, Type Free) (i, Type Free) (FreeEnv (i, Type Free))
+    | UnifyEnv [TypeError i] 
     | ICE (UndefinedVar i)
     | VarVar deriving Show
 

@@ -1,17 +1,20 @@
 module TypeCheck where
 
-import Data.IntMap (unionWith)
+import qualified Data.IntMap  as IM
 import Control.Arrow (second)
 import Control.Monad.Error.Class
-
+-- import Data.Either
+import Data.Either.Unwrap
 import Control.Monad.State hiding (sequence)
-import Control.Monad.Except ()
+import Control.Monad.Except 
+
 import Vallue
 import Lambda
 import Type
 import BruijnTerm
 import Enviroment
 import TypeError
+
 
 close :: Type Free -> Type Bound
 close t = fst3 $ go t fEmtyEnv 0
@@ -30,7 +33,6 @@ solver :: BruijnTerm i -> Either (TypeError i )(Type Bound)
 solver e = fmap ( \ (_,t ,env) -> close (apply t env)) $ runInfer $solveWith e fEmtyEnv bEmtyEnv
 
 type Infer i a = ExceptT (TypeError i ) ( State Int ) a
-
 
 runInfer ::Infer i a ->  Either (TypeError i) a
 runInfer infer = evalState ( runExceptT infer) 0
@@ -64,11 +66,17 @@ solveWith (Var i n) env dic = if bMember n dic
 
 toExcept ::Monad m =>  Either a b -> ExceptT a m b
 toExcept e = case e of 
-    Left e -> throwE e
+    Left e -> throwError e
     Right a -> return a 
 
 unifyEnv :: FreeEnv (i,Type Free) -> FreeEnv (i,Type Free) -> Either (TypeError i) (FreeEnv (i,Type Free))
-unifyEnv = undefined
+unifyEnv env1 env2 = mapLeft (UnifyEnv )$ IM.foldWithKey f (Right env1) env2
+    where f key typ1 (Right env) = case  IM.lookup key env of
+            Nothing -> return $ IM.insert key typ1 env
+            Just typ2 -> mapLeft (:[]) $ unify typ1 typ2 env
+          f key typ1 (Left  err ) = case  IM.lookup key env1 of
+            Nothing -> Left err 
+            Just typ2 -> mapLeft (:err )$ unify typ1 typ2 env1
 
 unify :: (i,Type Free) -> (i,Type Free) -> FreeEnv (i,Type Free) ->
     Either (TypeError i) (FreeEnv (i,Type Free)) -- retunr type

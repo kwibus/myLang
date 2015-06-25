@@ -28,12 +28,10 @@ readEvalPrint :: String -> InputT IO ()
 readEvalPrint input = outputStrLn $ merge $ do
     ast <- mapLeft show $ parseString input 
     bruij <- mapLeft show $ lam2Bruijn ast
-    t <-  mapLeft (mapConcatError (showError input)) $ solver bruij
+    t <-  mapLeft (showError input) $ solver bruij
     return  $ tShow t-- $ pShow $ bruijn2Lam bruij
 
 merge :: Either a a -> a
 merge (Right a) = a
 merge (Left a) = a
 
-mapConcatError  :: (a-> String )-> [a] -> String
-mapConcatError f e = concat (intersperse "\n" (map f e))

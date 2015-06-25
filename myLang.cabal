@@ -55,6 +55,7 @@ library
                       ,transformers
                       ,ansi-wl-pprint
                       ,either 
+                      ,either-unwrap
 
   hs-source-dirs:      src/
   exposed-modules:     Lambda
@@ -92,6 +93,7 @@ test-suite tests
                       ,transformers
                       ,ansi-wl-pprint
                       ,either 
+                      ,either-unwrap
   Ghc-Options:          -Wall   -fprof-auto  
 --  -threaded -with-rtsopts=-N
   default-language:    Haskell2010
