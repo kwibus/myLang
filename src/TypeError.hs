@@ -10,8 +10,8 @@ import Control.Monad.State
 import Text.Parsec.Pos
 
 data TypeError i =
-      Infinit (i, Free) (i, Type Free) (FreeEnv (i, Type Free))
-    | Unify (i, Type Free) (i, Type Free) (FreeEnv (i, Type Free))
+      Infinit ( Free) (Type Free) (FreeEnv (Type Free))
+    | Unify ( Type Free) (Type Free) (FreeEnv ( Type Free))
     | UnifyEnv [TypeError i] 
     | ICE (UndefinedVar i)
     | VarVar deriving Show
@@ -25,12 +25,12 @@ instance Eq (TypeError i) where
   (==) _ _ = False
 
 showError :: String -> (TypeError Loc) -> String
-showError str (Infinit (i1, f) (i2, t) env) =
+showError str (Infinit  f  t env) =
     "can`t construct infinit Type " -- ++tShow (TVar f) ++ "= "
-showError str (Unify (i1, t1) (i2, t2) env) =
+showError str (Unify t1 t2 env) =
     let namestate = genNames t1 >> genNames t2
         localShow t = evalState (namestate >> tShowEnv t) initState
-    in "can`t unify " ++ localShow t1 ++ " from " ++ showLine i1 str ++
+    in "can`t unify " ++ localShow t1 ++ " from " ++ -- showLine i1 str ++
        "\nwith " ++ localShow t2
 
 showLine :: Loc -> String -> String

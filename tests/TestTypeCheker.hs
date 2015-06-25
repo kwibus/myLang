@@ -30,24 +30,24 @@ testTypeChecker = testGroup "typeChecker"
 testUnify :: TestTree
 testUnify = testGroup "unify"
     [ testCase " unifys a b {a->b}" $
-        let env = finsertAt ((),TVar (Free 2 )) ( Free 1) fEmtyEnv
-        in unifys ((),TVar (Free 1)) ((),TVar (Free 2)) env @?= True
+        let env = finsertAt (TVar (Free 2 )) ( Free 1) fEmtyEnv
+        in unifys (TVar (Free 1)) (TVar (Free 2)) env @?= True
 
     , testCase " unifys a b {b->a}" $
-        let env = finsertAt ((),TVar (Free 1 )) ( Free 2) fEmtyEnv
-        in unifys ((),TVar (Free 1)) ((),TVar (Free 2)) env @?= True
+        let env = finsertAt (TVar (Free 1 )) ( Free 2) fEmtyEnv
+        in unifys (TVar (Free 1)) (TVar (Free 2)) env @?= True
 
     , testProperty "unify self" $
-        \ t -> unifys ((),t) ((),t) fEmtyEnv
+        \ t -> unifys t t fEmtyEnv
 
     , testProperty "symetric " $
-        \ t1 t2 -> unifys ((),t1) ((),t2) fEmtyEnv == unifys ((),t2) ((),t1) fEmtyEnv
+        \ t1 t2 -> unifys t1 t2 fEmtyEnv == unifys t2 t1 fEmtyEnv
 
     , testProperty "idempotence" $
-        \ t1 t2 -> let u = unify ((),t1) ((),t2) fEmtyEnv
+        \ t1 t2 -> let u = unify t1 t2 fEmtyEnv
                  in case u of
                     Left _ -> True
-                    Right env -> let u2 = unify ((),t1) ((),t2) env
+                    Right env -> let u2 = unify t1 t2 env
                                  in case u2 of
                                      Left _ -> False
                                      Right env2 -> env == env2
@@ -56,15 +56,15 @@ testUnify = testGroup "unify"
 testUnifyEnv :: TestTree 
 testUnifyEnv = testGroup " Unify Env "
     [testCase "unifyEnv error" $
-        let env1 = fromList [(1,((),TVal TDouble)) ] 
-            env2 = fromList [(1,((),TAppl (TVal TDouble) (TVal TDouble)))] 
+        let env1 = fromList [(1,TVal TDouble) ] 
+            env2 = fromList [(1,TAppl (TVal TDouble) (TVal TDouble))] 
         in  isLeft (unifyEnv env1 env2) @?= True
 
     ,testCase "unifyEnv error sum" $
-        let env1 = fromList [(1,((),TVal TDouble))
-                            ,(2,((),TVal TDouble)) ] 
-            env2 = fromList [(1,((),TAppl (TVal TDouble) (TVal TDouble)))
-                            ,(2,((),TAppl (TVal TDouble) (TVal TDouble)))] 
+        let env1 = fromList [(1,TVal TDouble)
+                            ,(2,TVal TDouble)] 
+            env2 = fromList [(1,TAppl (TVal TDouble) (TVal TDouble))
+                            ,(2,TAppl (TVal TDouble) (TVal TDouble))] 
         in (case (unifyEnv env1 env2) of
                 Left (UnifyEnv es) -> length es == 2  
                 _ -> False
@@ -172,9 +172,9 @@ testSolver = testGroup "Solver"
     , testProperty "idempotence" $
         \ e -> case runInfer $solveWith (e :: BruijnTerm ()) fEmtyEnv bEmtyEnv of
                 Left _ -> False
-                Right (_,t1, env1) -> case runInfer $ solveWith e env1 bEmtyEnv of
+                Right (t1, env1) -> case runInfer $ solveWith e env1 bEmtyEnv of
                     Left _ -> False
-                    Right (_,t2, _) -> close t1 == close t2 -- && env1 == env2
+                    Right (t2, _) -> close t1 == close t2 -- && env1 == env2
     , testProperty "typeable" $
         \ e -> isRight $ solver (e :: BruijnTerm () )
     ]

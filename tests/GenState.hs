@@ -7,7 +7,6 @@ import Type
 import TypeCheck
 import Control.Monad.State.Lazy
 import Test.QuickCheck.Gen
-import Debug.Trace
 import Data.Maybe
 import StateTransMany
 
@@ -22,7 +21,7 @@ defualtGenState = State { dictionary = bEmtyEnv
                         }
 
 type Generater a =  StateTransManyT (Env,Int) Gen a
-type Env = FreeEnv ((), Type Free)
+type Env = FreeEnv (Type Free)
 
 runGenerartor :: Generater a ->  Gen (Maybe a)
 runGenerartor g =  fmap listToMaybe  (evalT g (fEmtyEnv,0))
@@ -30,14 +29,14 @@ runGenerartor g =  fmap listToMaybe  (evalT g (fEmtyEnv,0))
 unifyGen :: Type Free-> Type Free -> Generater ()
 unifyGen t1 t2 = do
     env <- getEnv 
-    case unify ((),t1) ((),t2) env of
+    case unify t1 t2 env of
         Left {} -> mzero
         Right env1 -> setEnv env1 
 
-getEnv :: Generater (FreeEnv (() ,Type Free))
+getEnv :: Generater (FreeEnv (Type Free))
 getEnv = get >>= return . fst
 
-setEnv :: FreeEnv ((),Type Free )->Generater ()
+setEnv :: FreeEnv (Type Free )->Generater ()
 setEnv env = modify  (\(_,m) -> (env,m))
 
 newFreeVar :: Generater Free

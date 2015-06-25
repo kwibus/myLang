@@ -30,7 +30,7 @@ fst3 :: (a, b, c) -> a
 fst3 (a, _, _) = a
 
 solver :: BruijnTerm i -> Either (TypeError i )(Type Bound)
-solver e = fmap ( \ (_,t ,env) -> close (apply t env)) $ runInfer $solveWith e fEmtyEnv bEmtyEnv
+solver e = fmap ( close .(uncurry apply)) $ runInfer $solveWith e fEmtyEnv bEmtyEnv
 
 type Infer i a = ExceptT (TypeError i ) ( State Int ) a
 
@@ -43,25 +43,25 @@ newFreeVar = do
     put (i + 1)
     return $ Free i
 
-solveWith :: BruijnTerm i -> FreeEnv (i, Type Free ) -> BruiEnv (i, Free) ->
-    Infer i (i, Type Free, FreeEnv (i, Type Free))
+solveWith :: BruijnTerm i -> FreeEnv (Type Free ) -> BruiEnv Free ->
+    Infer i (Type Free, FreeEnv (Type Free))
 solveWith (Lambda i _ e2) env dic = do
     k <- newFreeVar
-    let (dic1, _) = bInsert (i, k) dic
-    (_ , t2, env2) <- solveWith e2 env dic1
-    return $ (i, apply (TAppl (TVar k) t2) env2, env2)
+    let (dic1, _) = bInsert  k dic
+    (t2, env2) <- solveWith e2 env dic1
+    return $ (apply (TAppl (TVar k) t2) env2, env2)
 
 solveWith (Appl i e1 e2) env dic = do
-    (i1, t1, env1) <- solveWith e1 env dic -- preverence left
-    (i2, t2, env2) <- solveWith e2 env dic
+    (t1, env1) <- solveWith e1 env dic -- preverence left
+    (t2, env2) <- solveWith e2 env dic
     newenv <- toExcept $ unifyEnv env1 env2
     var <- newFreeVar
-    env4 <- toExcept $ unify (i1, apply t1 newenv) (i2, apply (TAppl t2 (TVar var)) newenv) newenv
-    return (i, apply (TVar var) env4, env4)
+    env4 <- toExcept $ unify (apply t1 newenv) (apply (TAppl t2 (TVar var)) newenv) newenv
+    return (apply (TVar var) env4, env4)
 
-solveWith (Val i v) env _ = return (i, ftype v, env)
+solveWith (Val i v) env _ = return (ftype v, env)
 solveWith (Var i n) env dic = if bMember n dic
-        then return (i,apply ( TVar (snd (bLookup n dic))) env, env)
+        then return (apply ( TVar (bLookup n dic)) env, env)
         else throwError $ ICE (undefined ) -- i n )
 
 -- replace with libary funciont
@@ -70,7 +70,7 @@ toExcept e = case e of
     Left e -> throwError e
     Right a -> return a 
 
-unifyEnv :: FreeEnv (i,Type Free) -> FreeEnv (i,Type Free) -> Either (TypeError i) (FreeEnv (i,Type Free))
+unifyEnv :: FreeEnv (Type Free) -> FreeEnv (Type Free) -> Either (TypeError i) (FreeEnv (Type Free))
 unifyEnv env1 env2 = mapLeft (UnifyEnv )$ IM.foldWithKey f (Right env1) env2
     where f key typ1 (Right env) = case  IM.lookup key env of
             Nothing -> return $ IM.insert key typ1 env
@@ -79,24 +79,24 @@ unifyEnv env1 env2 = mapLeft (UnifyEnv )$ IM.foldWithKey f (Right env1) env2
             Nothing -> Left err 
             Just typ2 -> mapLeft (:err )$ unify typ1 typ2 env1
 
-unify :: (i,Type Free) -> (i,Type Free) -> FreeEnv (i,Type Free) ->
-    Either (TypeError i) (FreeEnv (i,Type Free)) -- retunr type
-unify (i1,TVar n) (i2,t) env = bind (i1,n) (i2,t) env
-unify (i1,t) (i2,TVar n) env = bind (i2,n) (i1,t) env
+unify :: (Type Free) -> (Type Free) -> FreeEnv (Type Free) ->
+    Either (TypeError i) (FreeEnv (Type Free)) -- retunr type
+unify (TVar n) (t) env = bind n t env
+unify t (TVar n) env = bind n t env
 -- unify (Lambda _ t1 ) t2 env = unify t1 t2 env  -- for full F
 -- unify t2 (Lambda _ t1 ) env = unify t1 t2 env
-unify (i1, TAppl t11 t12 ) (i2, TAppl t21 t22) env =
-  do env2 <- unify (i1, t11) (i2, t21) env
-     env3 <- unify (i1, (apply t12 env2)) (i2, (apply t22 env2)) env2
+unify (TAppl t11 t12 ) (TAppl t21 t22) env =
+  do env2 <- unify t11 t21 env
+     env3 <- unify (apply t12 env2) (apply t22 env2) env2
      return (env3)
-unify (i1, TVal v1) (i2, TVal v2) env = if (v1 == v2)
+unify (TVal v1) (TVal v2) env = if (v1 == v2)
     then return env
     else throwError VarVar 
 unify t1 t2 env = throwError $  Unify t1 t2 env
 
-apply :: Type Free -> FreeEnv (i, Type Free) -> Type Free
+apply :: Type Free -> FreeEnv (Type Free) -> Type Free
 apply (TVar i) env = if fMember i env
-    then apply (snd (fLookup i env)) env
+    then apply (fLookup i env) env
     else TVar i
 apply (TAppl t1 t2) env =
   let t1' = apply t1 env
@@ -104,32 +104,32 @@ apply (TAppl t1 t2) env =
   in TAppl t1' t2'
 apply t _ = t
 
-bind :: (i,Free) -> (i,Type Free) -> FreeEnv (i,Type Free) ->
-     Either (TypeError i )(FreeEnv (i,Type Free))
-bind (i1, n1) (i2,t) env
+bind :: Free -> Type Free -> FreeEnv (Type Free) ->
+     Either (TypeError i )(FreeEnv (Type Free))
+bind  n1 t env
     | TVar n1 == t = return env
-    | fMember n1 env = unify (fLookup n1 env) (i2,t) env
-    | infinit n1 t env = throwError $ Infinit (i1,n1) (i2,t) env
+    | fMember n1 env = unify (fLookup n1 env) t env
+    | infinit n1 t env = throwError $ Infinit n1 t env
     | otherwise = case t of
         TVar n2 -> if fMember n2 env
-                        then unify (i1,TVar n1 ) (i2,snd (fLookup n2 env)) env
-                        else return $ finsertAt (i2,t) n1 env
-        _ -> return $ finsertAt (i2,t)n1 env
+                        then unify (TVar n1 ) (fLookup n2 env) env
+                        else return $ finsertAt t n1 env
+        _ -> return $ finsertAt t n1 env
 
-infinit :: Free -> (Type Free) -> FreeEnv (i,Type Free) -> Bool
+infinit :: Free -> (Type Free) -> FreeEnv (Type Free) -> Bool
 infinit var (TAppl t1 t2) env = isIn var t1 env || isIn var t2 env
 infinit _ TVal {} _ = False
 infinit var1 (TVar var2 ) env =
-    fMember var2 env && let var2' = snd (fLookup var2 env)
+    fMember var2 env && let var2' = fLookup var2 env
                         in if var2 == var1 then isIn var1 var2' env
                                           else infinit var1 var2' env
 
-isIn :: Free -> (Type Free) -> FreeEnv (i,Type Free) -> Bool
+isIn :: Free -> (Type Free) -> FreeEnv (Type Free) -> Bool
 isIn _ TVal {} _ = False
 isIn var (TAppl t1 t2) env = isIn var t1 env || isIn var t2 env
 isIn var1 (TVar var2 ) env = var1 == var2 || if fMember var2 env
-    then isIn var1 (snd(fLookup var2 env)) env
+    then isIn var1 (fLookup var2 env) env
     else False
 
-unifys :: (i,Type Free) -> (i,Type Free) -> FreeEnv (i,Type Free) -> Bool
+unifys :: Type Free -> Type Free -> FreeEnv (Type Free) -> Bool
 unifys t1 t2 e = isRight $ unify t1 t2 e

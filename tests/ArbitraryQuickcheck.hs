@@ -9,7 +9,6 @@ import Test.QuickCheck.Gen
 import Test.QuickCheck
 import Control.Applicative
 
-
 import Logic
 import GenState
 import ArbitraryVallue
@@ -106,11 +105,11 @@ arbitraryLambda size t maxlist (state@State { dictionary = dic}) = do
   expr <- arbitraryTerm (size - 1) (TVar var2 ) maxlist newnewstate
   return $ ( lambda n expr)
 
-check :: BruijnTerm () -> Type Free -> BruiEnv ((),Free )-> Generater Bool
+check :: BruijnTerm () -> Type Free -> BruiEnv (Free )-> Generater Bool
 check expr t1 dic = do 
  env <- getEnv
  return $ case runInfer (solveWith expr env dic) of
-    Right (_,t2, env2) -> case unify ((),apply t1 env) ((),apply t2 env2) fEmtyEnv of
+    Right (t2, env2) -> case unify (apply t1 env) (apply t2 env2) fEmtyEnv of
        Left _ -> False
        Right {} -> True
     Left _ -> False
