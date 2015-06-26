@@ -32,6 +32,8 @@ executable interperter
                       ,either-unwrap
                       ,myLang
                       ,haskeline
+                      ,transformers
+                      ,ansi-wl-pprint
   hs-source-dirs:      src/Interperter/
   default-language:    Haskell2010
 

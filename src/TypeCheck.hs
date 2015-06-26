@@ -2,7 +2,6 @@ module TypeCheck where
 
 import qualified Data.IntMap  as IM
 import Control.Monad.Error.Class
--- import Data.Either
 import Data.Either.Unwrap
 import Control.Monad.State hiding (sequence)
 import Control.Monad.Except 
@@ -50,12 +49,12 @@ solveWith (Lambda i _ e2) env dic = do
     (t2, env2) <- solveWith e2 env dic1
     return $ (apply (TAppl (TVar k) t2) env2, env2)
 
-solveWith (Appl i e1 e2) env dic = do
+solveWith e@(Appl i e1 e2) env dic = do
     (t1, env1) <- solveWith e1 env dic -- preverence left
     (t2, env2) <- solveWith e2 env dic
-    newenv <- toExcept $ unifyEnv env1 env2
+    newenv <- toExcept $ mapLeft (UnifyEnv e) $ unifyEnv env1 env2
     var <- newFreeVar
-    env4 <- toExcept $ unify (apply t1 newenv) (apply (TAppl t2 (TVar var)) newenv) newenv
+    env4 <- toExcept $ mapLeft (UnifyAp e) $ unify (apply t1 newenv) (apply (TAppl t2 (TVar var)) newenv) newenv
     return (apply (TVar var) env4, env4)
 
 solveWith (Val i v) env _ = return (ftype v, env)
@@ -69,8 +68,8 @@ toExcept e = case e of
     Left e -> throwError e
     Right a -> return a 
 
-unifyEnv :: FreeEnv (Type Free) -> FreeEnv (Type Free) -> Either (TypeError i) (FreeEnv (Type Free))
-unifyEnv env1 env2 = mapLeft (UnifyEnv )$ IM.foldWithKey f (Right env1) env2
+unifyEnv :: FreeEnv (Type Free) -> FreeEnv (Type Free) -> Either [UnificationError i] (FreeEnv (Type Free))
+unifyEnv env1 env2 = IM.foldWithKey f (Right env1) env2
     where f key typ1 (Right env) = case  IM.lookup key env of
             Nothing -> return $ IM.insert key typ1 env
             Just typ2 -> mapLeft (:[]) $ unify typ1 typ2 env
@@ -79,7 +78,7 @@ unifyEnv env1 env2 = mapLeft (UnifyEnv )$ IM.foldWithKey f (Right env1) env2
             Just typ2 -> mapLeft (:err )$ unify typ1 typ2 env1
 
 unify :: (Type Free) -> (Type Free) -> FreeEnv (Type Free) ->
-    Either (TypeError i) (FreeEnv (Type Free)) -- retunr type
+    Either (UnificationError i) (FreeEnv (Type Free)) -- retunr type
 unify (TVar n) (t) env = bind n t env
 unify t (TVar n) env = bind n t env
 -- unify (Lambda _ t1 ) t2 env = unify t1 t2 env  -- for full F
@@ -104,7 +103,7 @@ apply (TAppl t1 t2) env =
 apply t _ = t
 
 bind :: Free -> Type Free -> FreeEnv (Type Free) ->
-     Either (TypeError i )(FreeEnv (Type Free))
+     Either (UnificationError i )(FreeEnv (Type Free))
 bind  n1 t env
     | TVar n1 == t = return env
     | fMember n1 env = unify (fLookup n1 env) t env
