@@ -66,7 +66,7 @@ testUnifyEnv = testGroup " Unify Env "
             env2 = fromList [(1,TAppl (TVal TDouble) (TVal TDouble))
                             ,(2,TAppl (TVal TDouble) (TVal TDouble))] 
         in (case (unifyEnv env1 env2) of
-                Left (UnifyEnv es) -> length es == 2  
+                Left  es -> length es == 2  
                 _ -> False
           )@?= True
     ]
@@ -129,7 +129,7 @@ testSolver = testGroup "Solver"
                     (bvar 0)
                 ))
         @?=
-        throwError ( Infinit undefined undefined undefined)
+        throwError ( UnifyAp undefined undefined undefined (Infinit undefined undefined undefined))
 
    , testCase "check (\\a.a (a 1.0))" $
         solver (lambda "a" (appl

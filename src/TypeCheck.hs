@@ -54,8 +54,11 @@ solveWith e@(Appl i e1 e2) env dic = do
     (t2, env2) <- solveWith e2 env dic
     newenv <- toExcept $ mapLeft (UnifyEnv e) $ unifyEnv env1 env2
     var <- newFreeVar
-    env4 <- toExcept $ mapLeft (UnifyAp e) $ unify (apply t1 newenv) (apply (TAppl t2 (TVar var)) newenv) newenv
-    return (apply (TVar var) env4, env4)
+    let t11 = (apply t1 newenv) 
+    let t12 = (apply (TAppl t2 (TVar var)) newenv)
+    case unify t11 t12 newenv of
+        Left error -> throwError $ UnifyAp e t11 t2  error 
+        Right env4 -> return (apply (TVar var ) env4,env4)
 
 solveWith (Val i v) env _ = return (ftype v, env)
 solveWith (Var i n) env dic = if bMember n dic
@@ -90,7 +93,7 @@ unify (TAppl t11 t12 ) (TAppl t21 t22) env =
 unify (TVal v1) (TVal v2) env = if (v1 == v2)
     then return env
     else throwError VarVar 
-unify t1 t2 env = throwError $  Unify t1 t2 env
+unify t1 t2 env = throwError $  Unify (apply t1 env) (apply  t2 env) env
 
 apply :: Type Free -> FreeEnv (Type Free) -> Type Free
 apply (TVar i) env = if fMember i env

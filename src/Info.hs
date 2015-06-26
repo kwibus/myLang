@@ -1,11 +1,23 @@
 {-# LANGUAGE OverlappingInstances, FlexibleInstances, UndecidableInstances #-}
 
 module Info where
-import Text.Parsec.Pos
 import Lambda
 
-data Src = File String | Str String
-type Loc = SourcePos -- Loc Src Line Column
+data Loc = Loc 
+    { srcFile :: String
+    , lineStart :: Int 
+    , columnStart  :: Int 
+    , lineEnd ::Int 
+    , columnEnd :: Int 
+    }deriving Show
+
+showLoc :: Loc -> String
+showLoc loc = showfile ++
+              show ( lineStart loc) ++":" ++
+              show ( columnStart loc) ++ ":"
+  where showfile = if srcFile loc  /= ""
+        then srcFile loc ++ ":"
+        else ""
 
 getInfo :: LamTerm i n -> i
 getInfo (Var i _ ) = i
@@ -13,6 +25,13 @@ getInfo (Appl i _ _) = i
 getInfo (Lambda i _ _) = i
 getInfo (Val i _) = i
 
+setInfo ::i-> LamTerm i n -> LamTerm i n
+setInfo loc (Var _ n ) =Var loc n 
+setInfo loc (Appl _ e1 e2) =Appl loc e1 e2 
+setInfo loc (Lambda _ n e) = Lambda loc n e 
+setInfo loc (Val _ v) = Val loc v
+
+--TODO rename is confusion with parsec GetPosition
 getposition :: LamTerm Loc n -> Loc
 getposition = getInfo
 

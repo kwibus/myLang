@@ -14,22 +14,33 @@ import Info
 
 pLambda :: Parser Expresion
 pLambda = do
+    pos <- getPosition
     symbol '\\'
-    i <- getPosition
     n <- identifier
     symbol '.'
     term <- pLambdaTerm
-    return $ Lambda i n term
+    loc <-getLoc pos
+    return $ Lambda loc  n term
 
 pApplication :: Parser Expresion
 pApplication = do
     terms <- many pLambdaTerm'
-    return $ foldl1 (\e1 e2 -> Appl (getposition e1) e1 e2 )$ fixInfix terms
+    return $ foldl1 (\e1 e2 -> Appl (mergLoc e1 e2) e1 e2 )$ fixInfix terms
+
+mergLoc :: Expresion -> Expresion -> Loc 
+mergLoc e1 e2 = Loc {srcFile = srcFile start
+                    ,lineStart = lineStart start
+                    ,columnStart = columnStart start
+                    ,lineEnd = lineEnd end
+                    ,columnEnd = columnEnd end}
+    where start = getposition e1
+          end = getposition e2
 
 pVallue::  Parser Expresion
-pVallue = do i <- getPosition 
+pVallue = do pos <- getPosition 
              v <- choice [fmap MyDouble double]
-             return $ Val i v
+             loc <-getLoc pos
+             return $ Val loc  v
 
 pLambdaTerm' :: Parser (Expresion,Bool)
 pLambdaTerm' = choice parsers
@@ -39,9 +50,10 @@ pLambdaTerm :: Parser Expresion
 pLambdaTerm =  pApplication
 
 pVar :: Parser Expresion
-pVar = do i <- getPosition
+pVar = do pos <- getPosition
           n <- identifier
-          return $ Var i n
+          loc <-getLoc pos
+          return $ Var loc n
 
 pLine :: Parser Expresion
 pLine = do
@@ -52,12 +64,20 @@ pLine = do
 
 operator :: Parser (Expresion, Bool)
 operator = do 
-    i <- getPosition 
+    pos <- getPosition 
     o <- choice  [pPlus,pMultiply ]
-    return $(Val i o, True)
+    loc <- getLoc pos
+    return $(Val loc  o, True)
 
--- getLoc :: Parser Loc 
--- getLoc 
+getLoc ::SourcePos -> Parser Loc 
+getLoc start = do 
+    end <- getPosition
+    return $Loc 
+            {srcFile = sourceName start
+            ,lineStart = sourceLine start
+            ,columnStart = sourceColumn start
+            ,lineEnd = sourceLine end
+            ,columnEnd = sourceColumn end}
 
 pPlus:: Parser Vallue
 pPlus = symbol '+' >>  return plus
@@ -67,10 +87,12 @@ pMultiply = symbol '*' >>  return multiply
 
 pParentheses :: Parser Expresion
 pParentheses = do
+    pos <- getPosition
     symbol '('
     term <- pLambdaTerm
     symbol ')'
-    return term
+    loc <-getLoc pos
+    return $ setInfo loc term
 
 parseString :: String -> Either ParseError Expresion
 parseString = parse pLine ""
