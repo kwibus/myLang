@@ -41,7 +41,7 @@ testParser = testGroup "parser"
   , testCaseParser "*\\a.a" $ appl (lambda "#" $ appl (val multiply)( var "#" )) (L.id "a")
   , testCaseParser "(\\a.a)(*)" $ appl  (L.id "a") (val multiply)
   , testCaseParser "(\\a.a)*" $ appl  (val multiply) (L.id "a")
-  -- , testCase "--1.0"$
+  , testParserFail  "(* * 1.0)+ 1.0"
   , testProperty "parse pShow arbitrary " $
         \ t -> isRight (parseString (pShow (t:: LamTerm () Name  )))
   , testProperty "pShow parse = id " $
@@ -49,7 +49,13 @@ testParser = testGroup "parser"
   ]
 
 testCaseParser :: String -> LamTerm () Name -> TestTree
-testCaseParser string result = testCase string $ 
+testCaseParser string result = testCase string $
      fmap removeInfo (parseString string  )
      @?=
      return result 
+
+testParserFail :: String -> TestTree
+testParserFail string = testCase ("fail at:"++ string ) $ case parseString string of
+    Left _ -> return ()
+    Right a -> assertFailure (show a)
+

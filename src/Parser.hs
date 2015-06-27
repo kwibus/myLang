@@ -25,7 +25,9 @@ pLambda = do
 pApplication :: Parser Expresion
 pApplication = do
     terms <- many pLambdaTerm'
-    return $ foldl1 (\e1 e2 -> Appl (mergLoc e1 e2) e1 e2 )$ fixInfix terms
+    case fixInfix terms of
+        Left _ -> fail "can`t have consecutive infix operators "
+        Right exps ->  return $ foldl1 (\e1 e2 -> Appl (mergLoc e1 e2) e1 e2 ) exps
 
 mergLoc :: Expresion -> Expresion -> Loc 
 mergLoc e1 e2 = Loc {srcFile = srcFile start
