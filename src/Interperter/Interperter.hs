@@ -18,8 +18,8 @@ main = runInputT defaultSettings loop
  where
     loop :: InputT IO ()
     loop = do
-        minput <- getInputLine "% "
-        case minput of
+        input <- getInputLine "% "
+        case input of
             Nothing -> return ()
             Just "quit" -> return ()
             Just input -> readEvalPrint input >> loop
