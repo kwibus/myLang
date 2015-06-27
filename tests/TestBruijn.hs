@@ -15,9 +15,9 @@ import Lambda
 testBruijn :: TestTree
 testBruijn = testGroup "bruijn index"
   [ testCase "bruijn2Lam id " $
-      bruijn2Lam B.id @?= L.id
+      bruijn2Lam B.id @?= L.id "a"
   , testCase "lam2Bruijn id " $
-      lam2Bruijn L.id @?= return B.id
+      lam2Bruijn (L.id "a") @?= return B.id
   , testCase "test S combinator from lambda  S=\\x.\\y.x" $
       lam2Bruijn L.s @?= return B.s
   , testCase "test S combinator from bruijn S=\\\\1" $

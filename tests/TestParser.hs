@@ -17,65 +17,39 @@ import qualified ExampleLambda as L
 
 testParser :: TestTree
 testParser = testGroup "parser"
-  [
-    testCase "id id id" $
-     let ididid = "(\\a.a)(\\b.b)\\c.c"
-     in (pShow (right (parseString ididid)) @?= ididid)
-  , testCase "+" $
-     fmap removeInfo (parseString "+") @?= return (val plus)
-  , testCase "1 +" $
-     fmap removeInfo (parseString "1.0 +")
-     @?=
-     return (appl (val plus) (double 1))
-  , testCase "+ 1" $
-     fmap removeInfo (parseString "+ 1.0")
-     @?=
-     return (appl(lambda "#"(appl (val plus)( var "#") ))(double 1))
-  , testCase "1 + 2" $
-     fmap removeInfo (parseString "1.0 + 2.0")
-     @?=
-     return (appl (appl (val plus) (double 1)) (double 2))
-  , testCase "1 * 2 + 3" $
-     fmap removeInfo (parseString "1.0 * 2.0 + 3.0")
-     @?=
-     return( appl (appl (val plus)
-                (appl (appl (val multiply) (double 1.0)) (double 2.0)))
-          (double  3.0))
-  , testCase "1 + 2 * 3" $
-     fmap removeInfo(parseString "1.0 + 2.0 *3.0")
-     @?=
-     return (appl (appl (val plus) (double 1))
-           (appl (appl
-                      (val multiply )
-                      (double 2 ))
-                 (double 3)))
-  , testCase "1 * 2 + 3 * 4 " $
-     fmap removeInfo (parseString "1.0 * 2.0 + 3.0 * 4.0"  )
-     @?=
-     return ( appl (appl (val plus)
+  [ testCaseParser "(\\a.a)(\\b.b)\\c.c" $ appl (appl (L.id "a") (L.id "b")  ) (L.id "c")
+  , testCaseParser "+" $ val plus
+  , testCaseParser "1.0 +" $ appl (val plus) (double 1)
+  , testCaseParser  "+ 1.0" $ appl(lambda "#"(appl (val plus)( var "#") ))(double 1)
+  , testCaseParser "1.0 + 2.0" $ appl (appl (val plus) (double 1)) (double 2)
+  , testCaseParser "1.0 * 2.0 + 3.0" $ 
+        ( appl (appl (val plus)
+                     (appl (appl (val multiply) (double 1.0)) (double 2.0)))
+                     (double  3.0))
+  , testCaseParser  "1.0 + 2.0 * 3.0" $
+         (appl (appl (val plus) 
+               (double 1))
+               (appl (appl (val multiply )
+                          (double 2 ))
+                          (double 3)))
+
+  , testCaseParser "1.0 * 2.0 + 3.0 * 4.0 " $
+     ( appl (appl (val plus)
                 (appl (appl (val multiply) (double 1.0)) (double  2.0)))
                 (appl (appl (val multiply) (double 3.0)) (double  4.0)))
 
-  , testCase "*\\a.a" $
-     fmap removeInfo (parseString "*\\a.a"  )
-     @?=
-     return (appl (lambda "#" $ appl (val multiply)( var "#" )) L.id )
-
-  , testCase "(\\a.a)(*)" $
-     fmap removeInfo(parseString "(\\a.a)(*)"  )
-     @?=
-     return ( appl  L.id (val multiply))
-  , testCase "(\\a.a)*" $
-     fmap removeInfo (parseString "(\\a.a)*"  )
-     @?=
-     return( appl  (val multiply) L.id )
+  , testCaseParser "*\\a.a" $ appl (lambda "#" $ appl (val multiply)( var "#" )) (L.id "a")
+  , testCaseParser "(\\a.a)(*)" $ appl  (L.id "a") (val multiply)
+  , testCaseParser "(\\a.a)*" $ appl  (val multiply) (L.id "a")
+  -- , testCase "--1.0"$
   , testProperty "parse pShow arbitrary " $
         \ t -> isRight (parseString (pShow (t:: LamTerm () Name  )))
   , testProperty "pShow parse = id " $
         \ t -> (fmap removeInfo (parseString (pShow (t:: LamTerm () Name )))) == return t
   ]
 
-
-right :: Show a => Either a b -> b
-right (Right b) = b
-right (Left a) = error $ show a
+testCaseParser :: String -> LamTerm () Name -> TestTree
+testCaseParser string result = testCase string $ 
+     fmap removeInfo (parseString string  )
+     @?=
+     return result 
