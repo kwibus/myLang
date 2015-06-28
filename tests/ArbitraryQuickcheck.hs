@@ -60,19 +60,18 @@ arbitraryTerm n t maxlist s
                        , arbitraryVar t s
                        ]
     -- shorter and parmiterzerd size
-  | otherwise = do 
-    b1 <- fmap (any id)$ mapM  (typesizeSmaller 10)maxlist 
-    b2 <- typesizeSmaller 10  t
-    if  b1 || b2 
+  | otherwise = do
+    b1 <- fmap (any id)$ mapM  (typesizeSmaller 7 )maxlist
+    b2 <- typesizeSmaller 7  t
+    if  b1 || b2
         then mzero
         else oneOfLogic [ arbitraryAppl n t maxlist s
-                        , 
-         arbitraryLambda n t maxlist s
+                        , arbitraryLambda n t maxlist s
                         ]
 
 arbitraryVar :: Type Free -> GenState -> Generater (BruijnTerm ())
 arbitraryVar t s = do
-  (i, (_,((), f))) <- elementsLogic $ toList $ dictionary s
+  (i, (_, f)) <- elementsLogic $ toList $ dictionary s
   unifyGen t (TVar f)
   return $ bvar (bruiDepth (dictionary s ) -i -1)
 
@@ -80,7 +79,7 @@ arbitraryAppl :: Int -> Type Free -> [Type Free] -> GenState -> Generater (Bruij
 arbitraryAppl size t maxlist state = do
 
   sizeLeft <- chooseLogic (1, size - 1)
-  newvar <- newFreeVar 
+  newvar <- newFreeVar
   let sizeRight = size - sizeLeft
   if sizeLeft < sizeRight
   then do
@@ -98,14 +97,14 @@ arbitraryLambda size t maxlist (state@State { dictionary = dic}) = do
   var1 <- newFreeVar
   var2 <-  newFreeVar
   unifyGen t $TAppl (TVar var1) (TVar var2)
-  (n, newState) <- newVarName state
-  let (newdic, _) = bInsert (n, ((),var1)) dic
+  (n, newState) <- lift $ newVarName state
+  let (newdic, _) = bInsert (n, var1) dic
   let newnewstate = newState { dictionary = newdic}
   expr <- arbitraryTerm (size - 1) (TVar var2 ) maxlist newnewstate
   return $ ( lambda n expr)
 
 check :: BruijnTerm () -> Type Free -> BruiEnv (Free )-> Generater Bool
-check expr t1 dic = do 
+check expr t1 dic = do
  env <- getEnv
  return $ case runInfer (solveWith expr env dic) of
     Right (t2, env2) -> case unify (apply t1 env) (apply t2 env2) fEmtyEnv of
@@ -113,13 +112,13 @@ check expr t1 dic = do
        Right {} -> True
     Left _ -> False
 
-newVarName :: GenState -> Generater(String, GenState)
+newVarName :: GenState -> Gen (String, GenState)
 newVarName state = do
   let names = toList $ dictionary state
   boolNewName <- case names of
         [] -> return True
-        _ -> lift $frequency [(4, return True), (1, return False)]
+        _ -> frequency [(4, return True), (1, return False)]
   newname <- if boolNewName
-            then fmap (: []) $ lift $ choose ('a', 'z')
-            else lift $ elements $ map (fst . snd) names
+            then fmap (: []) $ choose ('a', 'z')
+            else elements $ map (fst . snd) names
   return (newname, state )
