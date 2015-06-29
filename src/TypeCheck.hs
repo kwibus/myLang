@@ -4,7 +4,7 @@ import qualified Data.IntMap  as IM
 import Control.Monad.Error.Class
 import Data.Either.Unwrap
 import Control.Monad.State hiding (sequence)
-import Control.Monad.Except 
+import Control.Monad.Except
 
 import Vallue
 import Lambda
@@ -43,33 +43,33 @@ newFreeVar = do
 
 solveWith :: BruijnTerm i -> FreeEnv (Type Free ) -> BruiEnv Free ->
     Infer i (Type Free, FreeEnv (Type Free))
-solveWith (Lambda i _ e2) env dic = do
+solveWith (Lambda _ _ e2) env dic = do
     k <- newFreeVar
     let (dic1, _) = bInsert  k dic
     (t2, env2) <- solveWith e2 env dic1
     return $ (apply (TAppl (TVar k) t2) env2, env2)
 
-solveWith e@(Appl i e1 e2) env dic = do
+solveWith e@(Appl _ e1 e2) env dic = do
     (t1, env1) <- solveWith e1 env dic -- preverence left
     (t2, env2) <- solveWith e2 env dic
     newenv <- toExcept $ mapLeft (UnifyEnv e) $ unifyEnv env1 env2
     var <- newFreeVar
-    let t11 = (apply t1 newenv) 
+    let t11 = (apply t1 newenv)
     let t12 = (apply (TAppl t2 (TVar var)) newenv)
     case unify t11 t12 newenv of
-        Left error -> throwError $ UnifyAp e t11 t2  error 
+        Left err -> throwError $ UnifyAp e t11 t2  err
         Right env4 -> return (apply (TVar var ) env4,env4)
 
-solveWith (Val i v) env _ = return (ftype v, env)
+solveWith (Val _ v) env _ = return (ftype v, env)
 solveWith (Var i n) env dic = if bMember n dic
         then return (apply ( TVar (bLookup n dic)) env, env)
-        else throwError $ ICE (undefined ) -- i n )
+        else throwError $ ICE $ UndefinedVar i n
 
 -- replace with libary funciont
-toExcept ::Monad m =>  Either a b -> ExceptT a m b 
-toExcept e = case e of 
+toExcept ::Monad m =>  Either a b -> ExceptT a m b
+toExcept eith = case eith of
     Left e -> throwError e
-    Right a -> return a 
+    Right a -> return a
 
 unifyEnv :: FreeEnv (Type Free) -> FreeEnv (Type Free) -> Either [UnificationError i] (FreeEnv (Type Free))
 unifyEnv env1 env2 = IM.foldWithKey f (Right env1) env2
@@ -77,7 +77,7 @@ unifyEnv env1 env2 = IM.foldWithKey f (Right env1) env2
             Nothing -> return $ IM.insert key typ1 env
             Just typ2 -> mapLeft (:[]) $ unify typ1 typ2 env
           f key typ1 (Left  err ) = case  IM.lookup key env1 of
-            Nothing -> Left err 
+            Nothing -> Left err
             Just typ2 -> mapLeft (:err )$ unify typ1 typ2 env1
 
 unify :: (Type Free) -> (Type Free) -> FreeEnv (Type Free) ->
@@ -92,7 +92,7 @@ unify (TAppl t11 t12 ) (TAppl t21 t22) env =
      return (env3)
 unify (TVal v1) (TVal v2) env = if (v1 == v2)
     then return env
-    else throwError VarVar 
+    else throwError VarVar
 unify t1 t2 env = throwError $  Unify (apply t1 env) (apply  t2 env) env
 
 apply :: Type Free -> FreeEnv (Type Free) -> Type Free

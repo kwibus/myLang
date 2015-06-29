@@ -10,7 +10,7 @@ import Enviroment
 instance Arbitrary (Type Bound ) where
     arbitrary = sized $ arbitraryType
 instance Arbitrary (Type Free) where
-    arbitrary = fmap bound2Free (arbitrary :: Gen (Type Bound) )
+    arbitrary = fmap typeBound2Free (arbitrary :: Gen (Type Bound) )
 
 -- TODO Beter Arbitrary type  possible ?
 arbitraryType :: Int -> Gen (Type Bound)

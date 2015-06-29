@@ -44,7 +44,7 @@ executable Sample
                       ,QuickCheck
                       ,mtl
                       ,transformers
-
+                      ,containers
   hs-source-dirs:      tests
   default-language:    Haskell2010
 
@@ -78,12 +78,12 @@ library
   default-language:    Haskell2010
 
 test-suite tests
-  Hs-Source-Dirs:      tests, src
+  Hs-Source-Dirs:      tests --, src
   Main-Is:             test.hs
   Type:                exitcode-stdio-1.0
 
   Build-Depends:      base
-                      -- ,myLang
+                      ,myLang
                       ,tasty
                       ,tasty-hunit
                       ,tasty-quickcheck
@@ -94,8 +94,8 @@ test-suite tests
                       ,parsec-numbers
                       ,transformers
                       ,ansi-wl-pprint
-                      ,either 
+                      ,either
                       ,either-unwrap
-  Ghc-Options:          -Wall   -fprof-auto  
+  Ghc-Options:          -Wall   -fprof-auto
 --  -threaded -with-rtsopts=-N
   default-language:    Haskell2010

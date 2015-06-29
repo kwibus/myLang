@@ -5,6 +5,9 @@ import BruijnTerm
 import Enviroment
 import Type
 
+normalised :: Eq i => BruijnTerm i -> Bool
+normalised t = fmap lam2Bruijn (bruijn2Lam t)  == return ( return t)
+
 welFormd :: BruijnTerm i -> Bool
 welFormd t0 = go t0 0
     where go (Lambda _ _ t) dept = go t (dept + 1)

@@ -11,6 +11,7 @@ import Lambda
 import Lexer
 import Opperator
 import Info
+import Names
 
 pLambda :: Parser Expresion
 pLambda = do
@@ -20,7 +21,7 @@ pLambda = do
     symbol '.'
     term <- pLambdaTerm
     loc <-getLoc pos
-    return $ Lambda loc  n term
+    return $ Lambda loc (Name n) term
 
 pApplication :: Parser Expresion
 pApplication = do
@@ -55,7 +56,7 @@ pVar :: Parser Expresion
 pVar = do pos <- getPosition
           n <- identifier
           loc <-getLoc pos
-          return $ Var loc n
+          return $ Var loc (Name n)
 
 pLine :: Parser Expresion
 pLine = do

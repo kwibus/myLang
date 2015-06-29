@@ -5,7 +5,6 @@ import Test.QuickCheck.Gen
 import Control.Monad
 import Control.Monad.Trans.Class
 import StateTransMany
--- import Debug.Trace
 
 oneOfLogic :: [StateTransManyT s Gen a] -> StateTransManyT s Gen a
 oneOfLogic list = do

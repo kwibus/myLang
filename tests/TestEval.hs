@@ -16,7 +16,7 @@ import TestUtils
 import ArbitraryQuickcheck ()
 import Enviroment
 import MakeTerm
-import Type (bound2Free)
+import Type (typeBound2Free)
 
 testEval :: TestTree
 testEval = testGroup "eval"
@@ -33,7 +33,7 @@ testEval = testGroup "eval"
       \ t -> let result = fmap welFormd $ eval (t :: BruijnTerm ())
             in isNothing result || fromJust result
   , testProperty "keep normalisation under eval" $
-      \ t -> fmap (lam2Bruijn . bruijn2Lam ) (eval t) == fmap return (eval (t :: BruijnTerm ()))
+      \ t -> isRight (bruijn2Lam t)==> fmap ((fmap lam2Bruijn) . bruijn2Lam ) (eval t) == fmap (return .return) (eval (t :: BruijnTerm ()))
   , testProperty "keep type under eval" $
       \ e -> let result = eval (e :: BruijnTerm ())
             in isJust result ==> case eval e of
@@ -41,5 +41,5 @@ testEval = testGroup "eval"
                Just expr2 -> isRight $ do
                     t1 <- solver expr2
                     t2 <- solver e
-                    return $ unifys (bound2Free t1) (bound2Free t2) fEmtyEnv
+                    return $ unifys (typeBound2Free t1) (typeBound2Free t2) fEmtyEnv
   ]

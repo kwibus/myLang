@@ -4,7 +4,7 @@ import Names
 import Lambda
 import MakeTerm
 
-id ::Name -> LamTerm () Name
+id :: String -> LamTerm () Name
 id name = lambda name $ var name
 
 s :: LamTerm () Name

@@ -3,15 +3,28 @@ module Enviroment where
 
 import qualified Data.IntMap as IM
 import Control.Exception.Base
+import Data.Coerce
 
 newtype Bound = Bound Int deriving (Eq, Show)
 newtype Free = Free Int deriving (Eq,Show)
 
 
+bound2Free :: Bound -> Free
+bound2Free = coerce
+
+class ToInt a where
+    toInt :: a -> Int
+
+instance ToInt Bound where
+    toInt = coerce
+
+instance ToInt Free where
+    toInt = coerce
+
 data BruiEnv a = BruiState
      { bruiDepth :: Int
      , bruiMap :: IM.IntMap a
-     } deriving (Show, Eq, Foldable, Functor,Read)
+     } deriving (Show, Eq) 
 
 type FreeEnv a = IM.IntMap a
 
@@ -28,16 +41,8 @@ bInsert :: a -> BruiEnv a -> (BruiEnv a, Bound)
 bInsert a b@BruiState {bruiDepth = depth, bruiMap = m} =
  (b {bruiDepth = depth + 1, bruiMap = IM.insert depth a m }, Bound depth)
 
-binsertAt :: a -> Bound -> BruiEnv a -> BruiEnv a
-binsertAt a (Bound i ) e@BruiState {bruiMap = m, bruiDepth = dept} =
-    let newDept = if (i > dept) then i else dept
-    in e {bruiMap = IM.insert newDept a m, bruiDepth = newDept + 1 }
-
 finsertAt :: a -> Free -> FreeEnv a -> FreeEnv a
 finsertAt a (Free i) m = IM.insert i a m
-
-resetDepth :: BruiEnv a -> BruiEnv a -> BruiEnv a
-resetDepth BruiState {bruiDepth = dept} b = b {bruiDepth = dept}
 
 bLookup :: Bound -> BruiEnv a -> a
 bLookup (Bound i) BruiState {bruiDepth = depth, bruiMap = m} =

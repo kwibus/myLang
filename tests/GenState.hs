@@ -10,12 +10,12 @@ import Test.QuickCheck.Gen
 import Data.Maybe
 import StateTransMany
 
-data GenState = State
+data GenState n= State
     { freeNames :: [String]
     , dictionary :: BruiEnv (String,  Free)
     }
 
-defualtGenState :: GenState
+defualtGenState :: GenState n
 defualtGenState = State { dictionary = bEmtyEnv
                         , freeNames = letters
                         }

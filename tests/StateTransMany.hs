@@ -3,32 +3,19 @@ module StateTransMany where
 
 import Control.Monad.Identity
 import Control.Monad.State
-import Control.Arrow
 import Control.Applicative
 
 type StateTransMany s a = StateTransManyT s Identity a
 
 newtype StateTransManyT s m a = STM { run :: s -> m [(a, s)] }
 
-instance Functor m => Functor (StateTransManyT s m) where
-    fmap f m = STM $ \ s -> fmap (map (first f)) $ run m s
+instance Monad m => Functor (StateTransManyT s m) where
+    fmap f m = liftM f m
 
-concatMapM :: Monad m => (a -> m [b] ) -> [a] -> m [b]
-concatMapM f xs = liftM concat (mapM f xs)
-
-concatMapM2 :: Monad m => (a -> m [b] ) -> m [a] -> m [b]
-concatMapM2 f xs = do
-    as <- xs
-    b <- mapM f as
-    return $ concat b
-
-instance (Monad m, Functor m) => Applicative (StateTransManyT s m) where
+instance (Monad m) => Applicative (StateTransManyT s m) where
     pure a = return a
-    f <*> a = STM $ \ s ->
-        let f1 = run f s
-        in concatMapM2 (\ (f2, s1) ->
-             fmap (map (first f2)) $ run a s1
-        ) f1
+    f <*> a = ap f a
+
 instance Monad m => Monad (StateTransManyT s m) where
     return a = STM $ \ s -> return [(a, s)]
     m >>= f = STM $ \ s -> do

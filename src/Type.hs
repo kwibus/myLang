@@ -8,8 +8,8 @@ import Enviroment
 import Control.Monad.State
 
 -- TODO move location
-bound2Free :: Type Bound -> Type Free
-bound2Free = coerce
+typeBound2Free :: Type Bound -> Type Free
+typeBound2Free = coerce
 
 data MonoType = TDouble deriving (Eq, Show)
 data Type i = TVal MonoType
@@ -21,14 +21,6 @@ data Type i = TVal MonoType
  instance Show Type where
      show =tShow
 -}
-class ToInt a where
-    toInt :: a -> Int
-
-instance ToInt Bound where
-    toInt = coerce
-
-instance ToInt Free where
-    toInt = coerce
 
 tSize :: Type i -> Int
 tSize (TVal {}) = 1

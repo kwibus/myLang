@@ -4,6 +4,7 @@ import Expresion (Expresion)
 import Lambda
 import Vallue
 import Info
+import Names 
 
 data InFixError = MultipleInfix Expresion Expresion
 
@@ -13,11 +14,11 @@ fixInfix e = fmap reverse $ fixInfix1  e [] []
 -- TODO beter error messages
 -- TODO beter name 
 
-fixInfix1 :: [(Expresion,Bool)] -> [Expresion]-> [Expresion]-> Either InFixError [Expresion]
+fixInfix1 :: [(Expresion,Bool)] -> [Expresion] -> [Expresion] -> Either InFixError [Expresion]
 fixInfix1 [] vs op = return $ fst $ unwindStacks  vs op
 fixInfix1 (e:es) [] [o] =
     let pos = getposition o
-    in fixInfix1 (e:es) [Lambda pos "#" (Appl pos o (Var pos "#"))] []
+    in fixInfix1 (e:es) [Lambda pos (Name "#") (Appl pos o (Var pos (Name "#")))] []
 fixInfix1 ((e1 ,True) : (e2,True) : _) _ _ = Left $ MultipleInfix e1 e2 
 fixInfix1 ((e ,True) : es) vs op = if higer op e
             then let (vs1, op1) = unwindStacks vs op 

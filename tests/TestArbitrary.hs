@@ -1,4 +1,4 @@
-module TestArbitrary ( testArbitrary) where
+module TestArbitrary ( testArbitrary,size) where
 
 import Test.Tasty
 import Test.Tasty.QuickCheck
@@ -14,13 +14,21 @@ import TestUtils
 import Enviroment
 
 testArbitrary :: TestTree
-testArbitrary = testGroup "arbitrary" [testshrink]
+testArbitrary = testGroup "arbitrary" [testGeneration, testshrink]
 
 testshrink :: TestTree
 testshrink = testGroup "shrink"
     [testProperty "all normalised" $
-       \ e -> welFormd (e :: BruijnTerm () )
-    , testProperty "corect size" $
+       \ e -> all (==True) (map welFormd (shrink (e :: BruijnTerm () )))
+
+    , testProperty "keep falid shrink BruijnTerm" $
+        \ t -> seq (shrink (t :: BruijnTerm ())) True
+    , testProperty "keep falid LamTerm" $
+        \ t -> seq (shrink (t :: LamTerm () Name)) True
+    ]
+testGeneration :: TestTree
+testGeneration = testGroup "genration"
+    [ testProperty "corect size" $
        forAll (suchThat (arbitrary :: Gen Int) (> 1)) (\ n ->
             (forAll (resize n (arbitrary :: Gen (BruijnTerm ()) ))
                  (\ t -> size t == n)))
@@ -28,16 +36,12 @@ testshrink = testGroup "shrink"
     , testProperty "corect type" $
             (\ n -> forAll ( myArbitraryTerm n (TVal TDouble ))
                 (\ e -> isJust e ==> case solver (fromJust e) of
-                    (Right t) -> unifys (bound2Free t) (TVal TDouble ) fEmtyEnv
+                    (Right t) -> unifys (typeBound2Free t) (TVal TDouble ) fEmtyEnv
                     _ -> False
                 )
             )
-    , testProperty "keep falid shrink BruijnTerm" $
-        \ t -> seq (shrink (t :: BruijnTerm ())) True
-    , testProperty "keep falid LamTerm" $
-        \ t -> seq (shrink (t :: LamTerm () Name)) True
-    ]
-
+   ]
+--
 -- TODO move to different file
 size :: LamTerm a i -> Int
 size (Lambda _ _ e ) = (size e) + 1

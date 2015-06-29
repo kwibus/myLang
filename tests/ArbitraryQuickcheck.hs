@@ -12,22 +12,23 @@ import Logic
 import GenState
 import ArbitraryVallue
 import MakeTerm
-import TypeCheck hiding (newFreeVar)
 import Vallue
 import BruijnTerm
 import Lambda
 import Enviroment
 import Type
 import Names
+import ArbiRef
 
 instance Arbitrary (LamTerm () Name ) where
-    arbitrary = fmap bruijn2Lam arbitrary
+    arbitrary = sized $ \ s -> fmap fromJust $
+        myArbitraryTerm s (TVar (Free 10000)) -- remove dup
 
 instance Arbitrary (BruijnTerm ()) where
     -- TODO something saver then 10000
   arbitrary = sized $ \ s -> fmap fromJust $
         myArbitraryTerm s (TVar (Free 10000))
-  -- shrink = shrinkBruijn
+  shrink = shrinkBruijn 
 
 shrinkBruijn :: BruijnTerm () -> [BruijnTerm ()]
 shrinkBruijn (Appl _ t1 t2) = [t1, t2] ++
@@ -50,15 +51,14 @@ eliminatedLambda i (Lambda _ n t) = Lambda () n <$> eliminatedLambda (i - 1) t
 eliminatedLambda i (Appl _ t1 t2) =
     Appl () <$> eliminatedLambda i t1 <*> eliminatedLambda i t2
 
-
-myArbitraryTerm :: Int -> Type Free -> Gen ( Maybe (BruijnTerm ()))
+myArbitraryTerm ::ArbiRef n => Int -> Type Free -> Gen ( Maybe (LamTerm () n ))
 myArbitraryTerm n t = runGenerartor $ arbitraryTerm n t [] defualtGenState
 
-arbitraryTerm :: Int -> Type Free -> [Type Free] -> GenState ->  Generater (BruijnTerm ())
+arbitraryTerm :: ArbiRef n =>Int -> Type Free -> [Type Free] -> GenState n ->  Generater (LamTerm () n)
 arbitraryTerm n t maxlist s
   | n <= 1 = oneOfLogic [ arbitraryVallue t
-                       , arbitraryVar t s
-                       ]
+                        , arbitraryVar t s
+                        ]
     -- shorter and parmiterzerd size
   | otherwise = do
     b1 <- fmap (any id)$ mapM  (typesizeSmaller 7 )maxlist
@@ -69,15 +69,14 @@ arbitraryTerm n t maxlist s
                         , arbitraryLambda n t maxlist s
                         ]
 
-arbitraryVar :: Type Free -> GenState -> Generater (BruijnTerm ())
+arbitraryVar ::ArbiRef n => Type Free -> GenState n -> Generater (LamTerm () n)
 arbitraryVar t s = do
-  (i, (_, f)) <- elementsLogic $ toList $ dictionary s
+  (n, f) <- refFromState s
   unifyGen t (TVar f)
-  return $ bvar (bruiDepth (dictionary s ) -i -1)
+  return $ Var () n
 
-arbitraryAppl :: Int -> Type Free -> [Type Free] -> GenState -> Generater (BruijnTerm ())
+arbitraryAppl :: ArbiRef n => Int -> Type Free -> [Type Free] -> GenState n -> Generater (LamTerm () n)
 arbitraryAppl size t maxlist state = do
-
   sizeLeft <- chooseLogic (1, size - 1)
   newvar <- newFreeVar
   let sizeRight = size - sizeLeft
@@ -91,29 +90,18 @@ arbitraryAppl size t maxlist state = do
           expr1 <- arbitraryTerm sizeLeft (TAppl (TVar (newvar)) t) maxlist state
           return $ appl expr1 expr2
 
-arbitraryLambda :: Int -> Type Free -> [Type Free] -> GenState ->
-    Generater ( BruijnTerm ())
-arbitraryLambda size t maxlist (state@State { dictionary = dic}) = do
+arbitraryLambda :: ArbiRef n =>Int -> Type Free -> [Type Free] -> GenState n ->
+    Generater ( LamTerm () n)
+arbitraryLambda size t maxlist state = do
   var1 <- newFreeVar
   var2 <-  newFreeVar
   unifyGen t $TAppl (TVar var1) (TVar var2)
-  (n, newState) <- lift $ newVarName state
-  let (newdic, _) = bInsert (n, var1) dic
-  let newnewstate = newState { dictionary = newdic}
-  expr <- arbitraryTerm (size - 1) (TVar var2 ) maxlist newnewstate
+  (n, newState) <- lift $ newVarRef state var1
+  expr <- arbitraryTerm (size - 1) (TVar var2 ) maxlist newState
   return $ ( lambda n expr)
 
-check :: BruijnTerm () -> Type Free -> BruiEnv (Free )-> Generater Bool
-check expr t1 dic = do
- env <- getEnv
- return $ case runInfer (solveWith expr env dic) of
-    Right (t2, env2) -> case unify (apply t1 env) (apply t2 env2) fEmtyEnv of
-       Left _ -> False
-       Right {} -> True
-    Left _ -> False
-
-newVarName :: GenState -> Gen (String, GenState)
-newVarName state = do
+newVarRef::ArbiRef n => GenState n -> Free -> Gen (String, GenState n)
+newVarRef state free= do
   let names = toList $ dictionary state
   boolNewName <- case names of
         [] -> return True
@@ -121,4 +109,13 @@ newVarName state = do
   newname <- if boolNewName
             then fmap (: []) $ choose ('a', 'z')
             else elements $ map (fst . snd) names
-  return (newname, state )
+  return (newname, updateState state boolNewName newname free)
+-- check :: BruijnTerm () -> Type Free -> BruiEnv (Free )-> Generater Bool
+-- check expr t1 dic = do
+--  env <- getEnv
+--  return $ case runInfer (solveWith expr env dic) of
+--     Right (t2, env2) -> case unify (apply t1 env) (apply t2 env2) fEmtyEnv of
+--        Left _ -> False
+--        Right {} -> True
+--     Left _ -> False
+

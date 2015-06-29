@@ -1,7 +1,7 @@
 module Names where
 
 import Control.Monad
-type Name = String
+newtype Name = Name String deriving (Eq,Show,Ord)
 
 letters :: [String]
 letters = [1 ..] >>= flip replicateM ['a' .. 'z']

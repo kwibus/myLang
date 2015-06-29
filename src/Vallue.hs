@@ -25,7 +25,7 @@ btype MyDouble {} = TVal TDouble
 btype BuildIn {myType = t} = t
 
 ftype :: Vallue -> Type Free
-ftype = bound2Free . btype
+ftype = typeBound2Free . btype
 
 isInfixVallue :: Vallue -> Bool
 isInfixVallue BuildIn {fixity = InFix {} } = True
