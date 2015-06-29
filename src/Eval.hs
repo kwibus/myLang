@@ -1,4 +1,4 @@
-module Eval (eval, fullEval)
+module Eval (eval, fullEval,apply)
 where
 
 import Control.Monad.State.Strict

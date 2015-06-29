@@ -11,7 +11,7 @@ type BruijnTerm i = LamTerm i Bound
 toList :: BruiEnv a -> [(Int, a)]
 toList BruiState {bruiMap = m} = IM.toList m
 
-data UndefinedVar i n = UndefinedVar i n | RefShadow i Bound
+data UndefinedVar i n = UndefinedVar i n | RefShadow i Bound Name
     deriving (Show, Eq)
 
 lam2Bruijn :: LamTerm i Name -> Either (UndefinedVar i Name ) (BruijnTerm i)
@@ -33,7 +33,7 @@ bruijn2Lam t = go t []
             (_,[]) -> throwError $ UndefinedVar i n
             (lowerScoped,(name : _)) ->
                 if elem name lowerScoped
-                then throwError $ RefShadow i n
+                then throwError $ RefShadow i n name
                 else return $ Var i name 
         go (Val i v) _ = return $ Val i v
         go (Appl i e1 e2 ) env = Appl i <$> go e1 env <*>go e2 env

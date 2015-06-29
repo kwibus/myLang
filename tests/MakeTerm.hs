@@ -22,3 +22,5 @@ lambda = Lambda () . Name
 
 appl :: LamTerm () n -> LamTerm () n -> LamTerm () n
 appl = Appl ()
+
+

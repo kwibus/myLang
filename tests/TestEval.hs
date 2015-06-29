@@ -8,7 +8,7 @@ import Test.Tasty.QuickCheck
 import Data.Either
 import Data.Maybe
 
-import Eval
+import Eval (apply,eval,fullEval)
 import TypeCheck
 import BruijnTerm
 import qualified ExampleBruijn as B
@@ -17,9 +17,14 @@ import ArbitraryQuickcheck ()
 import Enviroment
 import MakeTerm
 import Type (typeBound2Free)
+import Opperator
+import Vallue
 
 testEval :: TestTree
-testEval = testGroup "eval"
+testEval = testGroup "eval" [testEvalBasic ,testEvalBuildin]
+
+testEvalBasic :: TestTree
+testEvalBasic = testGroup "basic"
   [ testCase "eval id(id(\\z.id z))=id(\\z.id z)" $
       eval (appl B.id ( appl B.id (lambda "z" (appl B.id (bvar 0))))) @?=
          Just ( appl B.id ( lambda "z" (appl B.id (bvar 0))))
@@ -43,3 +48,22 @@ testEval = testGroup "eval"
                     t2 <- solver e
                     return $ unifys (typeBound2Free t1) (typeBound2Free t2) fEmtyEnv
   ]
+
+testEvalBuildin :: TestTree
+testEvalBuildin = testGroup "Buildin"
+    [ testCase "+1" $
+        eval (lambda "#"(appl  (appl (val plus)(bvar 0)) (double 1.0))) @?= Nothing
+    , testCase "1+" $
+        eval (appl (val plus) (double 1.0)) @?= return (val (Eval.apply plus (MyDouble 1.0)))
+    , testCase "1+2" $
+        eval (appl (appl (val plus) ( double 1.0))(double 2.0)) @?= return (appl (val (Eval.apply plus (MyDouble 1.0)))(double 2.0) )
+    , testCase "1+2*3" $
+        fullEval (appl (appl (val plus)
+                             (appl (appl (val multiply )
+                                         (double 2.0))
+                                         (double 3.0))
+                             )
+                             (double 1.0))
+        @?= double 7.0 
+    ]
+

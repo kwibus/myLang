@@ -49,7 +49,7 @@ tShowEnv (TVar i ) = do
                     in put (newMap, (tail names) ) >> return newname
 
 initState :: (IM.IntMap String, [String] )
-initState = (IM.empty , letters)
+initState = (IM.empty, letters)
 
 genNames :: ToInt i => Type i -> State (IM.IntMap String , [String]) ()
 genNames (TVal _) = return ()

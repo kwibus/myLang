@@ -1,4 +1,4 @@
-{-# LANGUAGE OverlappingInstances, FlexibleInstances, UndecidableInstances #-}
+{-# LANGUAGE FlexibleInstances, UndecidableInstances #-}
 
 module Info where
 import Lambda
@@ -44,7 +44,7 @@ removeInfo (Var _ n) = Var () n
 class Position a where
     position :: a -> Maybe Loc
 
-instance Position a where
+instance {-# OVERLAPPABLE  #-} Position a where 
     position _ = Nothing
 
 instance Position Loc where

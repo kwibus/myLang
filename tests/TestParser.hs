@@ -33,10 +33,24 @@ testParser = testGroup "parser"
                           (double 2 ))
                           (double 3)))
 
+  , testCaseParser  "1.0 + 2.0 + 3.0" $
+    ( appl (appl (val plus)
+                     (appl (appl (val plus) (double 1.0)) (double 2.0)))
+                     (double  3.0))
+
   , testCaseParser "1.0 * 2.0 + 3.0 * 4.0 " $
-     ( appl (appl (val plus)
+      appl (appl (val plus)
                 (appl (appl (val multiply) (double 1.0)) (double  2.0)))
-                (appl (appl (val multiply) (double 3.0)) (double  4.0)))
+                (appl (appl (val multiply) (double 3.0)) (double  4.0))
+
+  , testCaseParser "1.0 + 2.0 * 3.0 + 4.0 " $
+      appl (appl (val plus)
+                 (appl (appl (val plus)
+                             (double 1.0))
+                             (appl (appl (val multiply)
+                                         (double  2.0))
+                                         (double 3.0))))
+                 (double  4.0)
 
   , testCaseParser "*\\a.a" $ appl (lambda "#" $ appl (val multiply)( var "#" )) (L.id "a")
   , testCaseParser "(\\a.a)(*)" $ appl  (L.id "a") (val multiply)

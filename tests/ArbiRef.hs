@@ -26,7 +26,7 @@ boundFromState s = do
 
 updateStateBound :: GenState n -> Bool -> String -> Free -> GenState n
 updateStateBound state _ name free = state{dictionary = newdic}
-    where (newdic, _ ) =bInsert (name,free)(dictionary state)
+    where newdic =bInsert (name,free)(dictionary state)
 
 nameFromState :: GenState Name -> Generater (Name,Free )
 nameFromState s = do
@@ -36,7 +36,7 @@ nameFromState s = do
 updateStateName ::GenState n ->Bool-> String -> Free -> GenState n
 updateStateName state@State {dictionary = dic} newVar name free = state{dictionary=newDic}
     where newDic :: BruiEnv (String,Free)
-          (newDic,_) = bInsert (name,free) (if newVar
+          newDic = bInsert (name,free) (if newVar
             then removeVar name dic
             else dic)
 

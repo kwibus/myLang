@@ -45,7 +45,7 @@ solveWith :: BruijnTerm i -> FreeEnv (Type Free ) -> BruiEnv Free ->
     Infer i (Type Free, FreeEnv (Type Free))
 solveWith (Lambda _ _ e2) env dic = do
     k <- newFreeVar
-    let (dic1, _) = bInsert  k dic
+    let dic1 = bInsert  k dic
     (t2, env2) <- solveWith e2 env dic1
     return $ (apply (TAppl (TVar k) t2) env2, env2)
 

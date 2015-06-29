@@ -6,10 +6,6 @@ import Names
 import Info
 type Expresion = LamTerm Loc Name
 
-isinfixLam :: LamTerm i n -> Bool
-isinfixLam (Val _ v) = isInfixVallue v
-isinfixLam _ = False
-
 pShow :: LamTerm i Name -> String
 pShow = go False where
       go _ (Var _ (Name n)) = n
@@ -35,5 +31,6 @@ pShow = go False where
                                                      then parentheses t2
                                                      else " " ++ go b t2
       go b (Appl _ t1@Appl {} t2 ) = go True t1 ++ go b t2
+
 parentheses :: LamTerm i Name -> String
 parentheses s = "(" ++ pShow s ++ ")"

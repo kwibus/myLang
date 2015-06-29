@@ -72,7 +72,7 @@ operator = do
     loc <- getLoc pos
     return $(Val loc  o, True)
 
-getLoc ::SourcePos -> Parser Loc 
+getLoc ::SourcePos -> Parser Loc
 getLoc start = do 
     end <- getPosition
     return $Loc 

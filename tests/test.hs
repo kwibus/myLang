@@ -25,7 +25,6 @@ tests = testGroup "tests"
     , testType
     , testLambda
     , testBruijn
-    , testBruijn
     , testEval
     , testParser
     , testArbitrary
