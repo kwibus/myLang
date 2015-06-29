@@ -39,5 +39,8 @@ getpres _ = error "no infix"
 --TODO correct associative
 higer :: [Expresion] -> Expresion -> Bool
 higer [] _ = True
-higer (x:_) y= comparePres (getpres x) (getpres y)
-    where comparePres (p1,_) (p2,_) = p1 > p2
+higer (x:_) y = higerPres (getpres x) (getpres y)
+
+higerPres :: (Precedence, Associativity) -> (Precedence, Associativity) -> Bool
+higerPres (p1,AssoLeft) (p2,_) = p1 >= p2
+higerPres (p1,AssoRight) (p2,_) = p1 > p2
