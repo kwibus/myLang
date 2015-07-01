@@ -24,10 +24,16 @@ data UnificationError i =
 
 -- TODO better EqalitieA / remove and make seperate for unittest
 instance Eq (TypeError i) where
-  (==) (UnifyAp _ _ _ _ ) (UnifyAp _ _ _ _ ) = True
+  (==) (UnifyAp _ _ _ err1) (UnifyAp _ _ _ err2) = err1 == err2
   (==) (UnifyEnv _ _) (UnifyEnv _ _ ) = True
   (==) (ICE _) (ICE _) = True
   (==) _ _ = False
+
+instance Eq (UnificationError i) where
+   (Infinit _ _ _) == (Infinit _ _ _) = True
+   (Unify _ _ _) == (Unify _ _ _ ) = True
+   VarVar == VarVar = True
+   (==) _ _ = False
 
 showError :: String -> (TypeError Loc) -> Doc
 showError str (UnifyAp expr t1 t2 err ) = text (showLoc (getposition expr)) <+> text "TypeError "  <$>
