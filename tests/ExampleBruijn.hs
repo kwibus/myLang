@@ -2,6 +2,7 @@ module ExampleBruijn where
 
 import BruijnTerm
 import MakeTerm
+
 omega :: BruijnTerm ()
 omega = lambda "a" $ appl (bvar 0) (bvar 0)
 

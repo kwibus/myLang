@@ -2,7 +2,7 @@ module Main (main ) where
 
 import ArbitraryQuickcheck ()
 import Test.QuickCheck
-import Expresion 
+import Expresion
 import Lambda
 import Names
 

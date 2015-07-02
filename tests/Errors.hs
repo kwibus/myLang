@@ -1,7 +1,7 @@
 module Errors where
 
-
 import Interperter
+
 main = mapM readEvalPrint errorStrings
 errorStrings :: [String]
 errorStrings =

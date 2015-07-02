@@ -173,15 +173,18 @@ testSolver = testGroup "Solver"
     , testCase "fail (+)\\a.a" $
         solver (appl (val plus)B.id )@?=
         throwError (UnifyAp undefined undefined undefined (Unify undefined undefined undefined))
+
     , testCase "fail \\a.a a" $
         solver (lambda "a" (appl (bvar 0 )(bvar 0)))@?=
         throwError (UnifyAp undefined undefined undefined (Infinit undefined undefined undefined))
+
     , testProperty "idempotence" $
         \ e -> case runInfer $solveWith (e :: BruijnTerm ()) fEmtyEnv bEmtyEnv of
                 Left _ -> False
                 Right (t1, env1) -> case runInfer $ solveWith e env1 bEmtyEnv of
                     Left _ -> False
                     Right (t2, _) -> close t1 == close t2 -- && env1 == env2
+
     , testProperty "typeable" $
         \ e -> isRight $ solver (e :: BruijnTerm () )
     ]

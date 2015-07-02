@@ -12,7 +12,6 @@ import Logic
 import GenState
 import ArbitraryVallue
 import MakeTerm
-import Vallue
 import BruijnTerm
 import Lambda
 import Enviroment
@@ -21,55 +20,53 @@ import Names
 import ArbiRef
 
 instance Arbitrary (LamTerm () Name ) where
-    arbitrary = sized $ \ s -> fmap fromJust $
-        myArbitraryTerm s (TVar (Free 10000)) -- remove dup
+    arbitrary = sized $ \ s -> fromJust <$> myArbitraryTerm s (TVar (Free 10000)) -- remove dup
 
 instance Arbitrary (BruijnTerm ()) where
     -- TODO something saver then 10000
-  arbitrary = sized $ \ s -> fmap fromJust $
-        myArbitraryTerm s (TVar (Free 10000))
-  shrink = shrinkBruijn 
+  arbitrary = sized $ \ s -> fromJust <$> myArbitraryTerm s (TVar (Free 10000))
+  shrink = shrinkBruijn
 
 shrinkBruijn :: BruijnTerm () -> [BruijnTerm ()]
 shrinkBruijn (Appl _ t1 t2) = [t1, t2] ++
                              [Appl () t1' t2' | (t1', t2') <- shrink (t1, t2)]
-shrinkBruijn (Lambda _ n t) = fastShrink t ++
+shrinkBruijn (Lambda _ (Name n) t) = fastShrink t ++
                              eliminated ++
-                             fmap (Lambda () n) (shrinkBruijn t)
-    where fastShrink (Var {}) = []
-          fastShrink _ = [Val () (MyDouble 1.0)]
+                             (lambda n <$> shrinkBruijn t)
+    where fastShrink (Val _ v) = val <$> shrinkValue v
+          fastShrink _ = []
           eliminated = maybeToList $ eliminatedLambda 0 t
 shrinkBruijn _ = []
 
 eliminatedLambda :: Int -> BruijnTerm () -> Maybe (BruijnTerm ())
 eliminatedLambda i1 (Var () (Bound i2))
     | i1 == i2 = Nothing
-    | i2 > i1 = Just $ Var () $ Bound (i2 - 1)
+    | i1 < i2 = Just $ Var () $ Bound (i2 - 1)
     | otherwise = Just $ Var () $ Bound i2
 eliminatedLambda _ (t@Val {}) = Just t
-eliminatedLambda i (Lambda _ n t) = Lambda () n <$> eliminatedLambda (i - 1) t
+eliminatedLambda i (Lambda _ n t) = Lambda () n <$> eliminatedLambda (i + 1) t
 eliminatedLambda i (Appl _ t1 t2) =
     Appl () <$> eliminatedLambda i t1 <*> eliminatedLambda i t2
 
-myArbitraryTerm ::ArbiRef n => Int -> Type Free -> Gen ( Maybe (LamTerm () n ))
+myArbitraryTerm :: ArbiRef n => Int -> Type Free -> Gen ( Maybe (LamTerm () n ))
 myArbitraryTerm n t = runGenerartor $ arbitraryTerm n t [] defualtGenState
 
-arbitraryTerm :: ArbiRef n =>Int -> Type Free -> [Type Free] -> GenState n ->  Generater (LamTerm () n)
+arbitraryTerm :: ArbiRef n => Int -> Type Free -> [Type Free] -> GenState n -> Generater (LamTerm () n)
 arbitraryTerm n t maxlist s
   | n <= 1 = oneOfLogic [ arbitraryVallue t
                         , arbitraryVar t s
                         ]
     -- shorter and parmiterzerd size
   | otherwise = do
-    b1 <- fmap (any id)$ mapM  (typesizeSmaller 7 )maxlist
-    b2 <- typesizeSmaller 7  t
-    if  b1 || b2
+    b1 <- or <$> mapM (typesizeSmaller 7 ) maxlist
+    b2 <- typesizeSmaller 7 t
+    if b1 || b2
         then mzero
         else oneOfLogic [ arbitraryAppl n t maxlist s
                         , arbitraryLambda n t maxlist s
                         ]
 
-arbitraryVar ::ArbiRef n => Type Free -> GenState n -> Generater (LamTerm () n)
+arbitraryVar :: ArbiRef n => Type Free -> GenState n -> Generater (LamTerm () n)
 arbitraryVar t s = do
   (n, f) <- refFromState s
   unifyGen t (TVar f)
@@ -82,34 +79,35 @@ arbitraryAppl size t maxlist state = do
   let sizeRight = size - sizeLeft
   if sizeLeft < sizeRight
   then do
-          expr1 <- arbitraryTerm sizeLeft (TAppl (TVar (newvar)) t) (TVar newvar : maxlist) state
+          expr1 <- arbitraryTerm sizeLeft (TAppl (TVar newvar) t) (TVar newvar : maxlist) state
           expr2 <- arbitraryTerm sizeRight (TVar newvar) maxlist state
           return $ appl expr1 expr2
   else do
-          expr2 <- arbitraryTerm sizeRight (TVar newvar) ((TAppl (TVar (newvar)) t) : maxlist) state
-          expr1 <- arbitraryTerm sizeLeft (TAppl (TVar (newvar)) t) maxlist state
+          expr2 <- arbitraryTerm sizeRight (TVar newvar) (TAppl (TVar newvar) t : maxlist) state
+          expr1 <- arbitraryTerm sizeLeft (TAppl (TVar newvar) t) maxlist state
           return $ appl expr1 expr2
 
-arbitraryLambda :: ArbiRef n =>Int -> Type Free -> [Type Free] -> GenState n ->
+arbitraryLambda :: ArbiRef n => Int -> Type Free -> [Type Free] -> GenState n ->
     Generater ( LamTerm () n)
 arbitraryLambda size t maxlist state = do
   var1 <- newFreeVar
-  var2 <-  newFreeVar
-  unifyGen t $TAppl (TVar var1) (TVar var2)
+  var2 <- newFreeVar
+  unifyGen t $ TAppl (TVar var1) (TVar var2)
   (n, newState) <- lift $ newVarRef state var1
   expr <- arbitraryTerm (size - 1) (TVar var2 ) maxlist newState
-  return $ ( lambda n expr)
+  return $ lambda n expr
 
-newVarRef::ArbiRef n => GenState n -> Free -> Gen (String, GenState n)
-newVarRef state free= do
+newVarRef :: ArbiRef n => GenState n -> Free -> Gen (String, GenState n)
+newVarRef state free = do
   let names = toList $ dictionary state
   boolNewName <- case names of
         [] -> return True
         _ -> frequency [(4, return True), (1, return False)]
   newname <- if boolNewName
-            then fmap (: []) $ choose ('a', 'z')
+            then (: []) <$> choose ('a', 'z')
             else elements $ map (fst . snd) names
   return (newname, updateState state boolNewName newname free)
+
 -- check :: BruijnTerm () -> Type Free -> BruiEnv (Free )-> Generater Bool
 -- check expr t1 dic = do
 --  env <- getEnv
@@ -118,4 +116,3 @@ newVarRef state free= do
 --        Left _ -> False
 --        Right {} -> True
 --     Left _ -> False
-

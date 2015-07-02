@@ -1,6 +1,5 @@
 module Logic where
 
-
 import Test.QuickCheck.Gen
 import Control.Monad
 import Control.Monad.Trans.Class

@@ -10,7 +10,7 @@ data Associativity = AssoRight | AssoLeft
 
 type Stack = [Vallue]
 -- TODO make every type a build in
-data Vallue = MyDouble Double
+data Vallue = MyDouble !Double
     | BuildIn { prettyName :: String
               , name :: String
               , arrity :: Int

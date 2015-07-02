@@ -23,7 +23,7 @@ instance ToInt Free where
 data BruiEnv a = BruiState
      { bruiDepth :: Int
      , bruiMap :: IM.IntMap a
-     } deriving (Show, Eq) 
+     } deriving (Show, Eq)
 
 type FreeEnv a = IM.IntMap a
 
@@ -36,9 +36,9 @@ bEmtyEnv = BruiState
 fEmtyEnv :: FreeEnv a
 fEmtyEnv = IM.empty
 
-bInsert :: a -> BruiEnv a -> (BruiEnv a)
+bInsert :: a -> BruiEnv a -> BruiEnv a
 bInsert a b@BruiState {bruiDepth = depth, bruiMap = m} =
- (b {bruiDepth = depth + 1, bruiMap = IM.insert depth a m })
+     b {bruiDepth = depth + 1, bruiMap = IM.insert depth a m }
 
 finsertAt :: a -> Free -> FreeEnv a -> FreeEnv a
 finsertAt a (Free i) m = IM.insert i a m

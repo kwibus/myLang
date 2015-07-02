@@ -8,7 +8,7 @@ import Type
 import Enviroment
 
 instance Arbitrary (Type Bound ) where
-    arbitrary = sized $ arbitraryType
+    arbitrary = sized arbitraryType
 instance Arbitrary (Type Free) where
     arbitrary = fmap typeBound2Free (arbitrary :: Gen (Type Bound) )
 
@@ -28,4 +28,4 @@ arbitraryMonoType = elements [TDouble]
 arbitraryTVar :: Gen (Type Bound)
 arbitraryTVar = do
     d <- choose (0, 10)
-    fmap TVar $ elements [Bound d]
+    TVar <$> elements [Bound d]

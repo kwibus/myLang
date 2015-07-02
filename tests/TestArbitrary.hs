@@ -19,7 +19,7 @@ testArbitrary = testGroup "arbitrary" [testGeneration, testshrink]
 testshrink :: TestTree
 testshrink = testGroup "shrink"
     [testProperty "all normalised" $
-       \ e -> all (==True) (map welFormd (shrink (e :: BruijnTerm () )))
+       \ e -> all (== True) (map welFormd (shrink (e :: BruijnTerm () )))
 
     , testProperty "keep falid shrink BruijnTerm" $
         \ t -> seq (shrink (t :: BruijnTerm ())) True

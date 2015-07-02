@@ -3,19 +3,19 @@
 module Info where
 import Lambda
 
-data Loc = Loc 
+data Loc = Loc
     { srcFile :: String
-    , lineStart :: Int 
-    , columnStart  :: Int 
-    , lineEnd ::Int 
-    , columnEnd :: Int 
-    }deriving Show
+    , lineStart :: Int
+    , columnStart :: Int
+    , lineEnd :: Int
+    , columnEnd :: Int
+    } deriving Show
 
 showLoc :: Loc -> String
 showLoc loc = showfile ++
-              show ( lineStart loc) ++":" ++
+              show ( lineStart loc) ++ ":" ++
               show ( columnStart loc) ++ ":"
-  where showfile = if srcFile loc  /= ""
+  where showfile = if srcFile loc /= ""
         then srcFile loc ++ ":"
         else ""
 
@@ -25,10 +25,10 @@ getInfo (Appl i _ _) = i
 getInfo (Lambda i _ _) = i
 getInfo (Val i _) = i
 
-setInfo ::i-> LamTerm i n -> LamTerm i n
-setInfo loc (Var _ n ) =Var loc n 
-setInfo loc (Appl _ e1 e2) =Appl loc e1 e2 
-setInfo loc (Lambda _ n e) = Lambda loc n e 
+setInfo :: i -> LamTerm i n -> LamTerm i n
+setInfo loc (Var _ n ) = Var loc n
+setInfo loc (Appl _ e1 e2) = Appl loc e1 e2
+setInfo loc (Lambda _ n e) = Lambda loc n e
 setInfo loc (Val _ v) = Val loc v
 
 --TODO rename is confusion with parsec GetPosition
@@ -44,7 +44,7 @@ removeInfo (Var _ n) = Var () n
 class Position a where
     position :: a -> Maybe Loc
 
-instance {-# OVERLAPPABLE  #-} Position a where 
+instance {-# OVERLAPPABLE  #-} Position a where
     position _ = Nothing
 
 instance Position Loc where

@@ -13,7 +13,8 @@ type BruijnTerm i = LamTerm i Bound
 toList :: BruiEnv a -> [(Int, a)]
 toList BruiState {bruiMap = m} = IM.toList m
 
-data UndefinedVar i n = UndefinedVar i n | RefShadow i Bound
+data UndefinedVar i n = UndefinedVar i n
+    | RefShadow i Bound Name
     deriving (Show, Eq)
 
 lam2Bruijn :: LamTerm i Name -> Either (UndefinedVar i Name ) (BruijnTerm i)
@@ -25,16 +26,16 @@ lam2Bruijn t = go t 0 M.empty
         go (Val i v) _ _ = return $ Val i v
         go (Lambda i n t1) depth env = Lambda i n <$>
                      go t1 (depth + 1) (M.insert n depth env)
-        go (Appl i t1 t2) depth env = Appl i <$> (go t1 depth env) <*> (go t2 depth env)
+        go (Appl i t1 t2) depth env = Appl i <$> go t1 depth env <*> go t2 depth env
 
 bruijn2Lam :: BruijnTerm i -> Either (UndefinedVar i Bound) (LamTerm i Name)
 bruijn2Lam t = go t []
   where go :: BruijnTerm i -> [Name] -> Either (UndefinedVar i Bound) (LamTerm i Name)
         go (Var i n) env = case splitAt (toInt n ) env of
             (_ , []) -> throwError $ UndefinedVar i n
-            (lowerScoped, (name : higerscoped)) ->
+            (lowerScoped, name : _higerscoped) ->
                 if elem name lowerScoped
-                then throwError $ RefShadow i n
+                then throwError $ RefShadow i n name
                 else return $ Var i name
         go (Val i v) _ = return $ Val i v
         go (Appl i e1 e2 ) env = Appl i <$> go e1 env <*> go e2 env

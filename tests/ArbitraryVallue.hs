@@ -3,7 +3,6 @@ module ArbitraryVallue where
 
 import Control.Monad.Trans.Class
 import Test.QuickCheck
-import ArbiRef()
 import Vallue
 import Opperator
 import GenState
@@ -14,12 +13,16 @@ import MakeTerm
 import Logic
 import ArbiRef
 
-arbitraryVallue :: ArbiRef n => Type Free -> Generater ( LamTerm () n)
-arbitraryVallue t  = oneOfLogic [ arbitraryMyDouble t
-                                , arbitraryBuildIn t
-                                ]
+shrinkValue :: Vallue -> [Vallue]
+shrinkValue (MyDouble _) = [MyDouble 1.0]
+shrinkValue v = [v]
 
-arbitraryBuildIn :: ArbiRef n => Type Free ->  Generater ( LamTerm () n)
+arbitraryVallue :: ArbiRef n => Type Free -> Generater ( LamTerm () n)
+arbitraryVallue t = oneOfLogic [ arbitraryMyDouble t
+                               , arbitraryBuildIn t
+                               ]
+
+arbitraryBuildIn :: ArbiRef n => Type Free -> Generater ( LamTerm () n)
 arbitraryBuildIn t = do
     operator <- elementsLogic operators
     unifyGen t (ftype operator )
@@ -27,6 +30,6 @@ arbitraryBuildIn t = do
 
 arbitraryMyDouble :: ArbiRef n => Type Free -> Generater (LamTerm () n)
 arbitraryMyDouble t = do
-  unifyGen t(TVal TDouble)
+  unifyGen t (TVal TDouble)
   d <- lift arbitrary
   return (val (MyDouble d))

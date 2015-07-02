@@ -1,4 +1,4 @@
-module Eval (eval, fullEval,apply)
+module Eval (eval, fullEval, apply)
 where
 
 import Control.Monad.State.Strict
@@ -15,14 +15,14 @@ eval (Appl i t1 t2)
     | isvalue t2 = case t1 of
         (Lambda _ _ t11) -> Just $ substitute t2 (Bound 0) t11
         (Val i1 (t11@BuildIn {})) -> Just $ Val i1 $ apply t11 $ vallue t2
-        (t11@Appl {}) -> fmap (\ t -> Appl i t t2 ) $ eval t11
+        (t11@Appl {}) -> (\ t -> Appl i t t2 ) <$> eval t11
         _ -> Nothing
-    | otherwise = fmap (Appl i t1 ) $ eval t2
+    | otherwise = Appl i t1 <$> eval t2
 eval (_) = Nothing
 
 vallue :: BruijnTerm i -> Vallue
 vallue (Val _ v ) = v
-vallue _ = error $ "type error vallue, is not a vallue"
+vallue _ = error "type error vallue, is not a vallue"
 
 apply :: Vallue -> Vallue -> Vallue
 apply BuildIn {arrity = 1, evaluator = e, stack = s } v = evalState e (v : s )
