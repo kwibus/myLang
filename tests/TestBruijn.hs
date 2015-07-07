@@ -8,9 +8,8 @@ import Names
 import qualified ExampleBruijn as B
 import qualified ExampleLambda as L
 import BruijnTerm
-import ArbitraryQuickcheck ()
+import ArbitraryQuickcheck
 import MakeTerm
-import Lambda
 import Enviroment
 
 testBruijn :: TestTree
@@ -30,5 +29,5 @@ testBruijn = testGroup "bruijn index"
     , testCase "bruijn2Lam \\a\\a1 " $
       bruijn2Lam (lambda "a" (lambda "a" (bvar 1))) @?= Left (RefShadow () (Bound 1) (Name "a"))
   , testProperty "inverse test" $
-      \ t -> fmap bruijn2Lam (lam2Bruijn t) == return ( return (t :: LamTerm () Name))
+      forAllUnTypedLambda $ \ t -> fmap bruijn2Lam (lam2Bruijn t) == return ( return t)
   ]

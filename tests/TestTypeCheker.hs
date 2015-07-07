@@ -7,7 +7,6 @@ import Control.Monad.Except
 import Data.IntMap
 
 import qualified ExampleBruijn as B
-import BruijnTerm
 import TypeCheck
 import MakeTerm
 import Type
@@ -15,8 +14,8 @@ import Opperator
 import Enviroment
 import ArbitraryType ()
 import TestUtils
-import ArbitraryQuickcheck ()
-import TypeError 
+import ArbitraryQuickcheck
+import TypeError
 
 
 testTypeChecker :: TestTree
@@ -53,24 +52,24 @@ testUnify = testGroup "unify"
                                      Right env2 -> env == env2
     ]
 
-testUnifyEnv :: TestTree 
+testUnifyEnv :: TestTree
 testUnifyEnv = testGroup " Unify Env "
     [testCase "unifyEnv error" $
-        let env1 = fromList [(1,TVal TDouble) ] 
-            env2 = fromList [(1,TAppl (TVal TDouble) (TVal TDouble))] 
+        let env1 = fromList [(1,TVal TDouble) ]
+            env2 = fromList [(1,TAppl (TVal TDouble) (TVal TDouble))]
         in  isLeft (unifyEnv env1 env2) @?= True
 
     ,testCase "unifyEnv error sum" $
         let env1 = fromList [(1,TVal TDouble)
-                            ,(2,TVal TDouble)] 
+                            ,(2,TVal TDouble)]
             env2 = fromList [(1,TAppl (TVal TDouble) (TVal TDouble))
-                            ,(2,TAppl (TVal TDouble) (TVal TDouble))] 
+                            ,(2,TAppl (TVal TDouble) (TVal TDouble))]
         in (case (unifyEnv env1 env2) of
-                Left  es -> length es == 2  
+                Left  es -> length es == 2
                 _ -> False
           )@?= True
     ]
-    
+
 testClose :: TestTree
 testClose = testGroup "close"
     [testProperty "welformd close" $
@@ -178,13 +177,13 @@ testSolver = testGroup "Solver"
         solver (lambda "a" (appl (bvar 0 )(bvar 0)))@?=
         throwError (UnifyAp undefined undefined undefined (Infinit undefined undefined undefined))
 
-    , testProperty "idempotence" $
-        \ e -> case runInfer $solveWith (e :: BruijnTerm ()) fEmtyEnv bEmtyEnv of
+    , testProperty "idempotence" $ 
+        forAllTypedBruijn $ \ e -> case runInfer $solveWith e fEmtyEnv bEmtyEnv of
                 Left _ -> False
                 Right (t1, env1) -> case runInfer $ solveWith e env1 bEmtyEnv of
                     Left _ -> False
                     Right (t2, _) -> close t1 == close t2 -- && env1 == env2
 
     , testProperty "typeable" $
-        \ e -> isRight $ solver (e :: BruijnTerm () )
+        forAllTypedBruijn $ \ e -> isRight $ solver e
     ]

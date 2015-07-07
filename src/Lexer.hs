@@ -2,7 +2,7 @@ module Lexer
 where
 
 import Text.ParserCombinators.Parsec.Number
-import Text.Parsec.String
+import ParserType
 import Text.Parsec
 
 
@@ -21,6 +21,6 @@ symbol c = do
 
 double :: Parser Double
 double = do
-    f <- sign <*> floating
+    f <- parsec2parser $ sign <*> floating
     spaces
     return f

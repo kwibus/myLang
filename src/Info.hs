@@ -9,7 +9,7 @@ data Loc = Loc
     , columnStart :: Int
     , lineEnd :: Int
     , columnEnd :: Int
-    } deriving Show
+    } deriving (Show, Eq)
 
 showLoc :: Loc -> String
 showLoc loc = showfile ++

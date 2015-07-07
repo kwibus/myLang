@@ -12,7 +12,7 @@ import TypeCheck
 import BruijnTerm
 import qualified ExampleBruijn as B
 import TestUtils
-import ArbitraryQuickcheck ()
+import ArbitraryQuickcheck
 import Enviroment
 import MakeTerm
 import Type (typeBound2Free)
@@ -34,12 +34,12 @@ testEvalBasic = testGroup "basic"
   , testCase "call by vallu termination" $
       eval (lambda "z" (appl B.id (bvar 1))) @?= Nothing
   , testProperty "welformd presevation eval" $
-      \ t -> let result = welFormd <$> eval (t :: BruijnTerm ())
+      forAllTypedBruijn $ \ t -> let result = welFormd <$> eval (t :: BruijnTerm ())
             in isNothing result || fromJust result
   -- , testProperty "keep normalisation under eval" $
   --     \ t -> isRight (bruijn2Lam t)==> fmap ((fmap lam2Bruijn) . bruijn2Lam ) (eval t) == fmap (return .return) (eval (t :: BruijnTerm ()))
   , testProperty "keep type under eval" $
-      \ e -> let result = eval (e :: BruijnTerm ())
+      forAllTypedBruijn $ \ e -> let result = eval (e :: BruijnTerm ())
             in isJust result ==> case eval e of
                Nothing -> True
                Just expr2 -> eitht2bool $ do

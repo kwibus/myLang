@@ -26,8 +26,9 @@ type Env = FreeEnv (Type Free)
 runGenerartor :: Generater a -> Gen (Maybe a)
 runGenerartor g = fmap listToMaybe (evalT g (fEmtyEnv, 0))
 
-unifyGen :: Type Free -> Type Free -> Generater ()
-unifyGen t1 t2 = do
+unifyGen :: Maybe (Type Free) -> Type Free -> Generater ()
+unifyGen Nothing _ = return ()
+unifyGen (Just t1) t2 = do
     env <- getEnv
     case unify t1 t2 env of
         Left {} -> mzero
@@ -50,7 +51,7 @@ getMax = do
     (_, i) <- get
     return i
 
-typesizeSmaller :: Int -> Type Free -> Generater Bool
-typesizeSmaller i t = do
+typesizeBigger :: Int -> Type Free -> Generater Bool
+typesizeBigger i t = do
     env <- getEnv
     return $ i < tSize ( apply t env )

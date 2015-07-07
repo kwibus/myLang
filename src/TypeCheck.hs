@@ -28,7 +28,7 @@ fst3 :: (a, b, c) -> a
 fst3 (a, _, _) = a
 
 solver :: BruijnTerm i -> Either (TypeError i) (Type Bound)
-solver e = fmap ( close . (uncurry apply)) $ runInfer $ solveWith e fEmtyEnv bEmtyEnv
+solver e = fmap ( close . uncurry apply) $ runInfer $ solveWith e fEmtyEnv bEmtyEnv
 
 type Infer i a = ExceptT (TypeError i ) ( State Int ) a
 

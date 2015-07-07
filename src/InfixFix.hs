@@ -1,4 +1,4 @@
-module InfixFix (fixInfix) where
+module InfixFix (fixInfix, InFixError) where
 
 import Expresion (Expresion)
 import Lambda
@@ -7,6 +7,7 @@ import Info
 import Names
 
 data InFixError = MultipleInfix Expresion Expresion
+    deriving (Show, Eq)
 
 fixInfix :: [(Expresion, Bool)] -> Either InFixError [Expresion]
 fixInfix e = reverse <$> fixInfix1 e [] []

@@ -3,9 +3,9 @@ module TestParser (testParser ) where
 import Test.Tasty
 import Test.Tasty.HUnit
 import Test.Tasty.QuickCheck
-import ArbitraryQuickcheck ()
-import Data.Either
+import ArbitraryQuickcheck
 
+import ParserType
 import Names
 import Lambda
 import Opperator
@@ -56,11 +56,17 @@ testParser = testGroup "parser"
   , testCaseParser "(\\a.a)(*)" $ appl (L.id "a") (val multiply)
   , testCaseParser "(\\a.a)*" $ appl (val multiply) (L.id "a")
   , testParserFail "(* * 1.0)+ 1.0"
-  , testProperty "parse pShow arbitrary " $
-        \ t -> isRight (parseString (pShow (t :: LamTerm () Name)))
+  , testProperty "parse all untype lambda pShow " $
+        forAllUnTypedLambda (\ t -> case parseString (pShow t) of
+                                        Left (Parsec {}) -> False
+                                        _ -> True
+                                    )
   , testProperty "pShow parse = id " $
-        \ t -> fmap removeInfo (parseString (pShow (t :: LamTerm () Name ))) == return t
-  ]
+        forAllUnTypedLambda $ \ term -> case fmap removeInfo (parseString (pShow term )) of
+            Right t -> t == t
+            Left (Infix {}) -> True
+            Left (Parsec {}) -> False
+   ]
 
 testCaseParser :: String -> LamTerm () Name -> TestTree
 testCaseParser string result = testCase string $
