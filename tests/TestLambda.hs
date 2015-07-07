@@ -20,13 +20,16 @@ testPShow = testGroup "pShow"
       pShow (appl (appl (var "a") (var "b")) (var "c")) @?= "a b c"
 
   , testCase "not right associative" $
-      pShow (appl (var "a") (appl (var "b") (var "c"))) @?= "a(b c)"
+      pShow (appl (var "a") (appl (var "b") (var "c"))) @?= "a (b c)"
 
-  , testCase " body of an abstraction extends as far right as possible" $
+  , testCase "body of an abstraction extends as far right as possible" $
       pShow ( lambda "x" (appl (var "m") (var "n"))) @?= "\\x.m n"
 
   , testCase "apply lambda  " $
-      pShow (appl ( lambda "x" (var "m")) (var "n")) @?= "(\\x.m)n"
+      pShow (appl ( lambda "x" (var "m")) (var "n")) @?= "(\\x.m) n"
+
+  , testCase "lambda lambda " $
+      pShow (lambda "y" (lambda "x" (var "x"))) @?= "\\y.\\x.x"
 
   , testCase "+" $
      pShow (val plus ) @?= "+"
@@ -39,12 +42,22 @@ testPShow = testGroup "pShow"
 
   , testCase "\\a.a(+)(*) " $
         pShow (lambda "a" (appl (appl (var "a") (val plus)) (val multiply)))
-        @?= "\\a.a(+)(*)"
+        @?= "\\a.a (+) (*)"
 
-    , testCase "+* " $
-        pShow (lambda "a" (appl (appl (var "a") (val plus)) (val multiply)))
-        @?= "\\a.a(+)(*)"
+
+  , testCase "+1.0 " $
+        pShow (lambda "#" (appl (appl (val plus) (var "#")) (double 1.0) ))
+        @?= "+ 1.0"
+
+  , testCase "+* " $
+        pShow (lambda "#" (appl (appl (val plus) (var "#")) (val multiply)))
+        @?= "+ (*)"
+
+  , testCase "1.0+(*) " $
+        pShow (appl (appl (val plus) (double 1.0) ) (val multiply))
+        @?= "1.0 + (*)"
   ]
+
 
 -- testShow :: TestTree
 -- testShow = testGroup "show read"

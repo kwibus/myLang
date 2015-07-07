@@ -30,18 +30,18 @@ instance Eq (TypeError i) where
   (==) _ _ = False
 
 instance Eq (UnificationError i) where
-   (Infinit _ _ _) == (Infinit _ _ _) = True
-   (Unify _ _ _) == (Unify _ _ _ ) = True
+   (Infinit {}) == (Infinit {}) = True
+   (Unify {}) == (Unify {} ) = True
    VarVar == VarVar = True
    (==) _ _ = False
 
-showError :: String -> (TypeError Loc) -> Doc
+showError :: String -> TypeError Loc -> Doc
 showError str (UnifyAp expr t1 t2 err ) = text (showLoc (getposition expr)) <+> text "TypeError " <$>
         indent 4 ( showUnifyApError str expr t1 t2 err)
 showError _ _ = text "No error messages implemented"
 
-showUnifyApError :: String -> BruijnTerm Loc -> ( Type Free) -> (Type Free) -> UnificationError Loc -> Doc
-showUnifyApError str (Appl i e1 e2) t1 t2 (Unify _ _ _) =
+showUnifyApError :: String -> BruijnTerm Loc -> Type Free -> Type Free -> UnificationError Loc -> Doc
+showUnifyApError str (Appl i e1 e2) t1 t2 (Unify {}) =
     let namestate = genNames t1 >> genNames t2
         localShow t = text $ evalState (namestate >> tShowEnv t) initState
     in getWord (getposition e1) str <+> text "is applied to wrong kind of argumts" <$>
@@ -58,23 +58,23 @@ showUnifyApError _ _ _ _ _ = text "No error messages implemented"
 
 
 showLine :: Loc -> String -> String
-showLine loc str = (lines str) !! (lineStart loc - 1 )
+showLine loc str = lines str !! (lineStart loc - 1 )
 
 underlineWord :: Loc -> String -> Doc
-underlineWord loc str = text pre <> red ( text word) <> ( text post )
+underlineWord loc str = text pre <> red ( text word) <> text post
   where
-    selectedLine = (showLine loc str)
+    selectedLine = showLine loc str
     (pre, xs) = splitAt (columnStart loc) selectedLine
-    (word, post) = break (\ a -> a == ' ') xs
+    (word, post) = break (== ' ') xs
 
 getWord :: Loc -> String -> Doc
 getWord loc str =
-    if (lineStart loc /= lineEnd loc)
+    if lineStart loc /= lineEnd loc
     then vsep $ map text $ take (lineEnd loc - lineStart loc + 1) $ drop (lineStart loc - 1) (lines str)
-    else text $ trim $ word
+    else text $ trim word
   where
     selectedLine = showLine loc str
     word = take (columnEnd loc - columnStart loc ) $ drop (columnStart loc - 1 ) selectedLine
 
 trim :: String -> String
-trim s = reverse $ dropWhile (isSpace) $ reverse $ dropWhile (isSpace) s
+trim s = reverse $ dropWhile isSpace $ reverse $ dropWhile isSpace s

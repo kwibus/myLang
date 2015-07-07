@@ -55,6 +55,7 @@ testParser = testGroup "parser"
   , testCaseParser "*\\a.a" $ appl (lambda "#" $ appl (val multiply) ( var "#" )) (L.id "a")
   , testCaseParser "(\\a.a)(*)" $ appl (L.id "a") (val multiply)
   , testCaseParser "(\\a.a)*" $ appl (val multiply) (L.id "a")
+  , testCaseParser "\n1.0" $ double 1.0
   , testParserFail "(* * 1.0)+ 1.0"
   , testProperty "parse all untype lambda pShow " $
         forAllUnTypedLambda (\ t -> case parseString (pShow t) of
