@@ -80,6 +80,7 @@ library
                       ,Info
                       ,TypeError
                       ,Names
+                      ,Associativity
   default-language:    Haskell2010
 
 test-suite tests

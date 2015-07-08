@@ -3,10 +3,7 @@ module Vallue where
 import Control.Monad.State.Strict
 import Type
 import Enviroment
-
-data Fixity = PreFix | InFix Precedence Associativity
-type Precedence = Int
-data Associativity = AssoRight | AssoLeft
+import Associativity
 
 type Stack = [Vallue]
 -- TODO make every type a build in

@@ -4,33 +4,31 @@ import Vallue
 import Lambda
 import Names
 import Info
+import Associativity
+
 type Expresion = LamTerm Loc Name
 
-pShow :: LamTerm i Name -> String
-pShow = go False where
-      go _ (Var _ (Name n)) = n
-      go _ (Val _ v) = pShowVal v
-      go b (Lambda _ (Name "#") t) = go b t
-      go b (Lambda _ (Name n) t) = "\\" ++ n ++ "." ++ go b t
-      go b (Appl _ t1@Lambda {} t2@Var {}) = parentheses t1 ++ go b t2
-      go _ (Appl _ t1@Lambda {} t2) = parentheses t1 ++ parentheses t2
-      go b (Appl _ t1@Var {} t2@Var {}) = go b t1 ++ " " ++ go b t2
-      go b (Appl _ t1@Var {} t2) = go b t1 ++ parentheses t2
-      go b (Appl _ t1@(Val _ v1) t2@Val {}) = if isInfixVallue v1
-                                        then go b t2 ++ " " ++ go b t1
-                                        else go b t1 ++ " " ++ go b t2
-      go b (Appl _ t1@(Val _ v) t2) = if isInfixVallue v
-                                 then case t2 of
-                                     Var _ (Name "#") -> go b t1
-                                     _ -> parentheses t2 ++ go b t1
-                                 else go b t1 ++ parentheses t2
-      go _ (Appl _ t1@Appl {} t2@Appl {}) = go True t1 ++ parentheses t2
-      go True (Appl _ t1@Appl {} t2@Lambda {}) = go True t1 ++ parentheses t2
-      go b (Appl _ t1@Appl {} t2@Var {}) = go True t1 ++ " " ++ go b t2
-      go b (Appl _ t1@Appl {} t2@(Val _ v)) = go True t1 ++ if isInfixVallue v
-                                                     then parentheses t2
-                                                     else " " ++ go b t2
-      go b (Appl _ t1@Appl {} t2 ) = go True t1 ++ go b t2
+getpres :: LamTerm i n -> (Precedence, Associativity)
+getpres (Val _ BuildIn {fixity = InFix p a}) = (p, a)
+getpres _ = (11, AssoLeft)
 
-parentheses :: LamTerm i Name -> String
-parentheses s = "(" ++ pShow s ++ ")"
+parensIf :: Bool -> String -> String
+parensIf True string = parens string
+parensIf False string = string
+
+parens :: String -> String
+parens string = "(" ++ string ++ ")"
+
+pShow :: LamTerm i Name -> String
+pShow = go (0 :: Int) where
+  go _ (Var _ (Name n)) = n
+  go _ (Val _ v) = pShowVal v
+  go b (Lambda _ (Name "#") t) = go b t
+  go b (Lambda _ (Name n) t) = parensIf (b > 0) $ "\\" ++ n ++ "." ++ go b t
+  go b (Appl _ t1 t2 ) = parensIf (b > 1) $ case t1 of
+        (Val _ v@(BuildIn {fixity = InFix p a})) -> case t2 of
+            (Var _ (Name "#")) -> pShowVal v
+            _ -> go 1 t2 ++ " " ++ pShowVal v
+        _ -> go 1 t1 ++ " " ++ case t2 of
+            (Val _ v@(BuildIn {fixity = InFix p a})) -> parens (pShowVal v)
+            _ -> go 2 t2

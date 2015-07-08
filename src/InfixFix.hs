@@ -1,10 +1,11 @@
 module InfixFix (fixInfix, InFixError) where
 
-import Expresion (Expresion)
+import Expresion
 import Lambda
-import Vallue
 import Info
 import Names
+import Associativity
+
 
 data InFixError = MultipleInfix Expresion Expresion
     deriving (Show, Eq)
@@ -34,15 +35,6 @@ unwindStacks (v1 : v2 : vs) (o : os) =
     in uncurry unwindStacks (Appl pos (Appl pos o v2) v1 : vs, os)
 unwindStacks (v : vs) (o : os) = (Appl (getposition v) o v : vs, os)
 
-getpres :: Expresion -> (Precedence, Associativity)
-getpres (Val _ BuildIn {fixity = InFix p a}) = (p, a)
-getpres _ = error "no infix"
-
--- TODO correct associative
 higer :: [Expresion] -> Expresion -> Bool
 higer [] _ = True
 higer (x : _) y = higerPres (getpres x) (getpres y)
-
-higerPres :: (Precedence, Associativity) -> (Precedence, Associativity) -> Bool
-higerPres (p1, AssoLeft) (p2, _) = p1 >= p2
-higerPres (p1, AssoRight) (p2, _) = p1 > p2
