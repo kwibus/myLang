@@ -26,33 +26,34 @@ forAllTypedBruijn :: Testable prop => (BruijnTerm () -> prop) -> Property
 forAllTypedBruijn = forAllShrink genTyped shrinkTyped
 
 forAllUnTypedLambda :: Testable prop => (LamTerm () Name -> prop) -> Property
-forAllUnTypedLambda = forAllShrink genUnTyped (shrinkUntyped eliminatedLambda)
+forAllUnTypedLambda = forAllShrink genUnTyped shrinkUntypedLamba
 
 forAllUnTypedBruijn :: Testable prop => (BruijnTerm () -> prop) -> Property
-forAllUnTypedBruijn = forAllShrink genUnTyped (shrinkUntyped eliminateBruijn)
+forAllUnTypedBruijn = forAllShrink genUnTyped shrinkUntypedBruijn
 
 shrinkTyped :: LamTerm () n -> [LamTerm () n]
-shrinkTyped (Appl _ t1 t2) = [Appl () t1' t2' | t1' <- shrinkTyped t1 , t2' <- shrinkTyped t2 ]
+shrinkTyped (Appl _ t1 t2) =
+    [Appl () t1' t2' | t1' <- shrinkTyped t1 , t2' <- shrinkTyped t2 ]
 shrinkTyped (Lambda _ (Name n) t) = lambda n <$> shrinkTyped t
--- shrinkTyped (Val _ v) = val <$> shrinkValue v
+   -- shrinkTyped (Val _ v) = val <$> shrinkValue v
 shrinkTyped _ = []
 
 shrinkUntypedLamba :: LamTerm () Name -> [LamTerm () Name]
-shrinkUntypedLamba = shrinkUntyped eliminatedLambda
+shrinkUntypedLamba = shrinkUntyped elimanateLambda
 
 shrinkUntypedBruijn :: BruijnTerm () -> [BruijnTerm ()]
-shrinkUntypedBruijn = shrinkUntyped eliminateBruijn
+shrinkUntypedBruijn = shrinkUntyped elimanateBruijn
 
 shrinkUntyped :: (Name -> LamTerm () n -> Maybe (LamTerm () n )) -> LamTerm () n -> [ LamTerm () n ]
-shrinkUntyped eliminated (Appl _ t1 t2) = [t1, t2] ++
-    [Appl () t1' t2' | t1' <- shrinkUntyped eliminated t1 , t2' <- shrinkUntyped eliminated t2 ]
-shrinkUntyped eliminated (Lambda _ (Name n) t) = maybeToList (eliminated (Name n) t) ++
-    (lambda n <$> shrinkUntyped eliminated t)
+shrinkUntyped elimanate (Appl _ t1 t2) = [t1, t2] ++
+    [Appl () t1' t2' | t1' <- shrinkUntyped elimanate t1 , t2' <- shrinkUntyped elimanate t2 ]
+shrinkUntyped elimanate (Lambda _ (Name n) t) =
+    lambda n <$> (shrinkUntyped elimanate =<< [fromMaybe t (elimanate (Name n) t)])
 -- shrinkUntyped _ (Val _ v) = val <$> shrinkValue v
 shrinkUntyped _ _ = []
 
-eliminateBruijn :: Name -> BruijnTerm () -> Maybe (BruijnTerm ())
-eliminateBruijn _ = go 0
+elimanateBruijn :: Name -> BruijnTerm () -> Maybe (BruijnTerm ())
+elimanateBruijn _ = go 0
   where go i1 (Var () (Bound i2))
             | i1 == i2 = Nothing
             | i1 < i2 = Just $ Var () $ Bound (i2 - 1)
@@ -62,8 +63,8 @@ eliminateBruijn _ = go 0
         go i (Appl _ t1 t2) =
             Appl () <$> go i t1 <*> go i t2
 
-eliminatedLambda :: Name -> LamTerm () Name -> Maybe ( LamTerm () Name )
-eliminatedLambda (Name name) = go
+elimanateLambda :: Name -> LamTerm () Name -> Maybe ( LamTerm () Name )
+elimanateLambda (Name name) = go
   where go t@(Var () (Name n ))
             | n == name = Nothing
             | otherwise = Just t
