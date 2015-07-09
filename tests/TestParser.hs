@@ -64,7 +64,7 @@ testParser = testGroup "parser"
                                     )
   , testProperty "pShow parse = id " $
         forAllUnTypedLambda $ \ term -> case fmap removeInfo (parseString (pShow term )) of
-            Right t -> t == t
+            Right t -> t == term
             Left (Infix {}) -> True
             Left (Parsec {}) -> False
    ]
