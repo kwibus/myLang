@@ -14,7 +14,7 @@ import Logic
 import ArbiRef
 
 shrinkValue :: Vallue -> [Vallue]
-shrinkValue (MyDouble _) = [MyDouble 1.0]
+shrinkValue (MyDouble n) = if n == 1.0 then [] else [MyDouble 1.0]
 shrinkValue _ = []
 
 arbitraryVallue :: ArbiRef n => Maybe (Type Free) -> Generater ( LamTerm () n)

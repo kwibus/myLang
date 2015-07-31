@@ -19,9 +19,6 @@ import Type
 import Names
 import ArbiRef
 
-forAllTypedLambda :: Testable prop => (LamTerm () Name -> prop) -> Property
-forAllTypedLambda = forAllShrink genTyped shrinkTyped
-
 forAllTypedBruijn :: Testable prop => (BruijnTerm () -> prop) -> Property
 forAllTypedBruijn = forAllShrink genTyped shrinkTyped
 
@@ -31,26 +28,29 @@ forAllUnTypedLambda = forAllShrink genUnTyped shrinkUntypedLamba
 forAllUnTypedBruijn :: Testable prop => (BruijnTerm () -> prop) -> Property
 forAllUnTypedBruijn = forAllShrink genUnTyped shrinkUntypedBruijn
 
-shrinkTyped :: LamTerm () n -> [LamTerm () n]
-shrinkTyped (Appl _ t1 t2) =
-    [Appl () t1' t2' | t1' <- shrinkTyped t1 , t2' <- shrinkTyped t2 ]
-shrinkTyped (Lambda _ (Name n) t) = lambda n <$> shrinkTyped t
-   -- shrinkTyped (Val _ v) = val <$> shrinkValue v
-shrinkTyped _ = []
+shrinkTyped :: BruijnTerm () -> [BruijnTerm () ]
+shrinkTyped = shrinkTerm False elimanateBruijn
 
 shrinkUntypedLamba :: LamTerm () Name -> [LamTerm () Name]
-shrinkUntypedLamba = shrinkUntyped elimanateLambda
+shrinkUntypedLamba = shrinkTerm True elimanateLambda
 
 shrinkUntypedBruijn :: BruijnTerm () -> [BruijnTerm ()]
-shrinkUntypedBruijn = shrinkUntyped elimanateBruijn
+shrinkUntypedBruijn = shrinkTerm True elimanateBruijn
 
-shrinkUntyped :: (Name -> LamTerm () n -> Maybe (LamTerm () n )) -> LamTerm () n -> [ LamTerm () n ]
-shrinkUntyped elimanate (Appl _ t1 t2) = [t1, t2] ++
-    [Appl () t1' t2' | t1' <- shrinkUntyped elimanate t1 , t2' <- shrinkUntyped elimanate t2 ]
-shrinkUntyped elimanate (Lambda _ (Name n) t) =
-    lambda n <$> (shrinkUntyped elimanate =<< [fromMaybe t (elimanate (Name n) t)])
--- shrinkUntyped _ (Val _ v) = val <$> shrinkValue v
-shrinkUntyped _ _ = []
+shrinkTerm ::Bool -> (Name -> LamTerm () n -> Maybe (LamTerm () n )) -> LamTerm () n -> [ LamTerm () n ]
+shrinkTerm untyped elimanate  term = fastShrink True term
+    where fastShrink _ (Val _ v) = val <$> shrinkValue v
+          fastShrink b t = whenTrue b [double 2.0] ++ shrink b t
+          shrink b (Appl _ t1 t2) = whenTrue b [t1, t2] ++
+                [Appl () t1' t2 | t1' <- fastShrink untyped t1 ]++
+                [Appl () t1 t2' | t2' <- fastShrink untyped t2 ]
+          shrink b (Lambda _ (Name n) t) =whenTrue b (maybeToList (elimanate (Name n) t)) ++ (lambda n <$> fastShrink untyped t)
+          shrink _ (Val _ v) = val <$> shrinkValue v
+          shrink _ _ = []
+
+whenTrue :: Monoid a => Bool -> a -> a
+whenTrue True a = a
+whenTrue False _ = mempty
 
 elimanateBruijn :: Name -> BruijnTerm () -> Maybe (BruijnTerm ())
 elimanateBruijn _ = go 0
