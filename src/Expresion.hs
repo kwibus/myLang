@@ -8,9 +8,9 @@ import Associativity
 
 type Expresion = LamTerm Loc Name
 
-getpres :: LamTerm i n -> (Precedence, Associativity)
-getpres (Val _ BuildIn {fixity = InFix p a}) = (p, a)
-getpres _ = (11, AssoLeft)
+getPres :: LamTerm i n -> (Precedence, Associativity)
+getPres (Val _ BuildIn {fixity = InFix p a}) = (p, a)
+getPres _ = highPres
 
 parensIf :: Bool -> String -> String
 parensIf True string = parens string

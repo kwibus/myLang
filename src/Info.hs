@@ -41,6 +41,15 @@ removeInfo (Appl _ e1 e2) = Appl () (removeInfo e1 ) $ removeInfo e2
 removeInfo (Val _ v) = Val () v
 removeInfo (Var _ n) = Var () n
 
+mergLoc :: LamTerm Loc n -> LamTerm Loc n -> Loc
+mergLoc e1 e2 = Loc { srcFile = srcFile start
+                    , lineStart = lineStart start
+                    , columnStart = columnStart start
+                    , lineEnd = lineEnd end
+                    , columnEnd = columnEnd end}
+    where start = getposition e1
+          end = getposition e2
+
 class Position a where
     position :: a -> Maybe Loc
 

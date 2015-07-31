@@ -6,7 +6,6 @@ import Info
 import Names
 import Associativity
 
-
 data InFixError = MultipleInfix Expresion Expresion
     deriving (Show, Eq)
 
@@ -25,7 +24,9 @@ fixInfix1 ((e, True) : es) vs op = if higer op e
             then let (vs1, op1) = unwindStacks vs op
                  in fixInfix1 es vs1 (e : op1)
             else fixInfix1 es vs (e : op)
-fixInfix1 ((e, False) : es) vs op = fixInfix1 es (e : vs) op
+fixInfix1 ((e, False) : es) vs op = let (functionsAndArgs, rest) = break snd es
+                                        nonInfix = foldl1 (\ e1 e2 -> Appl (mergLoc e1 e2) e1 e2) (e : map fst functionsAndArgs) :: Expresion
+                                    in fixInfix1 rest (nonInfix : vs) op
 
 unwindStacks :: [Expresion] -> [Expresion] -> ([Expresion], [Expresion])
 unwindStacks [] os = (os, [])
@@ -37,4 +38,4 @@ unwindStacks (v : vs) (o : os) = (Appl (getposition v) o v : vs, os)
 
 higer :: [Expresion] -> Expresion -> Bool
 higer [] _ = True
-higer (x : _) y = higerPres (getpres x) (getpres y)
+higer (x : _) y = higerPres (getPres x) (getPres y)

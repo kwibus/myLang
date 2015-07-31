@@ -31,15 +31,6 @@ pApplication = do
         Left erro -> lift $ Left erro
         Right exps -> return $ foldl1 (\ e1 e2 -> Appl (mergLoc e1 e2) e1 e2 ) exps
 
-mergLoc :: Expresion -> Expresion -> Loc
-mergLoc e1 e2 = Loc { srcFile = srcFile start
-                    , lineStart = lineStart start
-                    , columnStart = columnStart start
-                    , lineEnd = lineEnd end
-                    , columnEnd = columnEnd end}
-    where start = getposition e1
-          end = getposition e2
-
 pVallue :: Parser Expresion
 pVallue = do
     pos <- getPosition
