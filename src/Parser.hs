@@ -18,11 +18,11 @@ pLambda :: Parser Expresion
 pLambda = do
     pos <- getPosition
     symbol '\\'
-    n <- identifier
+    ns <- many identifier -- Todo 1) fix location 2) give warning Shadowin variable names (\a a b.t)
     symbol '.'
     term <- pLambdaTerm
     loc <- getLoc pos
-    return $ Lambda loc (Name n) term
+    return $ foldr (Lambda loc) term (Name <$> ns)
 
 pApplication :: Parser Expresion
 pApplication = do

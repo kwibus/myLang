@@ -42,8 +42,9 @@ pShow = go False lowPres
   go _ _ (Var _ (Name n)) = n
   go _ _ (Val _ v) = pShowVal v
   go b _ (Lambda _ (Name "#") t) = go b lowPres t
-  go b p (Lambda _ (Name n) t) = parensIf b $
-     "\\" ++ n ++ "." ++ go b p t
+  go b p (Lambda _ (Name n) t) =
+    let (vars, nextTerm) = acumulateVars t
+    in parensIf b $ "\\" ++ unwords (filter (/= "#") (n : vars)) ++ "." ++ go b p nextTerm
 
   go b p (Appl _ t1 t2 ) = parensIf ( lowerPres (getPresFuntion t1) p && not (isInfix t1)) $
         let string2 = case t2 of
@@ -55,6 +56,7 @@ pShow = go False lowPres
            else myConcat string1 string2
 
 myConcat :: String -> String -> String
+myConcat s "" = s
 myConcat "" s = s
 myConcat s1 s2 = s1 ++ " " ++ s2
 
@@ -66,3 +68,8 @@ isNotFullAplliedInfix t = isInfix t
 isInfix :: LamTerm i Name -> Bool
 isInfix (Val _ BuildIn {fixity = InFix {}}) = True
 isInfix _ = False
+
+acumulateVars :: LamTerm i Name -> ([String], LamTerm i Name)
+acumulateVars = go []
+ where go ns (Lambda _ (Name n) t ) = go (n : ns) t
+       go ns t = (reverse ns, t)
