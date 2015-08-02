@@ -17,17 +17,18 @@ getPresFuntion (Appl _ (Appl {}) _) = highPres
 getPresFuntion (Appl _ term _ ) = getPres term
 getPresFuntion term = getPres term
 
+decrement :: (Precedence , Associativity) -> (Precedence , Associativity)
+decrement (p, AssoLeft ) = (p, AssoRight)
+decrement (p, AssoRight) = (p - 1, AssoLeft)
+
 presAplicationfuction :: (Precedence, Associativity)
 presAplicationfuction = (11, AssoLeft)
-
-presAplicationfuctionl :: (Precedence, Associativity)
-presAplicationfuctionl = (10, AssoLeft)
 
 lowPres :: (Precedence, Associativity)
 lowPres = (0, AssoLeft)
 
 highPres :: (Precedence, Associativity)
-highPres = (100, AssoRight)
+highPres = (100, AssoLeft)
 
 parensIf :: Bool -> String -> String
 parensIf True string = parens string
@@ -46,14 +47,19 @@ pShow = go False lowPres
     let (vars, nextTerm) = acumulateVars t
     in parensIf b $ "\\" ++ unwords (filter (/= "#") (n : vars)) ++ "." ++ go b p nextTerm
 
-  go b p (Appl _ t1 t2 ) = parensIf ( lowerPres (getPresFuntion t1) p && not (isInfix t1)) $
+  go b p (Appl _ t1 t2 )
+    | isInfix t1 =
         let string2 = case t2 of
-                    (Var _ (Name "#")) -> ""
-                    _ -> parensIf (isNotFullAplliedInfix t2) $ go (isInfix t1 || b) (getPresFuntion t1) t2
-            string1 = go True presAplicationfuction t1
-        in if isInfix t1
-           then myConcat string2 string1
-           else myConcat string1 string2
+               (Var _ (Name "#")) -> ""
+               _ -> mkString2 True (decrement (getPresFuntion t1))
+        in myConcat string2 string1
+
+    | otherwise = parensIf ( higerPres p (getPresFuntion t1)) $
+        let string2 = mkString2 b (getPresFuntion t1)
+        in myConcat string1 string2
+
+    where string1 = go True presAplicationfuction t1
+          mkString2 b p = parensIf (isNotFullAplliedInfix t2) $ go b p t2
 
 myConcat :: String -> String -> String
 myConcat s "" = s
