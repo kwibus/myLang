@@ -29,7 +29,7 @@ pApplication = do
     terms <- many pLambdaTerm'
     case fixInfix terms of
         Left erro -> lift $ Left erro
-        Right exps -> return $ foldl1 (\ e1 e2 -> Appl (mergLoc e1 e2) e1 e2 ) exps
+        Right exps -> return exps
 
 pVallue :: Parser Expresion
 pVallue = do

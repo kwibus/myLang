@@ -9,8 +9,12 @@ import Associativity
 data InFixError = MultipleInfix Expresion Expresion
     deriving (Show, Eq)
 
-fixInfix :: [(Expresion, Bool)] -> Either InFixError [Expresion]
-fixInfix e = reverse <$> fixInfix1 e [] []
+fixInfix :: [(Expresion, Bool)] -> Either InFixError Expresion
+fixInfix expresions = case reverse <$> fixInfix1 expresions [] [] of
+    exprs @ (Right (Appl _ _ (Var pos (Name "#")) : _)) -> Lambda pos (Name "#") <$> (fixStream <$> exprs)
+    exprs -> fixStream <$> exprs
+    where fixStream :: [Expresion] -> Expresion
+          fixStream = foldl1 (\ e1 e2 -> Appl (mergLoc e1 e2) e1 e2 )
 
 -- TODO beter error messages
 -- TODO beter name
@@ -18,7 +22,7 @@ fixInfix1 :: [(Expresion, Bool)] -> [Expresion] -> [Expresion] -> Either InFixEr
 fixInfix1 [] vs op = return $ fst $ unwindStacks vs op
 fixInfix1 (e : es) [] [o] =
     let pos = getposition o
-    in fixInfix1 (e : es) [Lambda pos (Name "#") (Appl pos o (Var pos (Name "#")))] []
+    in fixInfix1 (e : es) [(Appl pos o (Var pos (Name "#")))] []
 fixInfix1 ((e1, True) : (e2, True) : _) _ _ = Left $ MultipleInfix e1 e2
 fixInfix1 ((e, True) : es) vs op = if higer op e
             then let (vs1, op1) = unwindStacks vs op
