@@ -36,6 +36,10 @@ bEmtyEnv = BruiState
 fEmtyEnv :: FreeEnv a
 fEmtyEnv = IM.empty
 
+fFromList :: [(a, Free)] -> FreeEnv a
+fFromList list = IM.fromList $ map convert list
+    where convert (a, Free i) = (i, a)
+
 bInsert :: a -> BruiEnv a -> BruiEnv a
 bInsert a b@BruiState {bruiDepth = depth, bruiMap = m} =
      b {bruiDepth = depth + 1, bruiMap = IM.insert depth a m }

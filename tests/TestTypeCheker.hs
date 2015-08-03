@@ -20,12 +20,28 @@ import TypeError
 
 testTypeChecker :: TestTree
 testTypeChecker = testGroup "typeChecker"
-                    [ testUnify
+                    [ testApply
+                    , testUnify
                     , testUnifyEnv
                     , testSolver
                     , testClose
                     ]
 
+testApply :: TestTree
+testApply = testGroup "apply"
+    -- [ testCase " apply a {a->a}}== a" $
+    --     let t = TVar (Free 1)
+    --         env = finsertAt t (Free 1) fEmtyEnv
+    --     in apply t env @?= t
+
+    [ testCase " apply a {a->b}}== b" $
+        let env = finsertAt (TVar (Free 2)) (Free 1) fEmtyEnv
+        in apply (TVar (Free 1)) env @?= TVar (Free 2)
+
+    , testCase " apply a {a->b, b->c}}== c" $
+        let env = fFromList [(TVar (Free 2), Free 1), (TVar (Free 3), Free 2)]
+        in apply (TVar (Free 1)) env @?= TVar (Free 3)
+    ]
 testUnify :: TestTree
 testUnify = testGroup "unify"
     [ testCase " unifys a b {a->b}" $
@@ -55,19 +71,19 @@ testUnify = testGroup "unify"
 testUnifyEnv :: TestTree
 testUnifyEnv = testGroup " Unify Env "
     [testCase "unifyEnv error" $
-        let env1 = fromList [(1,TVal TDouble) ]
-            env2 = fromList [(1,TAppl (TVal TDouble) (TVal TDouble))]
-        in  isLeft (unifyEnv env1 env2) @?= True
+        let env1 = fromList [(1, TVal TDouble) ]
+            env2 = fromList [(1, TAppl (TVal TDouble) (TVal TDouble))]
+        in isLeft (unifyEnv env1 env2) @?= True
 
-    ,testCase "unifyEnv error sum" $
-        let env1 = fromList [(1,TVal TDouble)
-                            ,(2,TVal TDouble)]
-            env2 = fromList [(1,TAppl (TVal TDouble) (TVal TDouble))
-                            ,(2,TAppl (TVal TDouble) (TVal TDouble))]
-        in (case (unifyEnv env1 env2) of
-                Left  es -> length es == 2
+    , testCase "unifyEnv error sum" $
+        let env1 = fromList [ (1, TVal TDouble)
+                            , (2, TVal TDouble)]
+            env2 = fromList [ (1, TAppl (TVal TDouble) (TVal TDouble))
+                            , (2, TAppl (TVal TDouble) (TVal TDouble))]
+        in ( case unifyEnv env1 env2 of
+                Left es -> length es == 2
                 _ -> False
-          )@?= True
+          ) @?= True
     ]
 
 testClose :: TestTree
@@ -170,15 +186,25 @@ testSolver = testGroup "Solver"
                 )
 
     , testCase "fail (+)\\a.a" $
-        solver (appl (val plus)B.id )@?=
+        solver (appl (val plus) B.id ) @?=
         throwError (UnifyAp undefined undefined undefined (Unify undefined undefined undefined))
 
     , testCase "fail \\a.a a" $
-        solver (lambda "a" (appl (bvar 0 )(bvar 0)))@?=
+        solver (lambda "a" (appl (bvar 0 ) (bvar 0))) @?=
         throwError (UnifyAp undefined undefined undefined (Infinit undefined undefined undefined))
+    , testCase " " $
+        solver (appl (lambda "x" (appl (lambda "y" (bvar 1))
+                                       (appl (lambda "z" (bvar 1))
+                                             (appl (bvar 0)
+                                                   (lambda "w" (bvar 0))))))
+               B.id)
+        @?=
+        return ( TAppl (TAppl (TVar (Bound 0)) (TVar (Bound 0)))
+                       (TAppl (TVar (Bound 0)) (TVar (Bound 0))))
 
-    , testProperty "idempotence" $ 
-        forAllTypedBruijn $ \ e -> case runInfer $solveWith e fEmtyEnv bEmtyEnv of
+
+    , testProperty "idempotence" $
+        forAllTypedBruijn $ \ e -> case runInfer $ solveWith e fEmtyEnv bEmtyEnv of
                 Left _ -> False
                 Right (t1, env1) -> case runInfer $ solveWith e env1 bEmtyEnv of
                     Left _ -> False

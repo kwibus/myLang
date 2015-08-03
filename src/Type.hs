@@ -64,4 +64,4 @@ pShowType TDouble = "Double"
 mapVar :: (i -> j) -> Type i -> Type j
 mapVar f (TAppl t1 t2) = TAppl (mapVar f t1) (mapVar f t2)
 mapVar f (TVar i) = TVar (f i)
-mapVar f (TVal a) = TVal a
+mapVar _ (TVal a) = TVal a
