@@ -3,6 +3,7 @@ module BruijnTerm where
 import Control.Monad.Except
 import qualified Data.IntMap as IM
 import qualified Data.Map as M
+import Data.Char
 
 import Names
 import Enviroment
@@ -14,29 +15,34 @@ toList :: BruiEnv a -> [(Int, a)]
 toList BruiState {bruiMap = m} = IM.toList m
 
 data UndefinedVar i n = UndefinedVar i n
-    | RefShadow i Bound Name
     deriving (Show, Eq)
 
 lam2Bruijn :: LamTerm i Name -> Either (UndefinedVar i Name ) (BruijnTerm i)
 lam2Bruijn t = go t 0 M.empty
-  where go :: LamTerm i Name -> Int -> M.Map Name Int -> Either (UndefinedVar i Name ) (BruijnTerm i)
+  where removeIndex n = Name $ takeWhile (not . isDigit) n
+        go :: LamTerm i Name -> Int -> M.Map Name Int -> Either (UndefinedVar i Name ) (BruijnTerm i)
         go (Var i n) depth env = case M.lookup n env of
             Just n' -> return $ Var i $ Bound (depth - n' - 1)
             Nothing -> throwError $ UndefinedVar i n
         go (Val i v) _ _ = return $ Val i v
-        go (Lambda i n t1) depth env = Lambda i n <$>
-                     go t1 (depth + 1) (M.insert n depth env)
+        go (Lambda i (Name n) t1) depth env =
+                 Lambda i (removeIndex n) <$> go t1 (depth + 1) (M.insert (Name n) depth env)
         go (Appl i t1 t2) depth env = Appl i <$> go t1 depth env <*> go t2 depth env
 
 bruijn2Lam :: BruijnTerm i -> Either (UndefinedVar i Bound) (LamTerm i Name)
 bruijn2Lam t = go t []
   where go :: BruijnTerm i -> [Name] -> Either (UndefinedVar i Bound) (LamTerm i Name)
-        go (Var i n) env = case splitAt (toInt n ) env of
-            (_ , []) -> throwError $ UndefinedVar i n
-            (lowerScoped, name : _higerscoped) ->
-                if elem name lowerScoped
-                then throwError $ RefShadow i n name
-                else return $ Var i name
+        go (Var info n) env = case getAt env (toInt n ) of
+            Nothing -> throwError $ UndefinedVar info n
+            Just n -> return $ Var info n
         go (Val i v) _ = return $ Val i v
         go (Appl i e1 e2 ) env = Appl i <$> go e1 env <*> go e2 env
-        go (Lambda i n e1) env = Lambda i n <$> go e1 (n : env)
+        go (Lambda i (Name n) e1) env =
+            let name = head $ dropWhile (`elem` env)
+                    (map (\ i -> Name (n ++ i)) ("" : map show [0 ..] ))
+            in Lambda i name <$> go e1 (name : env)
+
+getAt :: [a] -> Int -> Maybe a
+getAt [] _ = Nothing
+getAt (x : _) 0 = Just x
+getAt (_ : xs) n = getAt xs (n - 1)

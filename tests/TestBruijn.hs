@@ -26,8 +26,6 @@ testBruijn = testGroup "bruijn index"
       lam2Bruijn (var "a") @?= Left (UndefinedVar () (Name "a"))
   , testCase "bruijn2Lam 0 " $
       bruijn2Lam (bvar 0) @?= Left (UndefinedVar () (Bound 0))
-    , testCase "bruijn2Lam \\a\\a1 " $
-      bruijn2Lam (lambda "a" (lambda "a" (bvar 1))) @?= Left (RefShadow () (Bound 1) (Name "a"))
   , testProperty "inverse test" $
-      forAllUnTypedLambda $ \ t -> fmap bruijn2Lam (lam2Bruijn t) == return ( return t)
+      forAllUnTypedBruijn $ \ t -> fmap lam2Bruijn (bruijn2Lam t) == return ( return t)
   ]
