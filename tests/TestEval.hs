@@ -46,8 +46,8 @@ testEvalBasic = testGroup "basic"
             in isJust result ==>
                 let expr2 = fromJust result
                 in eitht2bool $ do
-                    t1 <- solver expr2
-                    t2 <- solver e
+                    t2 <- solver expr2
+                    t1 <- solver e
                     return $ counterexample (
                           "\neval:" ++ show expr2 ++
                         "\n\npShow     : " ++ show (fmap pShow (bruijn2Lam e)) ++
@@ -55,7 +55,17 @@ testEvalBasic = testGroup "basic"
                          "\n\npShow eval: " ++ show (fmap pShow (bruijn2Lam expr2)) ++
                           "\n\t::" ++ tShow t2
                             )
-                        $ unifys (typeBound2Free t1) (typeBound2Free t2) fEmtyEnv
+                        $ unifys (typeBound2Free t1)
+                                 (mapVar (\ (Free i) -> Free (i + 10000)) (typeBound2Free t2))
+                                 fEmtyEnv
+-- you  can`t use t1 == t2  because
+-- "(\\g.(\\y.g)    ::(a -> b -> a) -> Double  evals to:    "(\\y f.1.0)        ::a -> Double
+--       (g                                   ============>   ((\\f.1.0)
+--        (\\x u.x)))                                            \\x u.x)"
+--   \\f.1.0"
+-- so you have to use unifys
+-- but name me overlap; so a hack solution is to add a large numer to the var of one type.
+-- because is generated type's woult normalie have no big numbers in them; so no overlap
   ]
 
 eitht2bool :: Either e Property -> Property

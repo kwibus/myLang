@@ -46,7 +46,7 @@ tShowEnv (TVar i ) = do
                 Nothing ->
                     let newname = head names
                         newMap = IM.insert (toInt i) newname m
-                    in put (newMap, (tail names) ) >> return newname
+                    in put (newMap, tail names) >> return newname
 
 initState :: (IM.IntMap String, [String] )
 initState = (IM.empty, letters)
@@ -60,3 +60,8 @@ genNames (TAppl t1 t2) = genNames t1 >> genNames t2
 
 pShowType :: MonoType -> String
 pShowType TDouble = "Double"
+
+mapVar :: (i -> j) -> Type i -> Type j
+mapVar f (TAppl t1 t2) = TAppl (mapVar f t1) (mapVar f t2)
+mapVar f (TVar i) = TVar (f i)
+mapVar f (TVal a) = TVal a
