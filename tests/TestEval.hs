@@ -15,9 +15,10 @@ import TestUtils
 import ArbitraryQuickcheck
 import Enviroment
 import MakeTerm
-import Type (typeBound2Free)
 import Opperator
 import Vallue
+import Expresion
+import Type
 
 testEval :: TestTree
 testEval = testGroup "eval" [testEvalBasic, testEvalBuildin]
@@ -36,21 +37,30 @@ testEvalBasic = testGroup "basic"
   , testProperty "welformd presevation eval" $
       forAllTypedBruijn $ \ t -> let result = welFormd <$> eval (t :: BruijnTerm ())
             in isNothing result || fromJust result
-  -- , testProperty "keep normalisation under eval" $
-  --     \ t -> isRight (bruijn2Lam t)==> fmap ((fmap lam2Bruijn) . bruijn2Lam ) (eval t) == fmap (return .return) (eval (t :: BruijnTerm ()))
+  , testProperty "keep normalisation under eval" $
+     forAllUnTypedBruijn $ \ t ->
+            let result = eval t
+            in isJust result ==> normalised $ fromJust result
   , testProperty "keep type under eval" $
       forAllTypedBruijn $ \ e -> let result = eval (e :: BruijnTerm ())
-            in isJust result ==> case eval e of
-               Nothing -> True
-               Just expr2 -> eitht2bool $ do
+            in isJust result ==>
+                let expr2 = fromJust result
+                in eitht2bool $ do
                     t1 <- solver expr2
                     t2 <- solver e
-                    return $ unifys (typeBound2Free t1) (typeBound2Free t2) fEmtyEnv
+                    return $ counterexample (
+                          "\neval:" ++ show expr2 ++
+                        "\n\npShow     : " ++ show (fmap pShow (bruijn2Lam e)) ++
+                          "\n\t::" ++ tShow t1 ++
+                         "\n\npShow eval: " ++ show (fmap pShow (bruijn2Lam expr2)) ++
+                          "\n\t::" ++ tShow t2
+                            )
+                        $ unifys (typeBound2Free t1) (typeBound2Free t2) fEmtyEnv
   ]
 
-eitht2bool :: Either e Bool -> Bool
-eitht2bool (Right bool ) = bool
-eitht2bool (Left _ ) = False
+eitht2bool :: Either e Property -> Property
+eitht2bool (Right p ) = p
+eitht2bool (Left _ ) = property False
 
 testEvalBuildin :: TestTree
 testEvalBuildin = testGroup "Buildin"
