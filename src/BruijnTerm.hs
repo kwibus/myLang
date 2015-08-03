@@ -34,13 +34,13 @@ bruijn2Lam t = go t []
   where go :: BruijnTerm i -> [Name] -> Either (UndefinedVar i Bound) (LamTerm i Name)
         go (Var info n) env = case getAt env (toInt n ) of
             Nothing -> throwError $ UndefinedVar info n
-            Just n -> return $ Var info n
+            Just name -> return $ Var info name
         go (Val i v) _ = return $ Val i v
         go (Appl i e1 e2 ) env = Appl i <$> go e1 env <*> go e2 env
-        go (Lambda i (Name n) e1) env =
+        go (Lambda info (Name n) e1) env =
             let name = head $ dropWhile (`elem` env)
-                    (map (\ i -> Name (n ++ i)) ("" : map show [0 ..] ))
-            in Lambda i name <$> go e1 (name : env)
+                    (map (\ i -> Name (n ++ i)) ("" : map show [(0 :: Int) ..] ))
+            in Lambda info name <$> go e1 (name : env)
 
 getAt :: [a] -> Int -> Maybe a
 getAt [] _ = Nothing

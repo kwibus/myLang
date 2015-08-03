@@ -4,6 +4,7 @@ import Vallue
 import Control.Monad.State.Strict
 import Type
 import Associativity
+
 push :: Vallue -> State Stack ()
 push v = modify (v :)
 

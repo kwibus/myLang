@@ -1,8 +1,8 @@
 module ArbitraryVallue where
 
-
 import Control.Monad.Trans.Class
 import Test.QuickCheck
+
 import Vallue
 import Opperator
 import GenState

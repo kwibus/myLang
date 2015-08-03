@@ -1,14 +1,25 @@
+
+# newtype
+
+alias:
+ : same as type(Haskell) define(c)
+
+newtype:
+ : same as alias but you can't reuse functions from original type, but is preserves typeclass but the can be overload
+
+data:
+ : same as in Haskell, make a new data type, data type with one term have the same representation as newtype and alias
+   (data Any = Any Bool
+    Any undefined === erro because stric semanticks  ) 
 # polymorfisme
-    explicit forrall -> dynamic
-    remove polymorfisme to concrete type  (monomorfic)
-# linear
-    linear Vallue ; can be used ones as linear but many read only 
-    linear closure ; can be used ones but no read 
- 
+    explicit forrall -> dynamic?
+    remove polymorfisme to concrete type  (monomorfic)?
+
 # void type (c compatible )
+
 # Language
 lengte x = go x 0 {
- go (x:xs) n = go xs (n+x)
+ go (x : xs) n = go xs (n+x)
 }
 quiqsort : !A e -> !A e
 quiqsort A = newA{
@@ -16,11 +27,12 @@ quiqsort A = newA{
     (small , big) = split A (<pivot)
     tuple = (quiqsort small, quiqsort big)
     newA = merge tuple
- } 
+ }
 
 ## keys
+###  pro/con
 row polymorfisme
-replace taged union with pointer and a consant with 
+replace tagged union with pointer and a contant with
 ## regions
 ```haskell
 newregion :: region
@@ -28,46 +40,46 @@ newpointer :: region -> a -> ref a
 lookup / !  :: region -> ref a -> a
 remove :: region-> a  -> ()
 ```
-if region is out of scope delte data (linear)
+if region is out of scope delete data (linear)
 if region is used keep / region me be reused (not linear)
-if ref outscope keep pointed data
+if ref out of scope keep pointed data
 if ref is used keep
-region is fantom type, it exsit to verify (data flow analyse) correct use linear data ???
-a region may never be a return value of be put in a data structure so linear data is linear for the caller  
+region is phantom type, it exist to verify (data flow analyse) correct use linear data ???
+a region may never be a return value of be put in a data structure so linear data is linear for the caller
 
 
-## every typeclasse -> record , record -> typeclass
-the separtion of typeclass and record is a separtion between logic,interface and data. This has his benefits. 
-but there are some prombles:
+## every typeclass -> record , record -> typeclass
+the separation of typeclass and record is a separation between logic,interface and data. This has his benefits.
+but there are some problems:
 * data types are closed, if you need a data type thats similar you can`t reuse exsisting functions, exsisting solution are inhertance
-* typeclass don`t allow you to pattern match 
+* typeclass don`t allow you to pattern match
 
 But what if you could pattern match with typeclass.
 implicit(could also be explicit) ever data type give rise to a typeclass
-and type classe support a new statement type. type defines a new kind of pattern match 
+and type clause support a new statement type. type defines a new kind of pattern match
 ### example
 ``` haskell
 data LambdaTerm = Lambda String LambdaTerm
                   | Appl LambdaTerm LambdaTerm
                   | Var String
 
-class Lambdaterm a where 
+class Lambdaterm a where
     type :: a -> Lambdaterm
-data TypedLambdaTerm = TLambdaterm  Sting type Lambdaterm 
+data TypedLambdaTerm = TLambdaterm  Sting type Lambdaterm
                        | TAppl TLambdaTerm TLambdaTerm
                        | TVar String Type
 
 ```
 this does not work with recursive types
 
-typeclass -> record 
+typeclass -> record
 
-if every typclass give a record
-but implementation is hidden you cant patternmatch 
-but you can do with it what is diefined in the typeclasse(existenctial types)
+if every typeclass give a record
+but implementation is hidden you cant pattern match
+but you can do with it what is defined in the typeclass (existential types)
 
 
-### example 
+### example
 
 ``` haskell
 class Show where
@@ -75,15 +87,15 @@ class Show where
 list :: Show a => Show [a] -- is typeclass still necesari
 list = [Show 1 , Show 'c'] -- Show is constructer
 ```
-## syntax sugar modify record 
+## syntax sugar modify record
 
 Now car{name = t } =  car{name = t+1}
-car = car@name +1 
+car = car@name + 1
 
 ## extend data types / subtyping  / row polymorfisme
 ### example
 
-with producd types 
+with product types
 
 ``` haskell
 data P1 = P Int Int
@@ -92,7 +104,7 @@ data P2 = P .. Color
 distance  :: P1 -> P1 -> Double
 distance ( P 1 2 Red ) (P 1 3 blue ) -- correct
 
-move:: P1 p => p -> P1 -> p 
+move:: P1 p => p -> P1 -> p
 move ( P 1 2 Red ) (P 1 3  ) == P 2 5 Red-- correct
 
 h :: P1 p , show p => p -> (String,Int)
@@ -118,7 +130,7 @@ eval2 (e:: Exp) -- incorect
 eval1 :: Exp -> Int
 eval1 (Val i) = i
 eval1 (plus e1 e2) = eval1 e1 + eval1 e2
-eval1 e = e 
+eval1 e = e
 
 eval1 (Min (Val 1) (Val ) :: Exp2) == Min (Val 1) (Val ) -- correct
 eval1 (e:: Exp) -- correct
@@ -133,9 +145,9 @@ data A2 = A .. Color
         +| C
 ```
 ###  pro/con
-con 
- * make type system more complicated 
- * makes searching for fiting  function more diffecult, you can`t see from te type signature P2 that it can be applied inplace of P1
+con
+ * make type system more complicated
+ * makes searching for fitting  function more difficult, you can`t see from te type signature P2 that it can be applied inplace of P1
  * more ways to do things
  * some opptimazations are inposiable ore harder ?
  * sum type generates error when there no default action (eval1 )
@@ -145,9 +157,9 @@ pro
  * removes boilerplate
  * if structere are past by refrence than ther is no need for code duplications in funcion call.
     because the size is know at the location were the variable is defined
-    but the size is not need in funcioncall becaus it only need offset and because P2 extend P1 those are the same   
+    but the size is not need in funcioncall becaus it only need offset and because P2 extend P1 those are the same
 
-## linear/unique types
+# linear/unique types
 
 Variable withe one active reference
 
@@ -164,7 +176,7 @@ const linear ?
 Linear multi ?
 
 >bottom
->
+
 >const unique  <: unique <: super
 >
 >protect multi <: multi  <:
@@ -178,8 +190,9 @@ kinds init
 * default const linear
 * stack only variable can be super
 
-### philosophy
-what is better default for data linear or const?
+## philosophy
+
+> What is better default for data linear or const?
 linear data should be used with data that chages a lot and is not shared
 at initialization all data is not shared.
 data with a short life is not often shared.
@@ -187,13 +200,13 @@ you can alway convert linear to shared by freezing it.
 the language should promote to create and modify the data before sharing/freezing it.
 If its frozen is should not create mush  modified copies.
 Alternatively you should make one mutable copy modifie and freeze
- 
+
 
 ##syntax linear types
 
 * haskell style
 
-    go`s linar type out of scope when used left hand sided
+    go`s linear type out of scope when used left hand sided
 ``` haskell
 inc :: !Int -> !Int
 let y = inc x in x + x
@@ -218,15 +231,27 @@ f =
     inc x;
     x  + x
 ```
+id :: a -> a
+id x = x
+
+id :: a -> !a
+id x = deepcopy x
+
+double a -> (&a,&a)
+double a = (a, a)
+
+double a -> (a,!a)
+double a = (a, deepcopy a)
+
 * linear arrow  -0   ?
 
-## multi type (nonuniqe)
+## multi type (non unique)
 
 * delete out of scope ;  whole program analyse ;
 * gc
 * combination
 
-## explixt box/unbox
+## explixt box/unboxed
 
 Disallow list a =  [] | car a  (list a)
 
@@ -274,7 +299,7 @@ let f = let
     a = newarray [1,2,3,4]
     b = arrayindex a 3  -- b = 3
 ```
-typechecks
+type checks
 
 ``` haskell
 fromlist :: [a] -> Array a e
@@ -302,7 +327,7 @@ rule a :: <N, N<M -> <M
 ## optimization
 * use nullpointer at list and maybe
 
-* remove unneeded patter matches 
+* remove unneeded patter matches
 
 ```haskell
   f = g Just 1 -- jump to @
@@ -310,8 +335,11 @@ rule a :: <N, N<M -> <M
   g Nothing = 1
   g Just _= @ 2
 ```
-* remove unneeded polymofisme 
+* remove unneeded polymofisme
+
+```haskell
     let a = a    ===  \a -> a
+```
 
 ## floating
 
@@ -329,7 +357,7 @@ and convert to expect type after optimalisations,
 * structure function env
 # old
 
-## typeclase
+## typeclass
 
 * typeclase is equivalent to record
 * instance is instance of record
@@ -375,7 +403,7 @@ but if jou want to chose implementation at compile time you can use normal recor
 * maybe first step to get nice syntax for (foreall a. show a => [a])
 * it becomes more similar to oo
 * you can pattern match agent data types
-### how you can implement oo in this
+### how you can implement OO in this
 
 ``` haskell
 data Cat = Cat {some state  of cat}
@@ -383,10 +411,10 @@ data Cat = Cat {some state  of cat}
 miauw :: Cat -> String
 miauw _ = "miauw"
 
-class Mammal a where 
+class Mammal a where
     milk = a -> Maybe  Int --  how much milk is current produced
 
-instance Mammal cat 
+instance Mammal cat
 
 data Mammal a = Mammal{milk :: Maybe Int}
 
@@ -398,9 +426,10 @@ data Mammal a = Mammal{milk :: Maybe Int}
 * name clash
 * how does a nested typclasse /record look
 
-### possibilty
+### possible inplemtations
 
 ``` haskell
+#### pointer in record
 class Ord Eq a => Ord a
 
 data  Ord int =  Ord
@@ -409,7 +438,6 @@ data  Ord int =  Ord
       ..
     }
 ```
-###  pro/con
 pro
 
 * space efficient
@@ -418,7 +446,7 @@ con
 * pointer indrection
 * cache unfriendly
 
-
+#### flat record
 ``` haskell
 data  Ord int =  Ord
     { (==) = ..
@@ -427,16 +455,16 @@ data  Ord int =  Ord
       ..
     }
 ```
-###  pro/con
 pro
 
 * cache friendly
-* looks like  oo ??
+* looks like  OO ??
 
 con
 
 * space inefficient
 
+#### multi explicit record args
 ``` haskell
 data Eq Int = Eq
     { (==) = ..
@@ -448,7 +476,6 @@ data Ord Int = Ord
     }
 ```
 
-###  pro/con
 pro
 
 * space efficient
@@ -467,8 +494,8 @@ This works but: ugly syntax, inconsistent  with normal functions, how do you get
 a different solution could be overload the function based on type.
 You get the equivalent with creating typeclass and instance.
 data Car = Car{name::string} generate function name
-implies 
-class  xxx a where 
+implies
+class  xxx a where
     name :: a -> String
 instance xxx Car where
     name  = name
@@ -477,4 +504,52 @@ This still better.
 Solution allow functions with same and different type  completely. Code become so less readable.
 All this implicit code makes it harder to understand what is happing in the background
 
+# type error messages
+
+to many args
+ get all args 
+
+infinity typ
+\a.a a
+get location of bothe 
+outer is in first application
+inner can be storred 
+
+
+ \a.a a
+---------------------------------------------------
+can`t construct infinity type for a in 
+    \a.|a| |a| 
+Typeof (a) :=:  Typeof(a) -> b / a ~ a -> b
+---------------------------------------------------
+
+type mismatch
+    mismatch function defenition and use 
+
+    let f = (+) in f True 
+    ---------------------------------------------------
+    f is applied to the wrong kind of variable
+    at pos
+        let f = (+) in f True 
+        f :: Double -> Double -> Double
+        True  :: Bool
+    ---------------------------------------------------
+
+    ---------------------------------------------------
+1:1: TypeError
+    (\a.\b. a+b) expects a Double as it's 2 argument
+    but it's  (\a.a) :: a->a
+    in "(\a.\b. a+b) 1.0 (\a.a)"
+      (\a.\b. a+b) ::Double -> Double -> Double
+                      #1        #2       #result
+       #1 1.0    :: Double 
+       #2 (\a.a) :: a -> a b 
+
+    ---------------------------------------------------
+
+
+
+    mismatch in use's ( \a. (a 1 , a True ))
+
+push enter pull appley 
 

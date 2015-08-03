@@ -1,4 +1,22 @@
-lookat llvm grin jhc
+pprint funtion bruijn 
+add etaredcution in shrink
+
+prettyPrint layout
+
+commenting
+cleanup
+renameing (Expresion..)
+
+fix arbitraryQuickcheck
+
+add test elimante
+
+fix todo in srcFiles
+
+replace newtype name with  type String
+
+----------------------------------------------------------------------------------------------------
+lookat llvm grin jhc uniplate
 
     typecheck
     cogen
@@ -33,6 +51,7 @@ todo small
         smallcheck -- maybe unneeded with logicT but inefficient
         test complexity  (libary complexity)
         test sampling uniformity
+        shrink with  etaredcution
 
 todo shortterm
     save code postion for error message

@@ -2,6 +2,7 @@
 {-# LANGUAGE FlexibleInstances #-}
 module ArbitraryQuickcheck
      where
+
 import Data.Maybe
 import Control.Monad
 import Control.Monad.Trans.Class
@@ -37,14 +38,16 @@ shrinkUntypedLamba = shrinkTerm True elimanateLambda
 shrinkUntypedBruijn :: BruijnTerm () -> [BruijnTerm ()]
 shrinkUntypedBruijn = shrinkTerm True elimanateBruijn
 
-shrinkTerm ::Bool -> (Name -> LamTerm () n -> Maybe (LamTerm () n )) -> LamTerm () n -> [ LamTerm () n ]
+shrinkTerm :: Bool -> (Name -> LamTerm () n -> Maybe (LamTerm () n )) -> LamTerm () n -> [ LamTerm () n ]
 shrinkTerm untyped elimanate  term = fastShrink True term
     where fastShrink _ (Val _ v) = val <$> shrinkValue v
           fastShrink b t = whenTrue b [double 2.0] ++ shrink b t
           shrink b (Appl _ t1 t2) = whenTrue b [t1, t2] ++
-                [Appl () t1' t2 | t1' <- fastShrink untyped t1 ]++
+                [Appl () t1' t2 | t1' <- fastShrink untyped t1 ] ++
                 [Appl () t1 t2' | t2' <- fastShrink untyped t2 ]
-          shrink b (Lambda _ (Name n) t) =whenTrue b (maybeToList (elimanate (Name n) t)) ++ (lambda n <$> fastShrink untyped t)
+          shrink b (Lambda _ (Name n) t) =
+                    whenTrue b (maybeToList (elimanate (Name n) t))
+                 ++ (lambda n <$> fastShrink untyped t)
           shrink _ (Val _ v) = val <$> shrinkValue v
           shrink _ _ = []
 
@@ -85,7 +88,8 @@ genWithType :: ArbiRef n => Type Free -> Gen (Maybe (LamTerm () n ))
 genWithType t = genTerm (Just t)
 
 genTerm :: ArbiRef n => Maybe (Type Free) -> Gen ( Maybe (LamTerm () n ))
-genTerm t = sized $ \ n -> runGenerartor $ arbitraryTerm n t [] defualtGenState -- TODO rename defualtgenstate
+genTerm t = sized $ \ n -> runGenerartor $ arbitraryTerm n t [] defualtGenState
+-- TODO rename defualtgenstate
 
 arbitraryTerm :: ArbiRef n => Int -> Maybe (Type Free) -> [Type Free] ->
     GenState n -> Generater (LamTerm () n)
@@ -105,6 +109,7 @@ arbitraryTerm n mabeytype maxlist s
                         , arbitraryLambda n mabeytype maxlist s
                         ]
 
+-- TODO fix also genarate var #
 arbitraryVar :: ArbiRef n => Maybe (Type Free) -> GenState n -> Generater (LamTerm () n)
 arbitraryVar t s = do
   (n, f) <- refFromState s
