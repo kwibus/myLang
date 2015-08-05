@@ -1,8 +1,9 @@
 module ExampleLambda where
 
-import Names
-import Lambda
 import MakeTerm
+
+import Name
+import Lambda
 
 id :: String -> LamTerm () Name
 id name = lambda name $ var name

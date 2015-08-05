@@ -1,7 +1,10 @@
 {-# LANGUAGE FlexibleInstances, UndecidableInstances #-}
-
 module Info where
+
 import Lambda
+import Name
+
+type Expresion = LamTerm Loc Name
 
 data Loc = Loc
     { srcFile :: String
@@ -31,9 +34,8 @@ setInfo loc (Appl _ e1 e2) = Appl loc e1 e2
 setInfo loc (Lambda _ n e) = Lambda loc n e
 setInfo loc (Val _ v) = Val loc v
 
---TODO rename is confusion with parsec GetPosition
-getposition :: LamTerm Loc n -> Loc
-getposition = getInfo
+getLocation :: LamTerm Loc n -> Loc
+getLocation = getInfo
 
 removeInfo :: LamTerm i n -> LamTerm () n
 removeInfo (Lambda _ n e) = Lambda () n $ removeInfo e
@@ -47,8 +49,8 @@ mergLoc e1 e2 = Loc { srcFile = srcFile start
                     , columnStart = columnStart start
                     , lineEnd = lineEnd end
                     , columnEnd = columnEnd end}
-    where start = getposition e1
-          end = getposition e2
+    where start = getLocation e1
+          end = getLocation e2
 
 class Position a where
     position :: a -> Maybe Loc

@@ -1,24 +1,27 @@
 {-# LANGUAGE UndecidableInstances, FlexibleInstances,MultiParamTypeClasses #-}
 module GenState where
 
-import Names
-import Enviroment
-import Type
-import TypeCheck
+import Data.Maybe
 import Control.Monad.State.Lazy
 import Test.QuickCheck.Gen
-import Data.Maybe
+
 import StateTransMany
 
+import Name
+import Environment
+import Type
+import TypeCheck
+
 data GenState n = State
-    { freeNames :: [String]
-    , dictionary :: BruiEnv (String, Free)
-    }
+  { freeNames :: [String]
+  , dictionary :: BruiEnv (String, Free)
+  }
 
 defualtGenState :: GenState n
-defualtGenState = State { dictionary = bEmtyEnv
-                        , freeNames = letters
-                        }
+defualtGenState = State
+  { dictionary = bEmtyEnv
+  , freeNames = letters
+  }
 
 type Generater a = StateTransManyT (Env, Int) Gen a
 type Env = FreeEnv (Type Free)

@@ -1,9 +1,10 @@
-{-# LANGUAGE DeriveFunctor, DeriveFoldable #-}
-module Enviroment where
+module Environment where
 
 import qualified Data.IntMap as IM
 import Control.Exception.Base
 import Data.Coerce
+
+--TODO split op free env and bound env
 
 newtype Bound = Bound Int deriving (Eq, Show)
 newtype Free = Free Int deriving (Eq, Show)
@@ -35,6 +36,9 @@ bEmtyEnv = BruiState
 
 fEmtyEnv :: FreeEnv a
 fEmtyEnv = IM.empty
+
+bToList :: BruiEnv a -> [(Int, a)]
+bToList BruiState {bruiMap = m} = IM.toList m
 
 fFromList :: [(a, Free)] -> FreeEnv a
 fFromList list = IM.fromList $ map convert list

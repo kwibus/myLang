@@ -4,9 +4,10 @@ import Data.Maybe
 import Test.Tasty
 import Test.Tasty.QuickCheck
 import Test.Tasty.Providers
+import Control.Monad
+
 import GenState
 import Logic
-import Control.Monad
 
 testLogic :: TestTree
 testLogic = testGroup "Logic"

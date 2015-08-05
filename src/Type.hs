@@ -1,13 +1,12 @@
 module Type where
 
 import qualified Data.IntMap as IM
-
-import Names
 import Data.Coerce
-import Enviroment
 import Control.Monad.State
 
--- TODO move location
+import Name
+import Environment
+
 typeBound2Free :: Type Bound -> Type Free
 typeBound2Free = coerce
 

@@ -1,18 +1,14 @@
 module BruijnTerm where
 
 import Control.Monad.Except
-import qualified Data.IntMap as IM
 import qualified Data.Map as M
 import Data.Char
 
-import Names
-import Enviroment
+import Name
+import Environment
 import Lambda
 
 type BruijnTerm i = LamTerm i Bound
-
-toList :: BruiEnv a -> [(Int, a)]
-toList BruiState {bruiMap = m} = IM.toList m
 
 data UndefinedVar i n = UndefinedVar i n
     deriving (Show, Eq)

@@ -1,7 +1,7 @@
 module TypeError where
 import Prelude hiding ( (<$>) )
 import Text.PrettyPrint.ANSI.Leijen
-import Enviroment
+import Environment
 import Type
 import BruijnTerm
 import Lambda
@@ -36,7 +36,7 @@ instance Eq (UnificationError i) where
    (==) _ _ = False
 
 showError :: String -> TypeError Loc -> Doc
-showError str (UnifyAp expr t1 t2 err ) = text (showLoc (getposition expr)) <+> text "TypeError " <$>
+showError str (UnifyAp expr t1 t2 err ) = text (showLoc (getLocation expr)) <+> text "TypeError " <$>
         indent 4 ( showUnifyApError str expr t1 t2 err)
 showError _ _ = text "No error messages implemented"
 
@@ -44,11 +44,11 @@ showUnifyApError :: String -> BruijnTerm Loc -> Type Free -> Type Free -> Unific
 showUnifyApError str (Appl i e1 e2) t1 t2 (Unify {}) =
     let namestate = genNames t1 >> genNames t2
         localShow t = text $ evalState (namestate >> tShowEnv t) initState
-    in getWord (getposition e1) str <+> text "is applied to wrong kind of argumts" <$>
+    in getWord (getLocation e1) str <+> text "is applied to wrong kind of argumts" <$>
             text "in" <+> dquotes (getWord i str) <$>
             indent 2 (
-                getWord (getposition e1) str <+> text "::" <+> localShow t1 <$>
-                getWord (getposition e2) str <+> text "::" <+> localShow t2
+                getWord (getLocation e1) str <+> text "::" <+> localShow t1 <$>
+                getWord (getLocation e2) str <+> text "::" <+> localShow t2
             )
 showUnifyApError _ _ _ _ _ = text "No error messages implemented"
 --

@@ -2,9 +2,9 @@ module Lexer
 where
 
 import Text.ParserCombinators.Parsec.Number
+
 import ParserType
 import Text.Parsec
-
 
 identifier :: Parser String
 identifier = do

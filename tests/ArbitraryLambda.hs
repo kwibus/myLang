@@ -1,7 +1,7 @@
 {-# OPTIONS_GHC -fno-warn-orphans  #-}
 {-# LANGUAGE FlexibleInstances #-}
-module ArbitraryQuickcheck
-     where
+module ArbitraryLambda
+where
 
 import Data.Maybe
 import Control.Monad
@@ -11,13 +11,13 @@ import Test.QuickCheck
 
 import Logic
 import GenState
-import ArbitraryVallue
+import ArbitraryValue
 import MakeTerm
 import BruijnTerm
 import Lambda
-import Enviroment
+import Environment
 import Type
-import Names
+import Name
 import ArbiRef
 
 forAllTypedBruijn :: Testable prop => (BruijnTerm () -> prop) -> Property
@@ -39,17 +39,17 @@ shrinkUntypedBruijn :: BruijnTerm () -> [BruijnTerm ()]
 shrinkUntypedBruijn = shrinkTerm True elimanateBruijn
 
 shrinkTerm :: Bool -> (Name -> LamTerm () n -> Maybe (LamTerm () n )) -> LamTerm () n -> [ LamTerm () n ]
-shrinkTerm untyped elimanate  term = fastShrink True term
+shrinkTerm untyped elimanate term = fastShrink True term
     where fastShrink _ (Val _ v) = val <$> shrinkValue v
-          fastShrink b t = whenTrue b [double 2.0] ++ shrink b t
-          shrink b (Appl _ t1 t2) = whenTrue b [t1, t2] ++
+          fastShrink b t = whenTrue b [double 2.0] ++ shrinkT b t
+          shrinkT b (Appl _ t1 t2) = whenTrue b [t1, t2] ++
                 [Appl () t1' t2 | t1' <- fastShrink untyped t1 ] ++
                 [Appl () t1 t2' | t2' <- fastShrink untyped t2 ]
-          shrink b (Lambda _ (Name n) t) =
+          shrinkT b (Lambda _ (Name n) t) =
                     whenTrue b (maybeToList (elimanate (Name n) t))
                  ++ (lambda n <$> fastShrink untyped t)
-          shrink _ (Val _ v) = val <$> shrinkValue v
-          shrink _ _ = []
+          shrinkT _ (Val _ v) = val <$> shrinkValue v
+          shrinkT _ _ = []
 
 whenTrue :: Monoid a => Bool -> a -> a
 whenTrue True a = a
@@ -94,7 +94,7 @@ genTerm t = sized $ \ n -> runGenerartor $ arbitraryTerm n t [] defualtGenState
 arbitraryTerm :: ArbiRef n => Int -> Maybe (Type Free) -> [Type Free] ->
     GenState n -> Generater (LamTerm () n)
 arbitraryTerm n mabeytype maxlist s
-  | n <= 1 = oneOfLogic [ arbitraryVallue mabeytype
+  | n <= 1 = oneOfLogic [ arbitraryValue mabeytype
                         , arbitraryVar mabeytype s
                         ]
     -- shorter and parmiterzerd size
@@ -152,7 +152,7 @@ arbitraryLambda size t maxlist state = do
 
 newVarRef :: ArbiRef n => GenState n -> Free -> Gen (String, GenState n)
 newVarRef state free = do
-  let names = toList $ dictionary state
+  let names = bToList $ dictionary state
   boolNewName <- case names of
         [] -> return True
         _ -> frequency [(4, return True), (1, return False)]

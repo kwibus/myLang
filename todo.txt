@@ -39,7 +39,7 @@ todo small
         speed up arbitrary
         check env size no -o- no unreachaable terms
 
-    vallues
+    values
         myDouble buildin
         thunk type -- (this has to change thunk should life in a enviroment not on a stack, src langue does not contain thunks and ts faster)
 
@@ -58,7 +58,7 @@ todo shortterm
     warning
     case
     let
-    more vallue types (int bool)
+    more value types (int bool)
 todo longterm
 
     Parser
@@ -92,7 +92,7 @@ todo longterm
         voide type
         depdent types
         sub typping
-        vallue as a type / type computations
+        value as a type / type computations
 
     analyse
         data flow
@@ -114,12 +114,12 @@ todo longterm
 
     philosofie guidlines intendent usecase
 
-    Vallues
+    Values
 
         regions
         gpu (regions)
-        linear vallues
-        superscript (linear different vallue same type)  x_1 same place as  x_2 different value check
+        linear values
+        superscript (linear different value same type)  x_1 same place as  x_2 different value check
         stream abstract
         string abstract
         arrays

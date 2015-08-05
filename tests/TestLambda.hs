@@ -3,9 +3,9 @@ module TestLambda (testLambda) where
 import Test.Tasty
 import Test.Tasty.HUnit
 
-import Expresion
+import PrettyPrint
 import Lambda
-import Names
+import Name
 import TestSetParseShow
 
 -- Todo consider rename TestExpresion  or TestPrintExpresion

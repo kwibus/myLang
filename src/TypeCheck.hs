@@ -7,11 +7,11 @@ import Data.Either.Unwrap
 import Control.Monad.State hiding (sequence)
 import Control.Monad.Except
 
-import Vallue
+import Value
 import Lambda
 import Type
 import BruijnTerm
-import Enviroment
+import Environment
 import TypeError
 
 

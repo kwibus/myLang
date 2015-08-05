@@ -5,9 +5,9 @@ import qualified Text.Parsec as PS
 import InfixFix
 import Control.Monad.Identity
 
-type Parser a = PS.ParsecT String () (Either InFixError) a
+type Parser a = PS.ParsecT String () (Either InfixError) a
 
-data ParseError = Infix InFixError
+data ParseError = Infix InfixError
                 | Parsec PS.ParseError
                 deriving (Show, Eq)
 

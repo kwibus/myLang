@@ -4,8 +4,9 @@ module ArbitraryType (arbitraryType) where
 
 import Test.QuickCheck.Gen
 import Test.QuickCheck
+
 import Type
-import Enviroment
+import Environment
 
 instance Arbitrary (Type Bound ) where
     arbitrary = sized arbitraryType

@@ -1,7 +1,8 @@
 module ExampleBruijn where
 
-import BruijnTerm
 import MakeTerm
+
+import BruijnTerm
 
 omega :: BruijnTerm ()
 omega = lambda "a" $ appl (bvar 0) (bvar 0)

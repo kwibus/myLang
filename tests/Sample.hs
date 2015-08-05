@@ -1,10 +1,12 @@
 module Main (main ) where
 
-import ArbitraryQuickcheck (genTyped)
 import Test.QuickCheck
-import Expresion
+
+import ArbitraryLambda (genTyped)
+
+import PrettyPrint
 import Lambda
-import Names
+import Name
 
 main :: IO ()
 main = do

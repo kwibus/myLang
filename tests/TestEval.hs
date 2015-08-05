@@ -4,20 +4,20 @@ module TestEval (testEval
 import Test.Tasty
 import Test.Tasty.HUnit
 import Test.Tasty.QuickCheck
-
 import Data.Maybe
 
-import Eval (apply, eval, fullEval)
 import TypeCheck
 import BruijnTerm
 import qualified ExampleBruijn as B
 import TestUtils
-import ArbitraryQuickcheck
-import Enviroment
+import ArbitraryLambda
+
+import Eval (apply, eval, fullEval)
+import Environment
 import MakeTerm
-import Opperator
-import Vallue
-import Expresion
+import Operator
+import Value
+import PrettyPrint
 import Type
 
 testEval :: TestTree

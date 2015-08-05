@@ -3,8 +3,9 @@ module TestType (testType ) where
 import Test.Tasty
 import Test.Tasty.HUnit
 
-import Enviroment
+import Environment
 import Type
+
 testType :: TestTree
 testType = testGroup "testType"
     [ testCase "print type Double" $

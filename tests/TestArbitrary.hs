@@ -5,13 +5,14 @@ import Test.Tasty.QuickCheck
 import Data.Either
 import Data.Maybe
 
-import Enviroment
+import TestUtils
+import ArbitraryLambda
+
+import Environment
 import BruijnTerm
-import ArbitraryQuickcheck
 import Lambda
 import Type
 import TypeCheck
-import TestUtils
 
 testArbitrary :: TestTree
 testArbitrary = testGroup "arbitrary" [testGeneration, testshrink]
@@ -42,7 +43,7 @@ testGeneration = testGroup "genration"
         forAllTypedBruijn $ \ e -> isRight $ solver e
 
     , testProperty "corect type" $
-         forAll ( genTerm (Just (TVal TDouble ))) 
+         forAll ( genTerm (Just (TVal TDouble )))
                 (\ e -> isJust e ==> case solver (fromJust (e :: Maybe (BruijnTerm ()))) of
                     (Right t) -> unifys (typeBound2Free t) (TVal TDouble ) fEmtyEnv
                     _ -> False

@@ -1,11 +1,12 @@
 module MakeTerm where
+
 import BruijnTerm
 import Lambda
-import Vallue
-import Enviroment
-import Names
+import Value
+import Environment
+import Name
 
-val :: Vallue -> LamTerm () n
+val :: Value -> LamTerm () n
 val = Val ()
 
 var :: String -> LamTerm () Name

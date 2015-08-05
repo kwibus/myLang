@@ -1,45 +1,45 @@
-module InfixFix (fixInfix, InFixError) where
+module InfixFix (fixInfix, InfixError) where
 
-import Expresion
+import PrettyPrint
 import Lambda
 import Info
-import Names
+import Name
 import Associativity
 
-data InFixError = MultipleInfix Expresion Expresion
+data InfixError = MultipleInfix Expresion Expresion
     deriving (Show, Eq)
 
-fixInfix :: [(Expresion, Bool)] -> Either InFixError Expresion
+fixInfix :: [(Expresion, Bool)] -> Either InfixError Expresion
 fixInfix expresions = case reverse <$> fixInfix1 expresions [] [] of
     exprs @ (Right (Appl _ _ (Var pos (Name "#")) : _)) -> Lambda pos (Name "#") <$> (fixStream <$> exprs)
     exprs -> fixStream <$> exprs
     where fixStream :: [Expresion] -> Expresion
           fixStream = foldl1 (\ e1 e2 -> Appl (mergLoc e1 e2) e1 e2 )
 
--- TODO beter error messages
 -- TODO beter name
-fixInfix1 :: [(Expresion, Bool)] -> [Expresion] -> [Expresion] -> Either InFixError [Expresion]
-fixInfix1 [] vs op = return $ fst $ unwindStacks vs op
+fixInfix1 :: [(Expresion, Bool)] -> [Expresion] -> [Expresion] -> Either InfixError [Expresion]
+fixInfix1 [] vs op = return $ fst $ unwindStack vs op
 fixInfix1 (e : es) [] [o] =
-    let pos = getposition o
-    in fixInfix1 (e : es) [(Appl pos o (Var pos (Name "#")))] []
+    let pos = getLocation o
+    in fixInfix1 (e : es) [Appl pos o (Var pos (Name "#"))] []
 fixInfix1 ((e1, True) : (e2, True) : _) _ _ = Left $ MultipleInfix e1 e2
-fixInfix1 ((e, True) : es) vs op = if higer op e
-            then let (vs1, op1) = unwindStacks vs op
+fixInfix1 ((e, True) : es) vs op = if higher op e
+            then let (vs1, op1) = unwindStack vs op
                  in fixInfix1 es vs1 (e : op1)
             else fixInfix1 es vs (e : op)
-fixInfix1 ((e, False) : es) vs op = let (functionsAndArgs, rest) = break snd es
-                                        nonInfix = foldl1 (\ e1 e2 -> Appl (mergLoc e1 e2) e1 e2) (e : map fst functionsAndArgs) :: Expresion
-                                    in fixInfix1 rest (nonInfix : vs) op
+fixInfix1 ((e, False) : es) vs op =
+    let (functionsAndArgs, rest) = break snd es
+        nonInfix = foldl1 (\ e1 e2 -> Appl (mergLoc e1 e2) e1 e2) (e : map fst functionsAndArgs) :: Expresion
+    in fixInfix1 rest (nonInfix : vs) op
 
-unwindStacks :: [Expresion] -> [Expresion] -> ([Expresion], [Expresion])
-unwindStacks [] os = (os, [])
-unwindStacks vs [] = (vs, [])
-unwindStacks (v1 : v2 : vs) (o : os) =
-    let pos = getposition v2
-    in uncurry unwindStacks (Appl pos (Appl pos o v2) v1 : vs, os)
-unwindStacks (v : vs) (o : os) = (Appl (getposition v) o v : vs, os)
+unwindStack :: [Expresion] -> [Expresion] -> ([Expresion], [Expresion])
+unwindStack [] os = (os, [])
+unwindStack vs [] = (vs, [])
+unwindStack (v1 : v2 : vs) (o : os) =
+    let pos = getLocation v2
+    in uncurry unwindStack (Appl pos (Appl pos o v2) v1 : vs, os)
+unwindStack (v : vs) (o : os) = (Appl (getLocation v) o v : vs, os)
 
-higer :: [Expresion] -> Expresion -> Bool
-higer [] _ = True
-higer (x : _) y = higerPres (getPres x) (getPres y)
+higher :: [Expresion] -> Expresion -> Bool
+higher [] _ = True
+higher (x : _) y = higherPrec (getPrec x) (getPrec y)

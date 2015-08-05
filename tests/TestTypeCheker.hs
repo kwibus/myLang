@@ -1,4 +1,5 @@
 module TestTypeCheker (testTypeChecker) where
+
 import Data.Either
 import Test.Tasty
 import Test.Tasty.HUnit
@@ -7,16 +8,16 @@ import Control.Monad.Except
 import Data.IntMap
 
 import qualified ExampleBruijn as B
-import TypeCheck
 import MakeTerm
-import Type
-import Opperator
-import Enviroment
 import ArbitraryType ()
 import TestUtils
-import ArbitraryQuickcheck
-import TypeError
+import ArbitraryLambda
 
+import TypeCheck
+import Type
+import Operator
+import Environment
+import TypeError
 
 testTypeChecker :: TestTree
 testTypeChecker = testGroup "typeChecker"

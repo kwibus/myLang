@@ -1,10 +1,11 @@
 module TestSetParseShow where
 
-import Lambda
-import Names
-import MakeTerm
-import Opperator
 import qualified ExampleLambda as L
+import MakeTerm
+
+import Lambda
+import Name
+import Operator
 
 basic :: [(String, LamTerm () Name)]
 basic =

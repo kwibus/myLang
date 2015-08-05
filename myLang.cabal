@@ -68,18 +68,18 @@ library
                       ,Parser
                       ,ParserType
                       ,Lexer
-                      ,Vallue
+                      ,Value
                       ,BruijnTerm
                       ,Eval
-                      ,Opperator
-                      ,Expresion
+                      ,Operator
+                      ,PrettyPrint
                       ,Type
                       ,TypeCheck
-                      ,Enviroment
+                      ,Environment
                       ,InfixFix
                       ,Info
                       ,TypeError
-                      ,Names
+                      ,Name
                       ,Associativity
   default-language:    Haskell2010
 
@@ -102,6 +102,5 @@ test-suite tests
                       ,ansi-wl-pprint
                       ,either
                       ,either-unwrap
-  Ghc-Options:          -Wall   -fprof-auto
---  -threaded -with-rtsopts=-N
+  Ghc-Options:          -Wall -threaded -with-rtsopts=-N
   default-language:    Haskell2010

@@ -3,16 +3,17 @@ module TestParser (testParser ) where
 import Test.Tasty
 import Test.Tasty.HUnit
 import Test.Tasty.QuickCheck
-import ArbitraryQuickcheck
 
+import ArbitraryLambda
 import TestSetParseShow
-import ParserType
-import Names
-import Lambda
-import Opperator
-import Parser
-import Expresion
 import MakeTerm
+
+import ParserType
+import Name
+import Lambda
+import Operator
+import Parser
+import PrettyPrint
 import Info
 
 testParser :: TestTree

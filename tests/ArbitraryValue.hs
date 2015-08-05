@@ -1,24 +1,25 @@
-module ArbitraryVallue where
+module ArbitraryValue where
 
 import Control.Monad.Trans.Class
 import Test.QuickCheck
 
-import Vallue
-import Opperator
-import GenState
-import Enviroment
-import Type
-import Lambda
 import MakeTerm
 import Logic
 import ArbiRef
+import GenState
 
-shrinkValue :: Vallue -> [Vallue]
+import Value
+import Operator
+import Environment
+import Type
+import Lambda
+
+shrinkValue :: Value -> [Value]
 shrinkValue (MyDouble n) = if n == 1.0 then [] else [MyDouble 1.0]
 shrinkValue _ = []
 
-arbitraryVallue :: ArbiRef n => Maybe (Type Free) -> Generater ( LamTerm () n)
-arbitraryVallue t = oneOfLogic [ arbitraryMyDouble t
+arbitraryValue :: ArbiRef n => Maybe (Type Free) -> Generater ( LamTerm () n)
+arbitraryValue t = oneOfLogic [ arbitraryMyDouble t
                                , arbitraryBuildIn t
                                ]
 

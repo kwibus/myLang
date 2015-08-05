@@ -2,7 +2,7 @@ module TestUtils where
 
 import Lambda
 import BruijnTerm
-import Enviroment
+import Environment
 import Type
 
 normalised :: Eq i => BruijnTerm i -> Bool

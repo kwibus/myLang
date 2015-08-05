@@ -6,13 +6,12 @@ import Control.Monad.Trans.Class
 
 import ParserType
 import InfixFix
-import Expresion
-import Vallue
+import Value
 import Lambda
 import Lexer
-import Opperator
+import Operator
 import Info
-import Names
+import Name
 
 pLambda :: Parser Expresion
 pLambda = do
@@ -21,7 +20,7 @@ pLambda = do
     ns <- many identifier -- Todo 1) fix location 2) give warning Shadowin variable names (\a a b.t)
     symbol '.'
     term <- pLambdaTerm
-    loc <- getLoc pos
+    loc <- pLoc pos
     return $ foldr (Lambda loc) term (Name <$> ns)
 
 pApplication :: Parser Expresion
@@ -31,16 +30,16 @@ pApplication = do
         Left erro -> lift $ Left erro
         Right exps -> return exps
 
-pVallue :: Parser Expresion
-pVallue = do
+pValue :: Parser Expresion
+pValue = do
     pos <- getPosition
     v <- choice [fmap MyDouble double]
-    loc <- getLoc pos
+    loc <- pLoc pos
     return $ Val loc v
 
 pLambdaTerm' :: Parser (Expresion, Bool)
 pLambdaTerm' = choice parsers
-    where parsers = operator : fmap (fmap (\ p -> (p, False))) [pLambda, pVar, pParentheses, pVallue]
+    where parsers = pOperator : fmap (fmap (\ p -> (p, False))) [pLambda, pVar, pParentheses, pValue]
 
 pLambdaTerm :: Parser Expresion
 pLambdaTerm = pApplication
@@ -49,7 +48,7 @@ pVar :: Parser Expresion
 pVar = do
     pos <- getPosition
     n <- identifier
-    loc <- getLoc pos
+    loc <- pLoc pos
     return $ Var loc (Name n)
 
 pLine :: Parser Expresion
@@ -59,15 +58,15 @@ pLine = do
     eof
     return term
 
-operator :: Parser (Expresion, Bool)
-operator = do
+pOperator :: Parser (Expresion, Bool)
+pOperator = do
     pos <- getPosition
     o <- choice [pPlus, pMultiply ]
-    loc <- getLoc pos
+    loc <- pLoc pos
     return (Val loc o, True)
 
-getLoc :: SourcePos -> Parser Loc
-getLoc start = do
+pLoc :: SourcePos -> Parser Loc
+pLoc start = do
     end <- getPosition
     return Loc
         { srcFile = sourceName start
@@ -76,10 +75,10 @@ getLoc start = do
         , lineEnd = sourceLine end
         , columnEnd = sourceColumn end}
 
-pPlus :: Parser Vallue
+pPlus :: Parser Value
 pPlus = symbol '+' >> return plus
 
-pMultiply :: Parser Vallue
+pMultiply :: Parser Value
 pMultiply = symbol '*' >> return multiply
 
 pParentheses :: Parser Expresion
@@ -88,7 +87,7 @@ pParentheses = do
     symbol '('
     term <- pLambdaTerm
     symbol ')'
-    loc <- getLoc pos
+    loc <- pLoc pos
     return $ setInfo loc term
 
 parseString :: String -> Either ParseError Expresion

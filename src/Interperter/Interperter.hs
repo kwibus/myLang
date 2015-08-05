@@ -28,8 +28,8 @@ main = runInputT defaultSettings loop
 readEvalPrint :: String -> InputT IO ()
 readEvalPrint input = outPutDoc $ merge $ do
     ast <- mapLeft (text . show) $ parseString input
-    bruij <- mapLeft (text . show) $ lam2Bruijn ast
-    t <- mapLeft (showError input) $ solver bruij
+    bruijn <- mapLeft (text . show) $ lam2Bruijn ast
+    t <- mapLeft (showError input) $ solver bruijn
     return $ text $ tShow t
 
 merge :: Either a a -> a
