@@ -1,34 +1,25 @@
 name:                myLang
-
--- The package version.  See the Haskell package versioning policy (PVP)
--- for standards guiding when and how versions should be incremented.
--- http://www.haskell.org/haskellwiki/Package_versioning_policy
--- PVP summary:      +-+------- breaking API changes
---                   | | +----- non-breaking API additions
---                   | | | +--- code changes with no API change
 version:             0.1.0.0
-
--- A short (one-line) description of the package.
--- synopsis:
-
--- A longer description of the package.
--- description:
-
--- The license under which the package is released.
--- license:
-
--- The file containing the license text.
--- license-file:        LICENSE
-
+synopsis: complier for my own language
+description: this is a attent of me to creating my own Programming language.
+             the language is now similar to typed lambda calculus, and has only a interpreter.
+             But I have plans for a complete Programming language similar to Haskell, but with: Linear Types, Region Interferences, strict symatics.
+license:             BSD3
+license-file:        LICENSE
+category: Compilers/Interpreters
 author:              Rens
 maintainer:          de_kwibus@live.nl
 
 build-type:          Simple
 cabal-version:       >=1.10
 
+source-repository this
+  type:     git
+  location: file:///home/rens/Documenten/projects/myLang
+  tag: HEAD
 executable interperter
   main-is:             Interperter.hs
-  build-depends:       base
+  build-depends:       base >=4 && < 5
                       ,either-unwrap
                       ,myLang
                       ,haskeline
@@ -43,7 +34,7 @@ executable interperter
 
 executable Sample
   main-is:             Sample.hs
-  build-depends:       base
+  build-depends:       base >=4 && < 5
                       ,myLang
                       ,QuickCheck
                       ,mtl
@@ -53,7 +44,7 @@ executable Sample
   default-language:    Haskell2010
 
 library
-  build-depends:       base
+  build-depends:       base >=4 && < 5
                       ,containers
                       ,parsec
                       ,parsec-numbers
@@ -88,7 +79,7 @@ test-suite tests
   Main-Is:             test.hs
   Type:                exitcode-stdio-1.0
 
-  Build-Depends:      base
+  Build-Depends:      base >=4 && < 5
                       ,myLang
                       ,tasty
                       ,tasty-hunit
@@ -104,3 +95,13 @@ test-suite tests
                       ,either-unwrap
   Ghc-Options:          -Wall -threaded -with-rtsopts=-N
   default-language:    Haskell2010
+
+test-suite doctests
+  type:                exitcode-stdio-1.0
+  main-is:             doctests.hs
+  Hs-Source-Dirs:      tests
+  build-depends:        base >=4 && < 5
+                       ,doctest-discover
+                       ,doctest
+  default-language:    Haskell2010
+  ghc-options:         -threaded

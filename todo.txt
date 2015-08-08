@@ -1,3 +1,4 @@
+modify bruijn2Lam and lam2Bruijn to handle Free variables
 pprint funtion bruijn 
 add etaredcution in shrink
 

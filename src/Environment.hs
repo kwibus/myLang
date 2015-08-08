@@ -6,12 +6,27 @@ import Data.Coerce
 
 --TODO split op free env and bound env
 
+-- | Bound is wrapper arround Int and is used to represent BruijnIndex.
+-- BruijnIndex rever to a env, but are dependent on the surrounding terms.
+-- If you add extra lambda:
+--
+-- * \\a.a  ==> \\a.\\b.a
+--
+-- * \\0  ==>   \\1
+--
+-- You have to modify the Inde
 newtype Bound = Bound Int deriving (Eq, Show)
+-- | Free is also a wrapper arround Int but is used when BruijnIndex can`t be used
+-- it uses a absolute inex
+-- and bacause Bound And Free are implemented with newtype you can't exedentiy mix them
 newtype Free = Free Int deriving (Eq, Show)
 
+-- | conversion bound to Free. This can be unsave. because it keeps the same Int representation,
+-- and two Bound that rever to the same thing may have different Int index
 bound2Free :: Bound -> Free
 bound2Free = coerce
 
+-- TODO remve clase
 class ToInt a where
     toInt :: a -> Int
 
@@ -20,7 +35,9 @@ instance ToInt Bound where
 
 instance ToInt Free where
     toInt = coerce
-
+--
+--TODO replace with list
+--TODO Fix name to BruijnEnv
 data BruiEnv a = BruiState
      { bruiDepth :: Int
      , bruiMap :: IM.IntMap a

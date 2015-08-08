@@ -1,4 +1,3 @@
-{-# LANGUAGE FlexibleInstances, UndecidableInstances #-}
 module Info where
 
 import Lambda
@@ -51,12 +50,3 @@ mergLoc e1 e2 = Loc { srcFile = srcFile start
                     , columnEnd = columnEnd end}
     where start = getLocation e1
           end = getLocation e2
-
-class Position a where
-    position :: a -> Maybe Loc
-
-instance {-# OVERLAPPABLE  #-} Position a where
-    position _ = Nothing
-
-instance Position Loc where
-    position a = Just a
