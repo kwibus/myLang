@@ -32,5 +32,5 @@ arbitraryBuildIn t = do
 arbitraryMyDouble :: ArbiRef n => Maybe (Type Free) -> Generater (LamTerm () n)
 arbitraryMyDouble t = do
   unifyGen t (TVal TDouble)
-  d <- lift arbitrary
+  d <- lift $ lift arbitrary
   return (val (MyDouble d))

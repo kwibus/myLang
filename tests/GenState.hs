@@ -1,12 +1,11 @@
-{-# LANGUAGE UndecidableInstances, FlexibleInstances,MultiParamTypeClasses #-}
 module GenState where
 
 import Data.Maybe
-import Control.Monad.State.Lazy
 import Test.QuickCheck.Gen
+import Control.Monad.State.Class
+import Control.Monad
 
-import StateTransMany
-
+import Logic
 import Name
 import Environment
 import Type
@@ -15,15 +14,16 @@ import TypeCheck
 data GenState n = State
   { freeNames :: [String]
   , dictionary :: BruiEnv (String, Free)
-  }
+  } deriving Show
 
+-- TODO rename defualtgenstate
 defualtGenState :: GenState n
 defualtGenState = State
   { dictionary = bEmtyEnv
   , freeNames = letters
   }
 
-type Generater a = StateTransManyT (Env, Int) Gen a
+type Generater a = LogicGen (Env, Int) a
 type Env = FreeEnv (Type Free)
 
 runGenerartor :: Generater a -> Gen (Maybe a)
@@ -54,6 +54,7 @@ getMax = do
     (_, i) <- get
     return i
 
+-- TODO Size capital S
 typesizeBigger :: Int -> Type Free -> Generater Bool
 typesizeBigger i t = do
     env <- getEnv

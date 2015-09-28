@@ -102,5 +102,6 @@ test-suite tests
                       ,ansi-wl-pprint
                       ,either
                       ,either-unwrap
-  Ghc-Options:          -Wall -threaded -with-rtsopts=-N
+                      ,deepseq
+  Ghc-Options:          -Wall -threaded 
   default-language:    Haskell2010

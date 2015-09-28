@@ -1,10 +1,12 @@
-module TestBacktrack where
+module TestBackList where
 
-import Test.Tasty
+
 import Control.Monad
+import Test.Tasty
 import Test.Tasty.HUnit
-import StateTransMany
 import qualified Control.Exception
+
+import BackList
 
 testBacktrack :: TestTree
 testBacktrack = testGroup "backtrack"
@@ -17,19 +19,20 @@ testBacktrack = testGroup "backtrack"
   , testGuardSucces'
   , testGuardSuccesBacksteps'
   , testLimitBacksteps
+  , twoBacksteps
+  , stopMzero
   ]
 
 testLimitBacksteps :: TestTree
 testLimitBacksteps = assertFail "limitBackSteps" (
    let f y = if y >= 0
-       then let result = tryM (map f [0 .. y - 1]) :: StateTransMany () Int
-            in do
-                 steps <- backsteps result
-                 if steps > 3
-                 then error "ads"
-                 else result
+       then let result = tryM (map f [0 .. y - 1]) :: BackList Int
+                steps = backsteps result
+            in if steps > 3
+               then error "to many backsteps"
+               else result
         else mzero
-   in eval (f =<< try [(0 :: Int) .. ]) () @?= []) "ads"
+   in null $ toList $ f =<< try [(0 :: Int) .. ]) "to many backsteps"
 
 assertFail :: String -> a -> String -> TestTree
 assertFail nameTest a exception = testCase nameTest $
@@ -42,55 +45,60 @@ assertFail nameTest a exception = testCase nameTest $
                       "\nexpect fail with: " ++ exception)
 
 testGuardFail :: TestTree
-testGuardFail = testCase "guard fail return" $ eval guardFail () @?= []
+testGuardFail = testCase "guard fail return" $ toList guardFail @?= []
 
 testGuardFailBacksteps :: TestTree
 testGuardFailBacksteps = testCase "fail  guard return is one backstep" $
-                     eval (backsteps guardFail ) () @?= [1]
+                     backsteps guardFail @?= 2
 
 testGuardFail' :: TestTree
-testGuardFail' = testCase "guard fail" $ eval guardFail' () @?= []
+testGuardFail' = testCase "guard fail" $ toList guardFail' @?= []
 
 testGuardFailBacksteps' :: TestTree
 testGuardFailBacksteps' = testCase "fail guard  is one backstep" $
-                     eval (backsteps guardFail' ) () @?= [1]
+                     backsteps guardFail' @?= 2
 
 testGuardSucces :: TestTree
-testGuardSucces = testCase "guard succes return" $ eval guardSucces () @?= [10]
+testGuardSucces = testCase "guard succes return" $ toList guardSucces @?= [10]
 
 testGuardSuccesBacksteps :: TestTree
 testGuardSuccesBacksteps = testCase "guard succes return is no backstep" $
-                     eval (backsteps guardSucces ) () @?= [0]
+                     backsteps guardSucces @?= 0
 
 testGuardSucces' :: TestTree
-testGuardSucces' = testCase "guard succes" $ eval guardSucces' () @?= [()]
+testGuardSucces' = testCase "guard succes" $ toList guardSucces' @?= [()]
 
 testGuardSuccesBacksteps' :: TestTree
 testGuardSuccesBacksteps' = testCase "guard succes is no backstep" $
-                     eval (backsteps guardSucces' ) () @?= [0]
-guardFail :: StateTransMany () Int
+                     backsteps guardSucces' @?= 0
+
+guardFail :: BackList Int
 guardFail = do
   x <- try [1 .. 10 :: Int]
   guard (x == 11)
   return x
 
-guardSucces :: StateTransMany () Int
+guardSucces :: BackList Int
 guardSucces = do
   x <- try [1 .. 10 :: Int]
   guard (x == 10)
   return x
 
-guardFail' :: StateTransMany () ()
+guardFail' :: BackList ()
 guardFail' = do
   x <- try [1 .. 10 :: Int]
   guard (x == 11)
 
-guardSucces' :: StateTransMany () ()
+guardSucces' :: BackList ()
 guardSucces' = do
   x <- try [1 .. 10 :: Int]
   guard (x == 10)
 
--- test3 :: ([()], Int)
--- test3 = eval $ do
---   i <- try []
---   try [i] <|> mempty
+stopMzero :: TestTree
+stopMzero= testCase "stop ad mzero" ( backsteps (do
+  i <- try []
+  tryM [try [i], mzero]) @?= 1)
+
+twoBacksteps :: TestTree
+twoBacksteps = testCase "2 backsteps " ( backsteps (do
+  tryM [try [], mzero]) @?= 2)

@@ -31,7 +31,7 @@ testshrink = testGroup "shrink"
     ]
 testGeneration :: TestTree
 testGeneration = testGroup "genration"
-    [ testProperty "corect size untype" $
+    [ testProperty "corect size type" $
        forAll (suchThat (arbitrary :: Gen Int) (> 1)) (\ n ->
             (forAll (resize n genTyped ) (\ t -> size (t :: BruijnTerm ()) == n)))
 

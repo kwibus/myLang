@@ -11,21 +11,22 @@ import TestLambda
 import TestParser
 import TestType
 import TestLogic
--- import SmallCheck
--- import Type
--- import Key
--- import Logic
+import TestBackList
+import TestBackListT
+
 main :: IO ()
 main = defaultMain tests
 
 tests :: TestTree
 tests = testGroup "tests"
-    [ testLogic 
+    [ testBacktrack
+    , testBackListT
+    , testLogic
+    , testArbitrary
     , testTypeChecker
     , testType
     , testLambda
     , testBruijn
     , testEval
     , testParser
-    , testArbitrary
     ]

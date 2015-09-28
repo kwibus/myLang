@@ -4,7 +4,6 @@ module ArbitraryType (arbitraryType) where
 
 import Test.QuickCheck.Gen
 import Test.QuickCheck
-
 import Type
 import Environment
 
