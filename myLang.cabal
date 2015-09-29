@@ -103,5 +103,5 @@ test-suite tests
                       ,either
                       ,either-unwrap
                       ,deepseq
-  Ghc-Options:          -Wall -threaded 
+  Ghc-Options:          -Wall -threaded -with-rtsopts=-N
   default-language:    Haskell2010
