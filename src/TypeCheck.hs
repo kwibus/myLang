@@ -75,7 +75,7 @@ toExcept eith = case eith of
 unifyEnv :: FreeEnv (Type Free) -> FreeEnv (Type Free) -> Either [UnificationError i] (FreeEnv (Type Free))
 unifyEnv env1 env2 = IM.foldWithKey f (Right env1) env2
     where f key typ1 (Right env) = case IM.lookup key env of
-            Nothing -> return $ IM.insert key typ1 env
+            Nothing -> mapLeft (: []) $ unify typ1 (TVar (Free key)) env -- return $ IM.insert key typ1 env
             Just typ2 -> mapLeft (: []) $ unify typ1 typ2 env
           f key typ1 (Left err ) = case IM.lookup key env1 of
             Nothing -> Left err
