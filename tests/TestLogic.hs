@@ -44,7 +44,7 @@ testLogic = testGroup "Logic"
             m <- chooseLogic (1, 10 :: Int)
             f i n m
 
-    , allJust "don`t chase state on fail" $
+    , allJust "don`t change state on fail" $
         oneOfLogic
             [ newFreeVar >> newFreeVar >> newFreeVar >> mzero
             , do

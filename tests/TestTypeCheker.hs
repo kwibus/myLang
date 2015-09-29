@@ -65,18 +65,9 @@ testUnify = testGroup "unify"
         let env = finsertAt (TVar (Free 1 )) ( Free 3) fEmtyEnv
         in unifys (TVar (Free 1)) (TAppl (TVar (Free 1)) (TVar (Free 2))) env @?= False
 
-    , testCase " unifys (b ->c) a {b-:a}" $
-        let env = finsertAt (TVar (Free 1 )) ( Free 2) fEmtyEnv
-        in unifys (TAppl (TVar (Free 2)) (TVar (Free 3))) (TVar (Free 1)) env @?= False
-
-    , testCase " unifys (b ->c) a {a-:b}" $
-        let env = finsertAt (TVar (Free 2 )) ( Free 1) fEmtyEnv
-        in unifys (TAppl (TVar (Free 2)) (TVar (Free 3))) (TVar (Free 1)) env @?= False
-
-
-    , testCase " unifys (a ->b) a {a-:c}" $
+    , testCase " unifys a (a ->b) {a-:c}" $
         let env = finsertAt (TVar (Free 1 )) ( Free 3) fEmtyEnv
-        in unifys (TAppl (TVar (Free 1)) (TVar (Free 2))) (TVar (Free 1)) env @?= False
+        in unifys (TVar (Free 1)) (TAppl (TVar (Free 1)) (TVar (Free 2))) env @?= False
 
     , testProperty "unify self" $
         \ t -> unifys t t fEmtyEnv
@@ -110,6 +101,11 @@ testUnifyEnv = testGroup " Unify Env "
                 Left es -> length es == 2
                 _ -> False
           ) @?= True
+
+    , testCase "unifyEnv error" $
+        let env1 = fromList [(1, TVar (Free 2)) ]
+            env2 = fromList [(2, TVar (Free 1)) ]
+        in unifyEnv env1 env2 @?= return env1
     ]
 
 testClose :: TestTree

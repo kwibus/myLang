@@ -105,12 +105,10 @@ arbitraryTerm n mabeytype maxlist s
         Nothing -> return False
       if b
       then mzero
-      else do
-        -- env <- getEnv
-        whenBacksteps (< 23 ) (
+      else whenBacksteps (< 15) (
            oneOfLogic [ arbitraryAppl n mabeytype maxlist s
                    , arbitraryLambda n mabeytype maxlist s
-                   ] ) $ error $ show mabeytype  ++ "\n" ++ show n -- ++ "\n" ++ show env ++ "\n " ++ show s
+                   ] ) $ error $ show mabeytype ++ "\n" ++ show n
 
 -- TODO fix also genarate var #
 arbitraryVar :: ArbiRef n => Maybe (Type Free) -> GenState n -> Generater (LamTerm () n)
