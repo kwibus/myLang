@@ -26,21 +26,28 @@ testEval = testGroup "eval" [testEvalBasic, testEvalBuildin]
 testEvalBasic :: TestTree
 testEvalBasic = testGroup "basic"
   [ testCase "eval id(id(\\z.id z))=id(\\z.id z)" $
+
       eval (appl B.id ( appl B.id (lambda "z" (appl B.id (bvar 0))))) @?=
          Just ( appl B.id ( lambda "z" (appl B.id (bvar 0))))
+
   , testCase "omega omega" $
       eval (appl B.omega B.omega) @?= Just (appl B.omega B.omega)
+
   , testCase "eval id id = Just id" $
        eval (appl B.id B.id) @?= Just B.id
+
   , testCase "call by vallu termination" $
       eval (lambda "z" (appl B.id (bvar 1))) @?= Nothing
+
   , testProperty "welformd presevation eval" $
       forAllTypedBruijn $ \ t -> let result = welFormd <$> eval (t :: BruijnTerm ())
             in isNothing result || fromJust result
+
   , testProperty "keep normalisation under eval" $
-     forAllUnTypedBruijn $ \ t ->
+     forAllTypedBruijn $ \ t ->
             let result = eval t
             in isJust result ==> normalised $ fromJust result
+
   , testProperty "keep type under eval" $
       forAllTypedBruijn $ \ e -> let result = eval (e :: BruijnTerm ())
             in isJust result ==>
@@ -64,8 +71,8 @@ testEvalBasic = testGroup "basic"
 --        (\\x u.x)))                                            \\x u.x)"
 --   \\f.1.0"
 -- so you have to use unifys
--- but name me overlap; so a hack solution is to add a large numer to the var of one type.
--- because is generated type's woult normalie have no big numbers in them; so no overlap
+-- but name me overlap; so a hack solution is to add a large numer to the var one side.
+-- because is generated type's would normally have a big numbers in it; so no overlap
   ]
 
 eitht2bool :: Either e Property -> Property

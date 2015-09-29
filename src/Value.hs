@@ -16,7 +16,7 @@ data Value = MyDouble !Double
               , evaluator :: State Stack Value
               , stack :: Stack
               }
---
+
 -- TODO remove if every type is build in
 btype :: Value -> Type Bound
 btype MyDouble {} = TVal TDouble

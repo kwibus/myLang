@@ -1,19 +1,15 @@
-pprint funtion bruijn 
+modify bruijn2Lam and lam2Bruijn to handle Free variables
+pprint funtion bruijn
 add etaredcution in shrink
 
 prettyPrint layout
 
 commenting
 cleanup
-renameing (Expresion..)
-
-fix arbitraryQuickcheck
 
 add test elimante
 
 fix todo in srcFiles
-
-replace newtype name with  type String
 
 ----------------------------------------------------------------------------------------------------
 lookat llvm grin jhc uniplate
@@ -23,6 +19,8 @@ lookat llvm grin jhc uniplate
     error messages
     add test
 
+make type anotation
+check if i can remove spilt free andbound type
 make data type recor (like of as builtin)
 add more data types
 make plus parse same int Double (maybe after typecheck)
@@ -36,7 +34,7 @@ todo small
         commentary
         rename val const ?
         uniplate option ?
-        speed up arbitrary
+        find space leaks
         check env size no -o- no unreachaable terms
 
     values
@@ -54,7 +52,6 @@ todo small
         shrink with  etaredcution
 
 todo shortterm
-    save code postion for error message
     warning
     case
     let

@@ -1,5 +1,6 @@
 module Lambda where
 
+import Associativity
 import Name
 import Value
 
@@ -17,3 +18,7 @@ data LamTerm i n = Lambda i Name (LamTerm i n)
 isInfix :: LamTerm i Name -> Bool
 isInfix (Val _ v ) = Value.isInfix v
 isInfix _ = False
+
+getPrec :: LamTerm i n -> (Precedence, Associativity)
+getPrec (Val _ BuildIn {fixity = Infix p a}) = (p, a)
+getPrec _ = highPrec

@@ -29,6 +29,7 @@ tSize (TAppl t1 t2) = tSize t1 + tSize t2
 tShow :: ToInt i => Type i -> String
 tShow t = evalState (tShowEnv t) initState
 
+-- FIXME this is incorect for (TYPE Boud) toInt
 tShowEnv :: ToInt i => Type i -> State (IM.IntMap String , [String]) String
 tShowEnv (TVal v) = return (pShowType v)
 tShowEnv (TAppl t1 t2) = do
