@@ -20,7 +20,7 @@ plus = BuildIn
     , name = "plus"
     , arrity = 2
     , fixity = Infix 2 AssoLeft
-    , myType = TAppl (TVal TDouble) (TAppl (TVal TDouble ) (TVal TDouble))
+    , myType = toPoly $ TAppl (TVal TDouble) (TAppl (TVal TDouble ) (TVal TDouble))
     , evaluator = evalplus
     , stack = []
     }
@@ -37,7 +37,7 @@ multiply = BuildIn
     , name = "multiply"
     , arrity = 2
     , fixity = Infix 3 AssoLeft
-    , myType = TAppl (TVal TDouble) (TAppl (TVal TDouble ) (TVal TDouble))
+    , myType = toPoly $ TAppl (TVal TDouble) (TAppl (TVal TDouble ) (TVal TDouble))
     , evaluator = evalMultiply
     , stack = []
     }

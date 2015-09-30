@@ -1,67 +1,91 @@
-module Type where
+module Type where -- TODO hide PolyType constructor
 
+import Data.Maybe (isJust)
+import Data.List
 import qualified Data.IntMap as IM
-import Data.Coerce
-import Control.Monad.State
 
 import Name
 import Environment
 
-typeBound2Free :: Type Bound -> Type Free
-typeBound2Free = coerce
+type Type = PolyType
+data TypeInstance = TDouble deriving (Eq, Show)
 
-data MonoType = TDouble deriving (Eq, Show)
-data Type i = TVal MonoType
-            | TVar i
-            | TAppl (Type i) (Type i) deriving (Eq, Show)
+data MonoType = TVal TypeInstance
+  | TVar Int
+  | TAppl MonoType MonoType deriving (Eq, Show)
 
-{-
- data Type = TVal MonoType | TVar Key | TAppl Type Type deriving Eq
- instance Show Type where
-     show =tShow
--}
+data PolyType = PolyType { dic :: Dictionary, monotype :: MonoType}
 
-tSize :: Type i -> Int
-tSize (TVal {}) = 1
-tSize (TVar {}) = 1
-tSize (TAppl t1 t2) = tSize t1 + tSize t2
+type Dictionary = IM.IntMap String
 
-tShow :: ToInt i => Type i -> String
-tShow t = evalState (tShowEnv t) initState
+toPoly :: MonoType -> PolyType
+toPoly = PolyType IM.empty
 
--- FIXME this is incorect for (TYPE Boud) toInt
-tShowEnv :: ToInt i => Type i -> State (IM.IntMap String , [String]) String
-tShowEnv (TVal v) = return (pShowType v)
-tShowEnv (TAppl t1 t2) = do
-            s1 <- tShowEnv t1
-            s2 <- tShowEnv t2
-            let s1' = case t1 of
-                 TAppl {} -> "(" ++ s1 ++ ")"
-                 _ -> s1
-            return $ s1' ++ " -> " ++ s2
-tShowEnv (TVar i ) = do
-            (m, names) <- get
-            case IM.lookup (toInt i) m of
-                Just str -> return str
-                Nothing ->
-                    let newname = head names
-                        newMap = IM.insert (toInt i) newname m
-                    in put (newMap, tail names) >> return newname
+typeVars = nub . getTvars
+  where getTvars (TVar i) = [i]
+        getTvars (TAppl i j) = getTvars i ++ getTvars j
+        getTvars (TVal {}) = []
 
-initState :: (IM.IntMap String, [String] )
-initState = (IM.empty, letters)
+size :: MonoType -> Int
+size (TVal {}) = 1
+size (TVar {}) = 1
+size (TAppl t1 t2) = size t1 + size t2
 
-genNames :: ToInt i => Type i -> State (IM.IntMap String , [String]) ()
-genNames (TVal _) = return ()
-genNames (TVar i) = do
-    (m , names) <- get
-    put (IM.insert (toInt i) (head names) m, init names)
-genNames (TAppl t1 t2) = genNames t1 >> genNames t2
+tDrop :: PolyType -> PolyType
+tDrop (PolyType e (TAppl _ t )) = PolyType e t
+tDrop _ = error "apply non function"
 
-pShowType :: MonoType -> String
-pShowType TDouble = "Double"
+-- unpredictabel if a type variable  has multiply names
+mkDictonarie :: [PolyType] -> Dictionary
+mkDictonarie = IM.unions . map dic
 
-mapVar :: (i -> j) -> Type i -> Type j
-mapVar f (TAppl t1 t2) = TAppl (mapVar f t1) (mapVar f t2)
-mapVar f (TVar i) = TVar (f i)
-mapVar _ (TVal a) = TVal a
+
+pShow :: PolyType -> Dictionary -> String
+pShow (PolyType _ t ) dic0 = fst $ go t letters dic0
+  where
+    go :: MonoType -> [String] -> Dictionary -> (String, ([String], Dictionary))
+    go (TVar i) freeNames dic = case IM.lookup i dic of
+        Just name -> (name, (freeNames, dic))
+        Nothing ->
+            let name : newFreeNames = dropWhile (\ n -> isJust (IM.lookup n dic)) freeNames
+            in (name (newFreeNames, insert name i dic ))
+    go (TAppl t1 t2) freeNames dic =
+      let (string1, state1) = go t1 freeNames dic
+          (string2, state2) = uncurry (go t2 ) state1
+      in (string1 ++ "-->" ++ string2, state2)
+
+
+-- pShow :: PolyType -> String
+-- pShow t = evalState (showEnv t) initState
+--
+-- -- FIXME this is incorect for (TYPE Boud) toInt
+-- showEnv :: PolyType -> State (IM.IntMap String , [String]) String
+-- showEnv (TVal v) = return (showTypeInstance v)
+-- showEnv (TAppl t1 t2) = do
+--             s1 <- showEnv t1
+--             s2 <- showEnv t2
+--             let s1' = case t1 of
+--                  TAppl {} -> "(" ++ s1 ++ ")"
+--                  _ -> s1
+--             return $ s1' ++ " -> " ++ s2
+-- showEnv (TVar i ) = do
+--             (m, names) <- get
+--             case IM.lookup (toInt i) m of
+--                 Just str -> return str
+--                 Nothing ->
+--                     let newname = head names
+--                         newMap = IM.insert (toInt i) newname m
+--                     in put (newMap, tail names) >> return newname
+--
+-- initState :: (IM.IntMap String, [String] )
+-- initState = (IM.empty, letters)
+--
+-- genNames :: PolyType -> State (IM.IntMap String , [String]) ()
+-- genNames (TVal _) = return ()
+-- genNames (TVar i) = do
+--     (m , names) <- get
+--     put (IM.insert (toInt i) (head names) m, init names)
+-- genNames (TAppl t1 t2) = genNames t1 >> genNames t2
+
+showTypeInstance :: TypeInstance -> String
+showTypeInstance TDouble = "Double"

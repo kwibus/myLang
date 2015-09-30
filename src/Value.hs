@@ -12,18 +12,16 @@ data Value = MyDouble !Double
               , name :: String
               , arrity :: Int
               , fixity :: Fixity
-              , myType :: Type Bound
+              , myType :: PolyType -- TODO rename
               , evaluator :: State Stack Value
               , stack :: Stack
               }
 
 -- TODO remove if every type is build in
-btype :: Value -> Type Bound
-btype MyDouble {} = TVal TDouble
-btype BuildIn {myType = t} = t
-
-ftype :: Value -> Type Free
-ftype = typeBound2Free . btype
+-- TODO rename btype
+btype :: Value -> PolyType
+btype MyDouble {} = toPoly $ TVal TDouble
+btype BuildIn { myType = t} = t
 
 isInfix :: Value -> Bool
 isInfix BuildIn {fixity = Infix {} } = True
