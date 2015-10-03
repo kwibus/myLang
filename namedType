@@ -1,0 +1,67 @@
+support fixed name variables: 
+you have type annotations with ::
+
+a:: Int
+id :: a -> a
+
+you want to use the same names in type error messages
+1+id 
+(cant unify Int with a -> a)
+
+give a warning if a nested type annotation gives different name
+not separaat function
+
+f:: a 
+f = g
+  where 
+    g :: b
+    g = ...
+
+warning  in g :: b  -- or error ?
+    b has the same type as a in f :: a
+
+or 
+
+f :: a -> a
+f = (\ a -> a) :: b -> b
+
+
+caution about let
+f :: a
+f = if _
+    then g k 1
+    else g k k
+where g :: a -> b -> a
+      k :: a
+
+is this a warning
+    in g :: a -> b -> a
+    b same type as a  in k :: a
+
+solution 
+    1) don't warn when different type variable name in let 
+
+
+need to store name somewhere
+not all type variables have a name
+bind preserve name
+bind 1 (TVar 2)  -- TVar 2  name is "a" then TVar 1 also name "a"
+
+if 
+    is ::a -> a
+    k :: b 
+then what is the  name of
+   id k 
+options
+    1) ignore names of type variable names completely
+    the can misused (type variable name int) and can give people the wrong impression
+    secondly a type variable unifies with everything. so you only see it when the error is somewhere else
+    it easy to implement ?
+    you have no name clash ?
+        f = \a b . (a,b)
+        f k h 
+        k :: a -- external
+        h :: a -- external
+        f k h ::  (a,a) -now
+   2) choose the inner
+   3) choose outer
