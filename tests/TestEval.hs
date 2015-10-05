@@ -18,7 +18,7 @@ import MakeTerm
 import Operator
 import Value
 import PrettyPrint
-import Type
+import qualified Type as T
 
 testEval :: TestTree
 testEval = testGroup "eval" [testEvalBasic, testEvalBuildin]
@@ -58,12 +58,12 @@ testEvalBasic = testGroup "basic"
                     return $ counterexample (
                           "\neval:" ++ show expr2 ++
                         "\n\npShow     : " ++ show (fmap pShow (bruijn2Lam e)) ++
-                          "\n\t::" ++ tShow t1 ++
+                          "\n\t::" ++ T.pShow (T.typeBound2Free t1) ++
                          "\n\npShow eval: " ++ show (fmap pShow (bruijn2Lam expr2)) ++
-                          "\n\t::" ++ tShow t2
+                          "\n\t::" ++ T.pShow (T.typeBound2Free t2)
                             )
-                        $ unifys (typeBound2Free t1)
-                                 (mapVar (\ (Free i) -> Free (i + 10000)) (typeBound2Free t2))
+                        $ unifys (T.typeBound2Free t1)
+                                 (T.mapVar (\ (Free i) -> Free (i + 10000)) (T.typeBound2Free t2))
                                  fEmtyEnv
 -- you  can`t use t1 == t2  because
 -- "(\\g.(\\y.g)    ::(a -> b -> a) -> Double  evals to:    "(\\y f.1.0)        ::a -> Double

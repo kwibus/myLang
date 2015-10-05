@@ -30,7 +30,7 @@ readEvalPrint input = outPutDoc $ merge $ do
     ast <- mapLeft (text . show) $ parseString input
     bruijn <- mapLeft (text . show) $ lam2Bruijn ast
     t <- mapLeft (showError input) $ solver bruijn
-    return $ text $ tShow t
+    return $ text $ pShow $ typeBound2Free t
 
 merge :: Either a a -> a
 merge (Right a) = a

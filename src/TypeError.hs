@@ -1,4 +1,5 @@
 module TypeError where
+
 import Prelude hiding ( (<$>) )
 import Text.PrettyPrint.ANSI.Leijen
 import Environment
@@ -6,7 +7,6 @@ import Type
 import BruijnTerm
 import Lambda
 import Info
-import Control.Monad.State
 
 import Data.Char
 
@@ -42,8 +42,8 @@ showError _ _ = text "No error messages implemented"
 
 showUnifyApError :: String -> BruijnTerm Loc -> Type Free -> Type Free -> UnificationError Loc -> Doc
 showUnifyApError str (Appl i e1 e2) t1 t2 (Unify {}) =
-    let namestate = genNames t1 >> genNames t2
-        localShow t = text $ evalState (namestate >> tShowEnv t) initState
+    let compleetDictonarie = mkDictonarie [t1, t2]
+        localShow t = text $ pShowWithDic t compleetDictonarie
     in getWord (getLocation e1) str <+> text "is applied to wrong kind of argumts" <$>
             text "in" <+> dquotes (getWord i str) <$>
             indent 2 (

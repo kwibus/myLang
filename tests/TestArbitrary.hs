@@ -11,7 +11,7 @@ import ArbitraryLambda
 import Environment
 import BruijnTerm
 import Lambda
-import Type
+import qualified Type as T
 import TypeCheck
 
 testArbitrary :: TestTree
@@ -43,14 +43,14 @@ testGeneration = testGroup "genration"
         forAllTypedBruijn $ \ e -> isRight $ solver e
 
     , testProperty "corect type" $
-         forAll ( genTerm (Just (TVal TDouble )))
+         forAll ( genTerm (Just (T.TVal T.TDouble )))
                 (\ e -> isJust e ==> case solver (fromJust (e :: Maybe (BruijnTerm ()))) of
-                    (Right t) -> unifys (typeBound2Free t) (TVal TDouble ) fEmtyEnv
+                    (Right t) -> unifys (T.typeBound2Free t) (T.TVal T.TDouble ) fEmtyEnv
                     _ -> False
                 )
    ]
 
--- TODO move to different file
+--T. TODO move to different file
 size :: LamTerm a i -> Int
 size (Lambda _ _ e ) = size e + 1
 size (Appl _ e1 e2) = size e1 + size e2

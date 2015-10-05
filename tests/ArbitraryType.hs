@@ -22,7 +22,7 @@ arbitraryType s | s <= 1 = oneof [fmap TVal arbitraryMonoType, arbitraryTVar]
      t2 <- arbitraryType (s - sizeleft )
      return $ TAppl t1 t2
 
-arbitraryMonoType :: Gen MonoType
+arbitraryMonoType :: Gen TypeInstance
 arbitraryMonoType = elements [TDouble]
 
 arbitraryTVar :: Gen (Type Bound)

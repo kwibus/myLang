@@ -58,4 +58,4 @@ getMax = do
 typesizeBigger :: Int -> Type Free -> Generater Bool
 typesizeBigger i t = do
     env <- getEnv
-    return $ i < tSize ( apply t env )
+    return $ i < size ( apply t env )

@@ -66,6 +66,7 @@ bInsert :: a -> BruiEnv a -> BruiEnv a
 bInsert a b@BruiState {bruiDepth = depth, bruiMap = m} =
      b {bruiDepth = depth + 1, bruiMap = IM.insert depth a m }
 
+--  TODO inconsistend name
 finsertAt :: a -> Free -> FreeEnv a -> FreeEnv a
 finsertAt a (Free i) = IM.insert i a
 
