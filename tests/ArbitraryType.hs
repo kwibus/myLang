@@ -7,13 +7,11 @@ import Test.QuickCheck
 import Type
 import Environment
 
-instance Arbitrary (Type Bound ) where
+instance Arbitrary Type where
     arbitrary = sized arbitraryType
-instance Arbitrary (Type Free) where
-    arbitrary = fmap typeBound2Free (arbitrary :: Gen (Type Bound) )
 
 -- TODO Beter Arbitrary type  possible ?
-arbitraryType :: Int -> Gen (Type Bound)
+arbitraryType :: Int -> Gen Type
 arbitraryType s | s <= 1 = oneof [fmap TVal arbitraryMonoType, arbitraryTVar]
                 | otherwise =
   do
@@ -25,7 +23,7 @@ arbitraryType s | s <= 1 = oneof [fmap TVal arbitraryMonoType, arbitraryTVar]
 arbitraryMonoType :: Gen TypeInstance
 arbitraryMonoType = elements [TDouble]
 
-arbitraryTVar :: Gen (Type Bound)
+arbitraryTVar :: Gen Type
 arbitraryTVar = do
     d <- choose (0, 10)
-    TVar <$> elements [Bound d]
+    return $ TVar $ Free d

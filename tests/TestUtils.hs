@@ -16,8 +16,8 @@ welFormd t0 = go t0 0
           go (Val {}) _ = True
 
 -- TODO uneeded check
-welFormdType :: Type Bound -> Bool
+welFormdType :: Type -> Bool
 welFormdType t0 = go t0
     where go (TAppl t1 t2) = go t1 && go t2
-          go (TVar (Bound i) ) = i >= 0
+          go (TVar (Free i) ) = i >= 0
           go (TVal {}) = True

@@ -35,12 +35,8 @@ apply :: Value -- ^ build in function
   -> Value -- ^ result
 apply BuildIn {arrity = 1, evaluator = e, stack = s } v = evalState e (v : s )
 apply v1@BuildIn {arrity = n, stack = s, myType = t } v2 =
-    v1 {arrity = n - 1 , stack = v2 : s, myType = tDrop t}
+    v1 {arrity = n - 1 , stack = v2 : s, myType = dropTypeArg t}
 apply _ _ = error "apply value"
-
-tDrop :: Type v -> Type v
-tDrop (TAppl _ t ) = t
-tDrop _ = error "apply non function"
 
 -- TODO remove initial index
 substitute :: BruijnTerm i -> Bound -> BruijnTerm i -> BruijnTerm i

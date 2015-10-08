@@ -72,14 +72,10 @@ finsertAt a (Free i) = IM.insert i a
 
 bLookup :: Bound -> BruiEnv a -> a
 bLookup (Bound i) BruiState {bruiDepth = depth, bruiMap = m} =
-    assert (IM.member (depth - i - 1 ) m)
-    assert (i >= 0)
     m IM.! (depth - i - 1)
 
 fLookup :: Free -> FreeEnv a -> a
 fLookup (Free i) m =
-    assert (IM.member i m)
-    assert (i >= 0)
     m IM.! i
 
 bMember :: Bound -> BruiEnv a -> Bool

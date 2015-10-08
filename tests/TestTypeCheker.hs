@@ -121,7 +121,7 @@ testSolver = testGroup "Solver"
         solver (appl (val plus) (double 1.0)) @?=
         return (TAppl (TVal TDouble) (TVal TDouble))
    , testCase "check id" $
-        solver B.id @?= return (TAppl (TVar (Bound 0)) (TVar (Bound 0)))
+        solver B.id @?= return (TAppl (TVar (Free 0)) (TVar (Free 0)))
 
    , testCase "check id 1.0" $
         solver (appl B.id (double 1.0)) @?= return (TVal TDouble )
@@ -145,7 +145,7 @@ testSolver = testGroup "Solver"
                )
         @?=
         return (TAppl
-                  (TVar (Bound 0 ))
+                  (TVar (Free 0 ))
                   (TVal TDouble))
    , testCase "check \\a\\b.b a" $
         solver (lambda "a" (lambda "b" (appl
@@ -154,9 +154,9 @@ testSolver = testGroup "Solver"
                 )))
         @?=
         return (TAppl
-                  (TVar (Bound 0 ))
-                  (TAppl (TAppl (TVar (Bound 0)) (TVar (Bound 1)))
-                         (TVar (Bound 1))
+                  (TVar (Free 0 ))
+                  (TAppl (TAppl (TVar (Free 0)) (TVar (Free 1)))
+                         (TVar (Free 1))
                   )
                 )
 
@@ -186,13 +186,13 @@ testSolver = testGroup "Solver"
                  )))
         @?=
         return (TAppl (TAppl
-                            (TVar (Bound 0))
+                            (TVar (Free 0))
                             (TAppl
-                                 (TVar (Bound 0))
-                                 (TVar (Bound 1))
+                                 (TVar (Free 0))
+                                 (TVar (Free 1))
                     )) (TAppl
-                        (TVar (Bound 0))
-                        (TVar (Bound 1))
+                        (TVar (Free 0))
+                        (TVar (Free 1))
                ))
     , testCase "check (\\a.a)(\\b.\\c.b 1.0)" $
         solver (appl (lambda "a " (bvar 0))
@@ -202,9 +202,9 @@ testSolver = testGroup "Solver"
                ) )) )
         @?=
         return (TAppl (TAppl (TVal TDouble )
-                             (TVar (Bound 0)))
-                      (TAppl (TVar (Bound 1))
-                             (TVar (Bound 0)))
+                             (TVar (Free 0)))
+                      (TAppl (TVar (Free 1))
+                             (TVar (Free 0)))
                 )
 
     , testCase "fail (+)\\a.a" $
@@ -221,8 +221,8 @@ testSolver = testGroup "Solver"
                                                    (lambda "w" (bvar 0))))))
                B.id)
         @?=
-        return ( TAppl (TAppl (TVar (Bound 0)) (TVar (Bound 0)))
-                       (TAppl (TVar (Bound 0)) (TVar (Bound 0))))
+        return ( TAppl (TAppl (TVar (Free 0)) (TVar (Free 0)))
+                       (TAppl (TVar (Free 0)) (TVar (Free 0))))
 
 
     , testProperty "idempotence" $

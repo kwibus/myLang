@@ -11,14 +11,14 @@ import Info
 import Data.Char
 
 data TypeError i =
-      UnifyAp (BruijnTerm i) (Type Free) (Type Free ) (UnificationError i)
+      UnifyAp (BruijnTerm i) Type Type (UnificationError i)
     | UnifyEnv (BruijnTerm i) [UnificationError i]
     | ICE (UndefinedVar i Bound)
     deriving Show
 
 data UnificationError i =
-    Infinit ( Free) (Type Free) (FreeEnv (Type Free))
-  | Unify ( Type Free) (Type Free) (FreeEnv ( Type Free))
+    Infinit ( Free) Type (FreeEnv Type)
+  | Unify Type Type (FreeEnv Type)
   | VarVar
     deriving Show
 
@@ -40,7 +40,7 @@ showError str (UnifyAp expr t1 t2 err ) = text (showLoc (getLocation expr)) <+> 
         indent 4 ( showUnifyApError str expr t1 t2 err)
 showError _ _ = text "No error messages implemented"
 
-showUnifyApError :: String -> BruijnTerm Loc -> Type Free -> Type Free -> UnificationError Loc -> Doc
+showUnifyApError :: String -> BruijnTerm Loc -> Type -> Type -> UnificationError Loc -> Doc
 showUnifyApError str (Appl i e1 e2) t1 t2 (Unify {}) =
     let compleetDictonarie = mkDictonarie [t1, t2]
         localShow t = text $ pShowWithDic t compleetDictonarie

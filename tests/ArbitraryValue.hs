@@ -18,18 +18,18 @@ shrinkValue :: Value -> [Value]
 shrinkValue (MyDouble n) = if n == 1.0 then [] else [MyDouble 1.0]
 shrinkValue _ = []
 
-arbitraryValue :: ArbiRef n => Maybe (Type Free) -> Generater ( LamTerm () n)
+arbitraryValue :: ArbiRef n => Maybe Type -> Generater ( LamTerm () n)
 arbitraryValue t = oneOfLogic [ arbitraryMyDouble t
                                , arbitraryBuildIn t
                                ]
 
-arbitraryBuildIn :: ArbiRef n => Maybe (Type Free) -> Generater ( LamTerm () n)
+arbitraryBuildIn :: ArbiRef n => Maybe Type -> Generater ( LamTerm () n)
 arbitraryBuildIn t = do
     operator <- elementsLogic operators
-    unifyGen t (ftype operator )
+    unifyGen t (getType operator )
     return $ val operator
 
-arbitraryMyDouble :: ArbiRef n => Maybe (Type Free) -> Generater (LamTerm () n)
+arbitraryMyDouble :: ArbiRef n => Maybe Type -> Generater (LamTerm () n)
 arbitraryMyDouble t = do
   unifyGen t (TVal TDouble)
   d <- lift $ lift arbitrary

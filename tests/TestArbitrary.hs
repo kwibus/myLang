@@ -45,7 +45,7 @@ testGeneration = testGroup "genration"
     , testProperty "corect type" $
          forAll ( genTerm (Just (T.TVal T.TDouble )))
                 (\ e -> isJust e ==> case solver (fromJust (e :: Maybe (BruijnTerm ()))) of
-                    (Right t) -> unifys (T.typeBound2Free t) (T.TVal T.TDouble ) fEmtyEnv
+                    (Right t) -> unifys t (T.TVal T.TDouble ) fEmtyEnv
                     _ -> False
                 )
    ]

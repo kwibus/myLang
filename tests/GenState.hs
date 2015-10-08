@@ -24,12 +24,12 @@ defualtGenState = State
   }
 
 type Generater a = LogicGen (Env, Int) a
-type Env = FreeEnv (Type Free)
+type Env = FreeEnv Type
 
 runGenerartor :: Generater a -> Gen (Maybe a)
 runGenerartor g = fmap listToMaybe (evalT g (fEmtyEnv, 0))
 
-unifyGen :: Maybe (Type Free) -> Type Free -> Generater ()
+unifyGen :: Maybe Type -> Type -> Generater ()
 unifyGen Nothing _ = return ()
 unifyGen (Just t1) t2 = do
     env <- getEnv
@@ -37,10 +37,10 @@ unifyGen (Just t1) t2 = do
         Left {} -> mzero
         Right env1 -> setEnv env1
 
-getEnv :: Generater (FreeEnv (Type Free))
+getEnv :: Generater (FreeEnv Type)
 getEnv = liftM fst get
 
-setEnv :: FreeEnv (Type Free ) -> Generater ()
+setEnv :: FreeEnv Type -> Generater ()
 setEnv env = modify (\ (_, m) -> (env, m))
 
 newFreeVar :: Generater Free
@@ -55,7 +55,7 @@ getMax = do
     return i
 
 -- TODO Size capital S
-typesizeBigger :: Int -> Type Free -> Generater Bool
+typesizeBigger :: Int -> Type -> Generater Bool
 typesizeBigger i t = do
     env <- getEnv
     return $ i < size ( apply t env )

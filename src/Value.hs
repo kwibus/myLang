@@ -2,7 +2,6 @@ module Value where
 
 import Control.Monad.State.Strict
 import Type
-import Environment
 import Associativity
 
 type Stack = [Value]
@@ -12,18 +11,15 @@ data Value = MyDouble !Double
               , name :: String
               , arrity :: Int
               , fixity :: Fixity
-              , myType :: Type Bound
+              , myType :: Type
               , evaluator :: State Stack Value
               , stack :: Stack
               }
 
 -- TODO remove if every type is build in
-btype :: Value -> Type Bound
-btype MyDouble {} = TVal TDouble
-btype BuildIn {myType = t} = t
-
-ftype :: Value -> Type Free
-ftype = typeBound2Free . btype
+getType :: Value -> Type
+getType MyDouble {} = TVal TDouble
+getType BuildIn {myType = t} = t
 
 isInfix :: Value -> Bool
 isInfix BuildIn {fixity = Infix {} } = True
@@ -40,4 +36,4 @@ instance Show Value where
 instance Eq Value where
     (==) (MyDouble a) (MyDouble b) = abs (a - b) < 0.0001
     (==) (BuildIn {name = n1 }) (BuildIn {name = n2 }) = n1 == n2
-    (==) _ _ = False
+    (==)_ _ = False

@@ -83,13 +83,13 @@ genTyped = fromJust <$> genTerm (Just (TVar (Free (-1))))
 genUnTyped :: ArbiRef n => Gen (LamTerm () n )
 genUnTyped = fromJust <$> genTerm Nothing
 
-genWithType :: ArbiRef n => Type Free -> Gen (Maybe (LamTerm () n ))
+genWithType :: ArbiRef n => Type -> Gen (Maybe (LamTerm () n ))
 genWithType t = genTerm (Just t)
 
-genTerm :: ArbiRef n => Maybe (Type Free) -> Gen ( Maybe (LamTerm () n ))
+genTerm :: ArbiRef n => Maybe Type -> Gen ( Maybe (LamTerm () n ))
 genTerm t = sized $ \ n -> runGenerartor $ arbitraryTerm n t [] defualtGenState
 
-arbitraryTerm :: ArbiRef n => Int -> Maybe (Type Free) -> [Type Free] ->
+arbitraryTerm :: ArbiRef n => Int -> Maybe Type -> [Type] ->
       GenState n -> Generater (LamTerm () n)
 arbitraryTerm n mabeytype maxlist s
   | n <= 1 = oneOfLogic [ arbitraryValue mabeytype
@@ -111,13 +111,13 @@ arbitraryTerm n mabeytype maxlist s
                    ] ) $ error $ show mabeytype ++ "\n" ++ show n
 
 -- TODO fix also genarate var #
-arbitraryVar :: ArbiRef n => Maybe (Type Free) -> GenState n -> Generater (LamTerm () n)
+arbitraryVar :: ArbiRef n => Maybe Type -> GenState n -> Generater (LamTerm () n)
 arbitraryVar t s = do
   (n, f) <- refFromState s
   unifyGen t (TVar f)
   return $ Var () n
 
-arbitraryAppl :: ArbiRef n => Int -> Maybe (Type Free) -> [Type Free] ->
+arbitraryAppl :: ArbiRef n => Int -> Maybe Type -> [Type] ->
      GenState n -> Generater (LamTerm () n)
 arbitraryAppl size mabeytype maxlist state = do
   sizeLeft <- chooseLogic (1, size - 1)
@@ -139,7 +139,7 @@ arbitraryAppl size mabeytype maxlist state = do
         expr1 <- arbitraryTerm sizeLeft (Just (TAppl (TVar newvar) t)) maxlist state
         return $ appl expr1 expr2
 
-arbitraryLambda :: ArbiRef n => Int -> Maybe (Type Free) -> [Type Free] ->
+arbitraryLambda :: ArbiRef n => Int -> Maybe Type -> [Type] ->
     GenState n -> Generater ( LamTerm () n)
 arbitraryLambda size t maxlist state = do
   var1 <- newFreeVar
@@ -162,11 +162,3 @@ newVarRef state free = do
              else elements $ map (fst . snd) names
   return (newname, updateState state boolNewName newname free)
 
--- check :: BruijnTerm () -> Type Free -> BruiEnv (Free )-> Generater Bool
--- check expr t1 dic = do
---  env <- getEnv
---  return $ case runInfer (solveWith expr env dic) of
---     Right (t2, env2) -> case unify (apply t1 env) (apply t2 env2) fEmtyEnv of
---        Left _ -> False
---        Right {} -> True
---     Left _ -> False
