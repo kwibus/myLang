@@ -6,7 +6,7 @@ import Control.Monad.State.Strict
 import Lambda
 import BruijnTerm
 import Value
-import Environment
+import BruijnEnvironment
 import Type
 
 -- TODO write Test  for correct order

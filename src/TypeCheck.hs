@@ -11,7 +11,8 @@ import Value
 import Lambda
 import Type
 import BruijnTerm
-import Environment
+import BruijnEnvironment
+import FreeEnvironment
 import TypeError
 
 close :: Type -> Type

@@ -5,7 +5,8 @@ import qualified Data.IntMap as IM
 import Logic
 import GenState
 
-import Environment
+import BruijnEnvironment
+import FreeEnvironment
 import Name
 
 class ArbiRef n where
@@ -20,10 +21,11 @@ instance ArbiRef Name where
     updateState = updateStateName
     refFromState = nameFromState
 
+-- TODO decouple bruijnMap
 boundFromState :: GenState Bound -> Generater (Bound, Free )
 boundFromState s = do
    (i, (_, f)) <- elementsLogic $ bToList $ dictionary s
-   return (Bound (bruiDepth (dictionary s ) - i - 1), f)
+   return (Bound (bruijnDepth (dictionary s ) - i - 1), f)
 
 updateStateBound :: GenState n -> Bool -> String -> Free -> GenState n
 updateStateBound state _ name free = state {dictionary = newdic}
@@ -41,5 +43,6 @@ updateStateName state@State {dictionary = dic} newVar name free = state {diction
             then removeVar name dic
             else dic)
 
+-- TODO decouple bruijnMap
 removeVar :: String -> BruiEnv (String, b) -> BruiEnv (String, b)
-removeVar varname env = env {bruiMap = fst $ IM.partition (\ var -> fst var == varname) (bruiMap env)}
+removeVar varname env = env {bruijnMap = fst $ IM.partition (\ var -> fst var == varname) (bruijnMap env)}

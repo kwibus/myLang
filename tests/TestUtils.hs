@@ -2,7 +2,8 @@ module TestUtils where
 
 import Lambda
 import BruijnTerm
-import Environment
+import BruijnEnvironment
+import FreeEnvironment
 import Type
 
 normalised :: Eq i => BruijnTerm i -> Bool
@@ -17,7 +18,7 @@ welFormd t0 = go t0 0
 
 -- TODO uneeded check
 welFormdType :: Type -> Bool
-welFormdType t0 = go t0
+welFormdType = go
     where go (TAppl t1 t2) = go t1 && go t2
           go (TVar (Free i) ) = i >= 0
           go (TVal {}) = True

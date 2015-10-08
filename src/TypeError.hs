@@ -2,7 +2,8 @@ module TypeError where
 
 import Prelude hiding ( (<$>) )
 import Text.PrettyPrint.ANSI.Leijen
-import Environment
+import FreeEnvironment
+import BruijnEnvironment
 import Type
 import BruijnTerm
 import Lambda

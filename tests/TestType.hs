@@ -3,7 +3,7 @@ module TestType (testType ) where
 import Test.Tasty
 import Test.Tasty.HUnit
 
-import Environment
+import FreeEnvironment
 import Type
 
 testType :: TestTree

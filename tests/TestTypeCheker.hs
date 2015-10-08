@@ -16,7 +16,8 @@ import ArbitraryLambda
 import TypeCheck
 import Type
 import Operator
-import Environment
+import BruijnEnvironment
+import FreeEnvironment
 import TypeError
 
 testTypeChecker :: TestTree

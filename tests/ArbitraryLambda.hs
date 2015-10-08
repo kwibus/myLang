@@ -14,7 +14,8 @@ import ArbitraryValue
 import MakeTerm
 import BruijnTerm
 import Lambda
-import Environment
+import BruijnEnvironment
+import FreeEnvironment
 import Type
 import Name
 import ArbiRef

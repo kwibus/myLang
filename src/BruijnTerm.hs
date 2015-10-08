@@ -10,7 +10,7 @@ import qualified Data.Map as M
 import Data.Char
 
 import Name
-import Environment
+import BruijnEnvironment
 import Lambda
 
 -- | 'Lambda' term where The Bruijn Index are used.

@@ -11,7 +11,7 @@ import ArbitraryLambda
 
 import BruijnTerm
 import Name
-import Environment
+import BruijnEnvironment
 
 testBruijn :: TestTree
 testBruijn = testGroup "bruijn index"

@@ -2,11 +2,10 @@ module Type where
 
 import qualified Data.IntMap as IM
 import Data.Maybe
-import Data.Coerce
 
 import Data.List
 import Name
-import Environment
+import FreeEnvironment
 
 type Dictionary = FreeEnv String
 type Type = TypeA Free

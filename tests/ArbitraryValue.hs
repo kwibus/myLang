@@ -10,7 +10,6 @@ import GenState
 
 import Value
 import Operator
-import Environment
 import Type
 import Lambda
 

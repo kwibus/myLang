@@ -13,7 +13,7 @@ import TestUtils
 import ArbitraryLambda
 
 import Eval (apply, eval, fullEval)
-import Environment
+import FreeEnvironment
 import MakeTerm
 import Operator
 import Value

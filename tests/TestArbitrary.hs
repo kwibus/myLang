@@ -8,7 +8,7 @@ import Data.Maybe
 import TestUtils
 import ArbitraryLambda
 
-import Environment
+import FreeEnvironment
 import BruijnTerm
 import Lambda
 import qualified Type as T

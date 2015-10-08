@@ -7,7 +7,8 @@ import Control.Monad
 
 import Logic
 import Name
-import Environment
+import FreeEnvironment
+import BruijnEnvironment
 import Type
 import TypeCheck
 
