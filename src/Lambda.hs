@@ -8,14 +8,12 @@ data LamTerm i n = Lambda i Name (LamTerm i n)
             | Appl i (LamTerm i n) (LamTerm i n)
             | Var i n
             | Val i Value
-            --  Let [Def i n] (LamTerm i n)
+            | Let i [Def i n] (LamTerm i n)
             deriving (Eq, Show)
 
--- data Def i n = Def i (VarDef i n) (LamTerm i n) deriving (Eq, Show)
--- data VarDef i n = VarDef Name deriving (Eq, Show)
---
---
-isInfix :: LamTerm i n -> Bool
+data Def i n = Def i Name (LamTerm i n) deriving (Eq, Show)
+
+isInfix :: LamTerm i Name -> Bool
 isInfix (Val _ v ) = Value.isInfix v
 isInfix _ = False
 
