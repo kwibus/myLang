@@ -91,8 +91,14 @@ advanced =
 
   , ("1.0 2.0 +", appl (val plus) (appl (double 1.0) (double 2.0)))
 
-  , ("(1.0 + 2.0) (3.0 4.0)",
-        appl (appl (appl (val plus) (double 1.0 )) (double 2.0)) (appl (double 3.0) (double 4.0)))
+  , ("(1.0 + 2.0) 3.0", appl (appl ( appl (val plus) (double 1.0)) (double 2.0))
+                             (double 3.0))
+  , ("(1.0 + 2.0) (3.0 4.0)", appl (appl (appl (val plus) (double 1.0 )) (double 2.0))
+                                   (appl (double 3.0) (double 4.0)))
+
+  , ("(1.0 + 2.0) 3.0 4.0", appl (appl (appl (appl (val plus) (double 1.0 )) (double 2.0))
+                                       (double 3.0))
+                                 (double 4.0))
 
   , ("\\a.1.0 +", lambda "a" (appl (val plus) (double 1.0)))
 
@@ -113,4 +119,9 @@ advanced =
   , ("+ (*)", lambda "#" (appl (appl (val plus) (var "#")) (val multiply)))
 
   , ("(1.0 +) +", appl (val plus) (appl (val plus) (double 1.0)))
-  ]
+
+  , ("1.0 (1.0 +)", appl (double 1.0) (appl (val plus) (double 1.0)))
+
+  , ("1.0 \\t.1.0 1.0", appl (double 1.0) (lambda "t" (appl (double 1.0) (double 1.0))))
+ ]
+

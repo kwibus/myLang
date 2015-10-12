@@ -11,5 +11,5 @@ import Name
 main :: IO ()
 main = do
     list <- mapM f [0, 2 .. 100]
-    mapM_ (print . pShow) list
+    mapM_ (\ l -> putStrLn (pShow l ++ "\n") ) list
         where f i = generate $ resize i (genTyped :: Gen (LamTerm () Name ))

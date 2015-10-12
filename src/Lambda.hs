@@ -15,7 +15,7 @@ data LamTerm i n = Lambda i Name (LamTerm i n)
 -- data VarDef i n = VarDef Name deriving (Eq, Show)
 --
 --
-isInfix :: LamTerm i Name -> Bool
+isInfix :: LamTerm i n -> Bool
 isInfix (Val _ v ) = Value.isInfix v
 isInfix _ = False
 

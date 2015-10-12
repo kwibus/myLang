@@ -7,7 +7,7 @@ import TestTypeCheker
 import TestBruijn
 import TestArbitrary
 import TestEval
-import TestLambda
+import TestPrettyPrintLambda
 import TestParser
 import TestType
 import TestLogic
@@ -25,7 +25,7 @@ tests = testGroup "tests"
     , testArbitrary
     , testTypeChecker
     , testType
-    , testLambda
+    , testPrettyPrintLambda
     , testBruijn
     , testEval
     , testParser
