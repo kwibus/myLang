@@ -78,14 +78,14 @@ pShow = show . go True lowPrec . removeInfo
                                      <+> docArgments precApplication args
     | otherwise = if higherPrec p precApplication
         then parens (go True lowPrec t)
-        else myConcat docFunction $ docArgments precApplication arguments
+        else nest 2 $ docFunction </> docArgments precApplication arguments
     where (function : arguments ) = accumulateArgs t
           docFunction = go False lowPrec function
           docArg topLeft' p' arg = parensIf ( isNotFullAplliedInfix arg ) $ go topLeft' p' arg
           docArgments lastPrecedence args =
             let lastArg = docArg topLeft lastPrecedence (last args)
                 initArgs = map (docArg False lastPrecedence) (init args)
-            in sep ( initArgs ++ [lastArg])
+            in fillSep ( initArgs ++ [lastArg])
 
 decrement :: (Precedence , Associativity) -> (Precedence , Associativity)
 decrement (p, AssoLeft ) = (p, AssoRight)
@@ -102,7 +102,7 @@ myConcat :: Doc -> Doc -> Doc
 myConcat d1 d2
   | show d1 == "" = d2
   | show d2 == "" = d1
-  | otherwise = d1 </> d2
+  | otherwise = d1 <+> d2
 
 isNotFullAplliedInfix :: LamTerm i Name -> Bool
 isNotFullAplliedInfix (Appl _ t1 _) = isInfix t1
