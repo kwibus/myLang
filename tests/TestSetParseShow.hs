@@ -24,6 +24,15 @@ basic =
   , ("(\\a.a) (\\b.b) \\c.c", appl (appl (L.id "a") (L.id "b")) (L.id "c"))
 
   ]
+letSet :: [(String, LamTerm () Name)]
+letSet =
+  [ ("let a = a" ++
+   "\nin a", mkLet [("a", var "a")] (var "a"))
+  , ("let b = 1.0" ++
+   "\n    a = b" ++
+   "\nin a", mkLet [("b", double 1.0), ("a", var "b")] (var "a"))
+  ]
+
 math :: [(String, LamTerm () Name)]
 math =
   [ ( "+", val plus)

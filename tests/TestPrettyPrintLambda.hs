@@ -17,13 +17,16 @@ import TestSetParseShow
 -- Todo consider rename TestExpresion  or TestPrintExpresion
 
 testPrettyPrintLambda :: TestTree
-testPrettyPrintLambda = testGroup "pShow" [testPShowBasic, testPShowMath, testPShowAdvanced,testNoRedundantParens]
+testPrettyPrintLambda = testGroup "pShow" [testPShowBasic,testPShowLet, testPShowMath, testPShowAdvanced,testNoRedundantParens]
 
 testPShowMath :: TestTree
 testPShowMath = testGroup "Math" $ map testPShowExample math
 
 testPShowBasic :: TestTree
 testPShowBasic = testGroup "Basix" $ map testPShowExample basic
+
+testPShowLet :: TestTree
+testPShowLet = testGroup "Let" $ map testPShowExample letSet
 
 testPShowAdvanced :: TestTree
 testPShowAdvanced = testGroup "Advanced" $ map testPShowExample advanced
