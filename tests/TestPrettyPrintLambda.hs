@@ -1,10 +1,8 @@
 module TestPrettyPrintLambda (testPrettyPrintLambda) where
 
-import Debug.Trace
 import Test.Tasty
 import Test.Tasty.HUnit
 import Test.Tasty.QuickCheck
-import Data.Either
 import Control.Arrow
 
 import ArbitraryLambda
@@ -49,9 +47,9 @@ removeOneParensPair = map deleteParens . findStarts
     findStarts str = let (pre, post) = break (== '(') str
       in case post of
           [] -> []
-          post -> (pre, post) : map (first ((pre ++ "(") ++)) (findStarts (tail post))
+          newpost -> (pre, post) : map (first ((pre ++ "(") ++)) (findStarts (tail newpost))
     deleteParens :: (String, String) -> String
-    deleteParens (pre, []) = []
+    deleteParens (_, []) = []
     deleteParens (pre, '(' : post) = pre ++ scan 0 [] post
     deleteParens _ = error "this should never happen"
     scan :: Int -> String -> String -> String
