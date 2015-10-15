@@ -40,7 +40,6 @@ import Info
 -- >>> pShow $Lambda ()(Name "#") (Appl () (Appl () (Val () plus)(Var ()(Name "#")))(Val () (MyDouble 1)))
 -- "+ 1.0"
 
--- TODO ad Show trick or pretty print library
 pShow :: LamTerm i Name -> String
 pShow = show . go True lowPrec . removeInfo
  where

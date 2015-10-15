@@ -14,7 +14,7 @@ import TypeCheck
 
 data GenState n = State
   { freeNames :: [String]
-  , dictionary :: BruiEnv (String, Free)
+  , dictionary :: BruijnEnv (String, Free)
   } deriving Show
 
 -- TODO rename defualtgenstate
@@ -55,8 +55,7 @@ getMax = do
     (_, i) <- get
     return i
 
--- TODO Size capital S
-typesizeBigger :: Int -> Type -> Generater Bool
-typesizeBigger i t = do
+typeSizeBigger :: Int -> Type -> Generater Bool
+typeSizeBigger i t = do
     env <- getEnv
-    return $ i < size ( apply t env )
+    return $ i < typeSize ( apply t env )

@@ -22,3 +22,9 @@ welFormdType = go
     where go (TAppl t1 t2) = go t1 && go t2
           go (TVar (Free i) ) = i >= 0
           go (TVal {}) = True
+
+size :: LamTerm a i -> Int
+size (Lambda _ _ e ) = size e + 1
+size (Appl _ e1 e2) = size e1 + size e2
+size Val {} = 1
+size Var {} = 1

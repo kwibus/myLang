@@ -10,7 +10,6 @@ import ArbitraryLambda
 
 import FreeEnvironment
 import BruijnTerm
-import Lambda
 import qualified Type as T
 import TypeCheck
 
@@ -49,10 +48,3 @@ testGeneration = testGroup "genration"
                     _ -> False
                 )
    ]
-
---T. TODO move to different file
-size :: LamTerm a i -> Int
-size (Lambda _ _ e ) = size e + 1
-size (Appl _ e1 e2) = size e1 + size e2
-size Val {} = 1
-size Var {} = 1

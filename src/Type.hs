@@ -53,10 +53,10 @@ typeVars = nub . getTvars
         getTvars (TAppl i j) = getTvars i ++ getTvars j
         getTvars (TVal {}) = []
 
-size :: TypeA i -> Int
-size (TVal {}) = 1
-size (TVar {}) = 1
-size (TAppl t1 t2) = size t1 + size t2
+typeSize :: TypeA i -> Int
+typeSize (TVal {}) = 1
+typeSize (TVar {}) = 1
+typeSize (TAppl t1 t2) = typeSize t1 + typeSize t2
 
 mapVar :: (i -> j) -> TypeA i -> TypeA j
 mapVar f (TAppl t1 t2) = TAppl (mapVar f t1) (mapVar f t2)

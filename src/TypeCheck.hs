@@ -42,7 +42,7 @@ newFreeVar = do
     put (i + 1)
     return $ Free i
 
-solveWith :: BruijnTerm i -> FreeEnv Type -> BruiEnv Free -> Infer i (Type, FreeEnv Type)
+solveWith :: BruijnTerm i -> FreeEnv Type -> BruijnEnv Free -> Infer i (Type, FreeEnv Type)
 solveWith (Lambda _ _ e2) env dic = do
     k <- newFreeVar
     let dic1 = bInsert k dic

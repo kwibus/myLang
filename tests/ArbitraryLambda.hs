@@ -100,8 +100,8 @@ arbitraryTerm n mabeytype maxlist s
   | otherwise = do
       b <- case mabeytype of
         Just t -> do
-          b1 <- typesizeBigger 7 t
-          b2 <- or <$> mapM (typesizeBigger 7 ) maxlist
+          b1 <- typeSizeBigger 7 t
+          b2 <- or <$> mapM (typeSizeBigger 7 ) maxlist
           return $! b1 || b2
         Nothing -> return False
       if b

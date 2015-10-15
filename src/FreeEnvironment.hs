@@ -2,9 +2,6 @@ module FreeEnvironment where
 
 import qualified Data.IntMap as IM
 
---TODO split op free env and bound env
-
-
 -- | Free is also a wrapper arround Int but is used when BruijnIndex can`t be used
 -- it uses a absolute inex
 -- and bacause Bound And Free are implemented with newtype you can't execdentalyy mix them
@@ -17,15 +14,13 @@ fEmtyEnv = IM.empty
 
 fFromList :: [(a, Free)] -> FreeEnv a
 fFromList list = IM.fromList $ map convert list
-    where convert (a, Free i) = (i, a)
+  where convert (a, Free i) = (i, a)
 
---  TODO inconsistend name
 finsertAt :: a -> Free -> FreeEnv a -> FreeEnv a
 finsertAt a (Free i) = IM.insert i a
 
 fLookup :: Free -> FreeEnv a -> a
-fLookup (Free i) m =
-    m IM.! i
+fLookup (Free i) m = m IM.! i
 
 fMember :: Free -> FreeEnv a -> Bool
 fMember (Free i) = IM.member i

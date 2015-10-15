@@ -38,11 +38,11 @@ nameFromState s = do
 
 updateStateName :: GenState n -> Bool -> String -> Free -> GenState n
 updateStateName state@State {dictionary = dic} newVar name free = state {dictionary = newDic}
-    where newDic :: BruiEnv (String, Free)
+    where newDic :: BruijnEnv (String, Free)
           newDic = bInsert (name, free) (if newVar
             then removeVar name dic
             else dic)
 
 -- TODO decouple bruijnMap
-removeVar :: String -> BruiEnv (String, b) -> BruiEnv (String, b)
+removeVar :: String -> BruijnEnv (String, b) -> BruijnEnv (String, b)
 removeVar varname env = env {bruijnMap = fst $ IM.partition (\ var -> fst var == varname) (bruijnMap env)}
