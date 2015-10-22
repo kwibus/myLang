@@ -75,3 +75,10 @@ getAt :: [a] -> Int -> Maybe a
 getAt [] _ = Nothing
 getAt (x : _) 0 = Just x
 getAt (_ : xs) n = getAt xs (n - 1)
+
+-- -- env is not applied to it self
+-- applyterm :: BruijnEnv (BruijnTerm i) -> BruijnTerm i -> BruijnTerm i
+-- applyterm env (Appl i t1 t2) = Appl i (applyterm env t1) (applyterm env t2)
+-- applyterm env (Lambda i n t) = Lambda i n (applyterm env t)
+-- applyterm env (Var _ n) = bLookup n env
+-- applyterm _ t = t

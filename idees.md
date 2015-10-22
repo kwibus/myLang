@@ -1,4 +1,40 @@
+# recursive call by value
 
+## problem:
+recursive defenition can go wrong.
+```haskell
+let x = x
+```
+but it can be useful for infinti large types
+
+```haskell
+let x = 1 : x -- 1,1,1,1,1,1..
+```
+this is save, how to allow this?
+
+## solution:
+
+define 4 types of defenitions types: undefinend, notYetDefined, moreDefined, defined
+with the following rules:
+
+ * you may only read defined values.
+with reading i meen pattern matching (if there is more then one pattern) and build in functions that read (+,-,=..)
+ * with every  expresion with a undefined  value is undefined
+you can releax this when value is not used. but we try to disallow undefined values completely
+ * if a type typeconstucturor is applied to a not yet defined value x the result is moreDefinedthen x value 
+( pointer is always defined )
+ * in "let x = e1 in e2" x is defined if e2 is defined or moreDefined then x
+ * every vallue starts notYetDefined
+
+## exampel
+
+```haskell
+let x = 1:x
+
+x           -- notYetDefined
+1:x         -- is moreDefined then x
+let x = 1:x -- is Defined so x is defined
+```
 # newtype
 
 alias:
@@ -10,7 +46,7 @@ newtype:
 data:
  : same as in Haskell, make a new data type, data type with one term have the same representation as newtype and alias
    (data Any = Any Bool
-    Any undefined === erro because stric semanticks  ) 
+    Any undefined === erro because stric semanticks )
 # polymorfisme
     explicit forrall -> dynamic?
     remove polymorfisme to concrete type  (monomorfic)?
@@ -507,49 +543,47 @@ All this implicit code makes it harder to understand what is happing in the back
 # type error messages
 
 to many args
- get all args 
+ get all args
 
 infinity typ
 \a.a a
-get location of bothe 
+get location of bothe
 outer is in first application
-inner can be storred 
-
-
+inner can be storred
+```
  \a.a a
 ---------------------------------------------------
-can`t construct infinity type for a in 
-    \a.|a| |a| 
+can`t construct infinity type for a in
+    \a.|a| |a|
 Typeof (a) :=:  Typeof(a) -> b / a ~ a -> b
 ---------------------------------------------------
 
 type mismatch
-    mismatch function defenition and use 
+    mismatch function defenition and use
 
-    let f = (+) in f True 
+    let f = (+) in f True
     ---------------------------------------------------
     f is applied to the wrong kind of variable
     at pos
-        let f = (+) in f True 
+        let f = (+) in f True
         f :: Double -> Double -> Double
         True  :: Bool
     ---------------------------------------------------
 
     ---------------------------------------------------
 1:1: TypeError
-    (\a.\b. a+b) expects a Double as it's 2 argument
-    but it's  (\a.a) :: a->a
-    in "(\a.\b. a+b) 1.0 (\a.a)"
+    (\\a.\\b. a+b) expects a Double as it's 2 argument
+    but it's  (\\a.a) :: a->a
+    in "(\\a.\\b. a+b) 1.0 (\\a.a)"
       (\a.\b. a+b) ::Double -> Double -> Double
                       #1        #2       #result
-       #1 1.0    :: Double 
-       #2 (\a.a) :: a -> a b 
+       #1 1.0    :: Double
+       #2 (\\a.a) :: a -> a b
 
     ---------------------------------------------------
 
 
 
     mismatch in use's ( \a. (a 1 , a True ))
-
-push enter pull appley 
-
+```
+push enter pull appley

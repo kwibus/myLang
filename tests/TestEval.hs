@@ -12,7 +12,7 @@ import qualified ExampleBruijn as B
 import TestUtils
 import ArbitraryLambda
 
-import Eval (apply, eval, fullEval)
+import Eval (applyValue, eval, fullEval)
 import FreeEnvironment
 import MakeTerm
 import Operator
@@ -83,10 +83,10 @@ testEvalBuildin = testGroup "Buildin"
     [ testCase "+1" $
         eval (lambda "#" (appl (appl (val plus) (bvar 0)) (double 1.0))) @?= Nothing
     , testCase "1+" $
-        eval (appl (val plus) (double 1.0)) @?= return (val (Eval.apply plus (MyDouble 1.0)))
+        eval (appl (val plus) (double 1.0)) @?= return (val (Eval.applyValue  plus (MyDouble 1.0)))
     , testCase "1+2" $
         eval (appl (appl (val plus) ( double 1.0)) (double 2.0)) @?=
-         return (appl (val (Eval.apply plus (MyDouble 1.0))) (double 2.0) )
+         return (appl (val (Eval.applyValue plus (MyDouble 1.0))) (double 2.0) )
     , testCase "1+2*3" $
         fullEval (appl (appl (val plus)
                              (appl (appl (val multiply )
