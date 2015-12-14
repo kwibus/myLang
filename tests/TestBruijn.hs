@@ -23,6 +23,15 @@ testBruijn = testGroup "bruijn index"
       lam2Bruijn L.s @?= return B.s
   , testCase "test S combinator from bruijn S=\\\\1" $
       bruijn2Lam B.s @?= return L.s
+  , testCase "lam2Bruijn \\a .\\ a.a " $
+      lam2Bruijn (lambda "a" (lambda "a" (var "a")))
+      @?= return ( lambda "a" (lambda "a" (bvar 0)))
+  , testCase "lam2Bruijn \\a.let a = b;b=1 in a " $
+      lam2Bruijn (lambda "a" (mkLet [("a", var "b"), ("b", double 1)] (var "a")))
+        @?= return (lambda "a" (mkLet [("a", bvar 0), ("b", double 1.0)] (bvar 1)))
+  , testCase "bruijn2Lam \\let a = 0 ;b=1 in 1 " $
+      bruijn2Lam (lambda "a" (mkLet [("a", bvar 0), ("b", double 1.0)] (bvar 1)))
+        @?= return (lambda "a" (mkLet [("a0", var "b"), ("b", double 1)] (var "a0")))
   , testCase "lam2Bruijn a " $
       lam2Bruijn (var "a") @?= Left (UndefinedVar () (Name "a"))
   , testCase "bruijn2Lam 0 " $
