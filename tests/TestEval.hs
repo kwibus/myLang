@@ -12,7 +12,7 @@ import qualified ExampleBruijn as B
 import TestUtils
 import ArbitraryLambda
 
-import Eval (applyValue, eval, fullEval)
+import Eval
 import FreeEnvironment
 import MakeTerm
 import Operator
@@ -80,19 +80,31 @@ eitht2bool (Left _ ) = property False
 
 testEvalBuildin :: TestTree
 testEvalBuildin = testGroup "Buildin"
-    [ testCase "+1" $
-        eval (lambda "#" (appl (appl (val plus) (bvar 0)) (double 1.0))) @?= Nothing
-    , testCase "1+" $
-        eval (appl (val plus) (double 1.0)) @?= return (val (Eval.applyValue  plus (MyDouble 1.0)))
-    , testCase "1+2" $
-        eval (appl (appl (val plus) ( double 1.0)) (double 2.0)) @?=
-         return (appl (val (Eval.applyValue plus (MyDouble 1.0))) (double 2.0) )
-    , testCase "1+2*3" $
-        fullEval (appl (appl (val plus)
-                             (appl (appl (val multiply )
-                                         (double 2.0))
-                                         (double 3.0))
-                             )
-                             (double 1.0))
-        @?= double 7.0
-    ]
+  [ testCase "+1" $
+      eval (lambda "#" (appl (appl (val plus) (bvar 0)) (double 1.0))) @?= Nothing
+  , testCase "1+" $
+      eval (appl (val plus) (double 1.0)) @?= return (val (Eval.applyValue  plus (MyDouble 1.0)))
+  , testCase "1+2" $
+      eval (appl (appl (val plus) ( double 1.0)) (double 2.0)) @?=
+       return (appl (val (Eval.applyValue plus (MyDouble 1.0))) (double 2.0) )
+  , testCase "1+2*3" $
+      fullEval (appl (appl (val plus)
+                           (appl (appl (val multiply )
+                                       (double 2.0))
+                                       (double 3.0))
+                           )
+                           (double 1.0))
+      @?= double 7.0
+
+  , testCase "fullEval1 let a = 1.0 in 0 " $
+      fullEval (mkLet [("a",double 1.0) ] (bvar 0))
+      @?= double 1.0
+
+  , testCase "fullEval2 let a = 0 ;b=1.0 in 1 " $
+      fullEval (mkLet [("a", bvar 0), ("b", double 1.0)] (bvar 1))
+      @?= double 1.0
+
+  , testCase "fullEval3 let a = (let b = 1.0 in 0) ;in 0 " $
+      fullEval (mkLet [("a", mkLet  [("b",double 1.0)] (bvar 0))] (bvar 0))
+      @?= double 1.0
+  ]

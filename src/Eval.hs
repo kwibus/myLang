@@ -1,8 +1,15 @@
-module Eval (eval, fullEval, applyValue)
+module Eval (
+  eval
+  , fullEval
+  , applyValue
+  , evalWithEnv)
 where
 
 import Control.Monad.State.Strict
-import Control.Arrow
+import Data.DList
+import Data.Maybe
+import Data.Bifunctor
+import Data.List (foldl')
 
 import Lambda
 import BruijnTerm
@@ -13,22 +20,56 @@ import Type
 -- TODO write Test  for correct order
 -- |eval term in accordance with call by value.
 -- If a term can't be further be evaluated it will return 'Nothing'
-eval :: BruijnTerm i -> Maybe (BruijnTerm i)
-eval = fmap snd . evalWithEnv bEmtyEnv
+eval :: Show i => BruijnTerm i -> Maybe (BruijnTerm i)
+eval = fmap fst . listToMaybe . toList . evalWithEnv bEmtyEnv
 
-evalWithEnv :: BruijnEnv (BruijnTerm i) -> BruijnTerm i -> Maybe (BruijnEnv (BruijnTerm i), BruijnTerm i)
-evalWithEnv env (Appl i t1 t2)
-    | isvalue t2 = case t1 of -- only reduce t1 if t2 is full reduced
-        (Lambda _ _ t11) -> Just (env, substitute t2 (Bound 0) t11) -- reduce outer to inner redex
-        (Val i1 v1) -> Just (env, Val i1 $ applyValue v1 $ value t2)
-        (t11@Appl {}) -> (\ (_, t) -> (env, Appl i t t2 )) <$> evalWithEnv env t11
-        _ -> Nothing
-    | otherwise = second (Appl i t1) <$> evalWithEnv env t2
-evalWithEnv _ _ = Nothing
+evalWithEnv :: Show i => BruijnEnv (BruijnTerm i) -> BruijnTerm i ->
+  DList (BruijnTerm i, BruijnEnv (BruijnTerm i))
+evalWithEnv env (Appl i func args) = (firstFullExpr `append` nextFullExpr ) `append` final
+  where
+    evalFunc = evalWithEnv env func
+    firstFullExpr = first (\ t -> Appl i t args) <$> evalFunc
+    valueFunc = saveLast ( fst <$> toList evalFunc ) func
 
-value :: BruijnTerm i -> Value
+    evalArgs = evalWithEnv env args
+    nextFullExpr = first (Appl i valueFunc) <$> evalArgs
+    valueArgs = saveLast (fst <$> toList evalArgs) args
+
+    final = case valueFunc of
+      (Lambda _ _ t1) ->
+            let step = substitute valueArgs (Bound 0) t1 -- reduce outer to inner redex
+            in cons (step, env) $ evalWithEnv env step
+      (Val i1 v1) -> return (Val i1 $ applyValue v1 $ value valueArgs, env)
+      _ -> empty
+
+evalWithEnv env (Let i defs term) = snoc firstSteps (saveLast (toList evals) (term, env))
+  where
+    firstSteps = fmap (\ (newTerm, newEnv) -> (Let i (updateDefs newEnv) newTerm, newEnv)) evals
+    resetDepth newEnv = newEnv -- newEnv {bruijnDepth = bruijnDepth env}
+    updateDefs newEnv = zipWith
+      (\ (Def info n _) index -> Def info n ( bLookup index (resetDepth newEnv) ))
+      defs
+      (Bound <$> [length defs - 1 .. 0])
+    evals = evalWithEnv (foldl' (\ envN (Def _ _ tn ) -> bInsert tn envN ) env defs ) term
+
+evalWithEnv env (Var i b) =
+  if isvalue valueOfB
+  then singleton (valueOfB, env)
+  else let evaluntilValue = evalWithEnv env valueOfB
+           resetResult = fmap $ first $ const (Var i b)
+           lastStep = (\ (result, newEnv) -> (result, bReplace b result newEnv )) $
+                      last $ toList evaluntilValue
+      in snoc (resetResult evaluntilValue) lastStep
+  where valueOfB = bLookup b env
+evalWithEnv _ _ = empty
+
+saveLast :: [a] -> a -> a
+saveLast [] a = a
+saveLast xs _ = last xs
+
+value :: Show i => BruijnTerm i -> Value
 value (Val _ v ) = v
-value _ = error "type error value, is not a value"
+value t = error $ show t ++ " is not a value"
 
 -- | applys a build in function to one argument
 --  It crashes if first argument is not a function (It only export to include int test)
@@ -53,12 +94,7 @@ isvalue Var {} = False --TODO check
 isvalue Val {} = True
 isvalue Appl {} = False
 isvalue Lambda {} = True
+isvalue Let {} = False
 
-
--- | fully evaluate a term in accordance with call by value.
-fullEval :: BruijnTerm i -> BruijnTerm i
-fullEval = go bEmtyEnv
- where
-   go env t = case evalWithEnv env t of
-    Nothing -> t
-    Just r -> uncurry go r
+fullEval :: Show i => BruijnTerm i -> BruijnTerm i
+fullEval t = saveLast (fst <$> toList ( evalWithEnv bEmtyEnv t )) t

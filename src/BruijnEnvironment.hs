@@ -1,6 +1,7 @@
 module BruijnEnvironment where
 
 import qualified Data.IntMap as IM
+import Control.Exception.Base
 
 -- | Bound is wrapper arround Int and is used to represent BruijnIndex.
 -- BruijnIndex rever to a env, but are dependent on the surrounding terms.
@@ -42,3 +43,8 @@ bInsert a b@BruijnState {bruijnDepth = depth, bruijnMap = m} =
 
 bToList :: BruijnEnv a -> [(Int, a)]
 bToList BruijnState {bruijnMap = m} = IM.toList m
+
+bReplace :: Bound -> a -> BruijnEnv a -> BruijnEnv a
+bReplace (Bound i) a b@BruijnState {bruijnDepth = depth, bruijnMap = map}  = assert (bMember (Bound i) b)
+ b{bruijnMap = IM.insert (depth -i - 1) a map}
+

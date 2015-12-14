@@ -6,8 +6,8 @@ type Precedence = Int
 
 -- TODO make datatype for (Precedence,Associativity) and hide implementation
 -- TODO at support for non Associativity
-data Associativity =
-    AssoRight -- ^ Right Associative.
+data Associativity
+  = AssoRight -- ^ Right Associative.
   | AssoLeft  -- ^ Left Associative.
   deriving Eq
 -- | Compare Precedence and returns true if the first argument bind tighter.
@@ -29,4 +29,3 @@ highPrec = (100, AssoLeft)
 -- Is Right Associative.
 lowPrec :: (Precedence, Associativity)
 lowPrec = (0, AssoRight)
-

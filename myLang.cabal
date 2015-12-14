@@ -53,6 +53,7 @@ library
                       ,ansi-wl-pprint
                       ,either
                       ,either-unwrap
+                      ,dlist
 
   hs-source-dirs:      src/
   exposed-modules:     Lambda
@@ -95,6 +96,7 @@ test-suite tests
                       ,either
                       ,either-unwrap
                       ,deepseq
+                      ,dlist
   Ghc-Options:          -Wall -threaded -with-rtsopts=-N
   default-language:    Haskell2010
 
