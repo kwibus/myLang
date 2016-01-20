@@ -6,3 +6,6 @@ cabal.sandbox.config
 .hpc
 coverages
 unused
+notes
+definities
+documentation
