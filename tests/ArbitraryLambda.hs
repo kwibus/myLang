@@ -45,9 +45,9 @@ shrinkTerm untyped elimanate = fastShrink True
           shrinkT b (Appl _ t1 t2) = whenTrue b [t1, t2] ++
                 [Appl () t1' t2 | t1' <- fastShrink untyped t1 ] ++
                 [Appl () t1 t2' | t2' <- fastShrink untyped t2 ]
-          shrinkT b (Lambda _ (Name n) t) =
-                    whenTrue b (maybeToList (elimanate (Name n) t))
-                 ++ (lambda n <$> fastShrink untyped t)
+          shrinkT b (Lambda _ name t) =
+                    whenTrue b (maybeToList (elimanate name t))
+                 ++ (lambda (toString name) <$> fastShrink untyped t)
           shrinkT _ (Val _ v) = val <$> shrinkValue v
           shrinkT _ _ = []
 
@@ -67,14 +67,14 @@ elimanateBruijn _ = go 0
     go i (Appl _ t1 t2) = Appl () <$> go i t1 <*> go i t2
 
 elimanateLambda :: Name -> LamTerm () Name -> Maybe ( LamTerm () Name )
-elimanateLambda (Name name) = go
+elimanateLambda name = go
   where
-    go t@(Var () (Name n ))
+    go t@(Var () n)
       | n == name = Nothing
       | otherwise = Just t
     go v@Val {} = Just v
     go t1@(Lambda _ n t2)
-      | n == Name name = Just t1
+      | n == name = Just t1
       | otherwise = Lambda () n <$> go t2
     go (Appl _ t1 t2) = Appl () <$> go t1 <*> go t2
 
@@ -111,7 +111,7 @@ arbitraryTerm n mabeytype maxlist s
                    , arbitraryLambda n mabeytype maxlist s
                    ] ) $ error $ show mabeytype ++ "\n" ++ show n
 
--- TODO fix also genarate var #
+-- TODO fix also genarate var Empty
 arbitraryVar :: ArbiRef n => Maybe Type -> GenState n -> Generater (LamTerm () n)
 arbitraryVar t s = do
   (n, f) <- refFromState s

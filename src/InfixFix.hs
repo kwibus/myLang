@@ -2,11 +2,12 @@ module InfixFix
   ( fixInfix
   , InfixError (MultipleInfix)
   ) where
+
 import Lambda
 import Info
 import Name
 import Associativity
---
+
 -- | Possible errors that fixity can generate.
 data InfixError = MultipleInfix Expresion Expresion
                 -- ^ detect two infix terms next to each other
@@ -22,8 +23,8 @@ fixInfix :: [(Expresion, Bool)] -- ^ List of terms in the order the appear.
 fixInfix expresions = case expresions of
     -- infix that are only applied from the left are replaced with:
     -- (+1..) == \a.(a+1..)
-    ((e, True) : _ :_) ->  fmap (Lambda (getLocation e) (Name "#")) $ -- double _ because it has to be applied from left
-            inserMissingLastVar ((Var (getLocation e) (Name "#"),False): expresions)
+    ((e, True) : _ :_) ->  fmap (Lambda (getLocation e) DummyBegin) $ -- double _ because it has to be applied from left
+            inserMissingLastVar ((Var (getLocation e) DummyBegin,False): expresions)
     _ -> inserMissingLastVar expresions
     where list2Appl:: [Expresion] -> Expresion
           list2Appl = foldl1 (\ e1 e2 -> Appl (mergLoc e1 e2) e1 e2 )
@@ -32,15 +33,15 @@ fixInfix expresions = case expresions of
           inserMissingLastVar ::  [(Expresion, Bool)] -> Either InfixError Expresion
           inserMissingLastVar stream =  case last stream of
                    (_, False) -> toPolishNotation stream
-                   (lastE,True) -> fixEndingHiddenVariable <$> toPolishNotation  (stream++[(Var (getLocation lastE) (Name "##" ),False)])
+                   (lastE,True) -> fixEndingHiddenVariable <$> toPolishNotation  (stream++[(Var (getLocation lastE) DummyEnd ,False)])
           toPolishNotation :: [(Expresion, Bool)] -> Either InfixError Expresion
           toPolishNotation stream = list2Appl . reverse  <$> (shuntingYard stream [] [])
           -- append variable can be remove via eta conversion
           -- for eta conversion you normally have to consider if the removed variable is used in the body
           -- but now you don't have to consider that, because its only appended on the end
           fixEndingHiddenVariable :: Expresion -> Expresion
-          fixEndingHiddenVariable (Appl _ e (Var _ (Name "##")))  = e
-          fixEndingHiddenVariable e  = Lambda (getLocation  e) (Name "##") e
+          fixEndingHiddenVariable (Appl _ e (Var _ DummyEnd))  = e
+          fixEndingHiddenVariable e  = Lambda (getLocation  e) DummyEnd e
 
 -- |Modifyd ShuntingYard is a algoritme to convert infix to revers polish notation
 shuntingYard ::

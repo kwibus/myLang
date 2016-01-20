@@ -107,4 +107,4 @@ test-suite doctests
                        ,doctest-discover
                        ,doctest
   default-language:    Haskell2010
-  ghc-options:         -threaded
+  ghc-options:         -threaded -Wall

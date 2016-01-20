@@ -8,7 +8,7 @@ type Stack = [Value]
 -- TODO make every type a build in
 data Value = MyDouble !Double
     | BuildIn { prettyName :: String
-              , name :: String
+              , vName :: String
               , arrity :: Int
               , fixity :: Fixity
               , myType :: Type
@@ -31,12 +31,12 @@ pShowVal BuildIn {prettyName = n} = n
 
 instance Show Value where
     show (MyDouble a) = "(MyDouble ( " ++ show a ++ "))"
-    show BuildIn {name = n, stack = s } = n ++
+    show BuildIn {vName = n, stack = s } = n ++
         if null s
         then ""
         else show s
 
 instance Eq Value where
     (==) (MyDouble a) (MyDouble b) = abs (a - b) < 0.0001
-    (==) BuildIn {name = n1 } BuildIn {name = n2 } = n1 == n2
-    (==) _ _ = False
+    (==) BuildIn {vName = n1 } BuildIn {vName = n2 } = n1 == n2
+    (==)_ _ = False

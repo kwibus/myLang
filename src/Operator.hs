@@ -17,7 +17,7 @@ operators = [plus, multiply]
 plus :: Value
 plus = BuildIn
     { prettyName = "+"
-    , name = "plus"
+    , vName = "plus"
     , arrity = 2
     , fixity = Infix 2 AssoLeft
     , myType = TAppl (TVal TDouble) (TAppl (TVal TDouble ) (TVal TDouble))
@@ -34,7 +34,7 @@ evalplus = do
 multiply :: Value
 multiply = BuildIn
     { prettyName = "*"
-    , name = "multiply"
+    , vName = "multiply"
     , arrity = 2
     , fixity = Infix 3 AssoLeft
     , myType = TAppl (TVal TDouble) (TAppl (TVal TDouble ) (TVal TDouble))

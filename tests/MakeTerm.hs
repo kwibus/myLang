@@ -10,7 +10,7 @@ val :: Value -> LamTerm () n
 val = Val ()
 
 var :: String -> LamTerm () Name
-var = Var () . Name
+var = Var () . fromString
 
 double :: Double -> LamTerm () n
 double = Val () . MyDouble
@@ -19,7 +19,7 @@ bvar :: Int -> BruijnTerm ()
 bvar = Var () . Bound
 
 lambda :: String -> LamTerm () n -> LamTerm () n
-lambda = Lambda () . Name
+lambda = Lambda () . fromString
 
 appl :: LamTerm () n -> LamTerm () n -> LamTerm () n
 appl = Appl ()

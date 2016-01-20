@@ -31,13 +31,15 @@ import Info
 -- >>>pShow $ Lambda () (Name "b") (Lambda () (Name "a")(Var ()(Name "a")))
 -- "\\b a.a"
 --
--- 'pShow' ignores # to support infix terms that arre only apply from the left
---
--- >>> pShow $ Var () (Name "#")
+-- 'pShow' ignores DummyBegin to support infix terms that arre only apply from the left
+-- 'pShow' ignores DummyEnd to support infix terms that arre only apply from the Right
+-- >>> pShow $ Var () DummyBegin
 -- ""
--- >>> pShow $Lambda ()(Name "#")(Var () (Name"a")   )
+--
+-- >>> pShow $Lambda ()(DummyBegin)(Var () (Name"a")   )
 -- "a"
--- >>> pShow $Lambda ()(Name "#") (Appl () (Appl () (Val () plus)(Var ()(Name "#")))(Val () (MyDouble 1)))
+--
+-- >>> pShow $Lambda ()(DummyBegin) (Appl () (Appl () (Val () plus)(Var ()DummyBegin))(Val () (MyDouble 1)))
 -- "+ 1.0"
 
 pShow :: LamTerm i Name -> String
@@ -48,29 +50,23 @@ pShow = show . go True lowPrec . removeInfo
       -> (Precedence, Associativity) -- ^ precedence of previous Infix  (if there is no infix then its lowPrec)
       -> LamTerm () Name             -- ^ term that should be printed
       -> Doc                         -- ^ result
-  go _ _ (Var _ (Name "#")) = empty  -- ignore #
-  go _ _ (Var _ (Name "##")) = empty  -- ignore #
-
-  go _ _ (Var _ (Name n)) = text n
+  go _ _ (Var _ name ) = text $ prettyPrint name -- ignore Empty
 
   go _ _ (Val _ v) = text $ pShowVal v
 
-  go _ _ (Lambda _ (Name "##") t) = go False lowPrec t  -- ignore ##
-  go topLeft _ (Lambda _ (Name "#") t) =parensIf (not topLeft)$ go True lowPrec t  -- ignore #
-
-  go topLeft _ (Lambda _ (Name n) t) =
-    let (vars, nextTerm) = accumulateVars t
-    in parensIf (not topLeft) $
-      backslash <>
-      text ( unwords (filter (\e ->head e /= '#') (n : vars))) <>
-      dot <>
-      go True lowPrec nextTerm
+  go topLeft _ e@Lambda {} =
+    let (vars, nextTerm) = accumulateVars e
+        lambda = if null vars then text ""
+                 else backslash <>
+                    text ( unwords ( fmap toString vars)) <>
+                    dot
+    in parensIf (not topLeft) $lambda <> go True lowPrec nextTerm
 
   go topLeft p (Let _ defs term) = text "let" <+>
                                    align (vcat $ map showDefs defs) <$$>
                                    text "in" <+>
                                    go topLeft p term
-    where showDefs (Def _ (Name n) t) = text (n ++ " = ") <> go True lowPrec t <> text ";"
+    where showDefs (Def _ n t) = text (toString n ++ " = ") <> go True lowPrec t <> text ";"
 
   go topLeft p t@Appl {}
     | isInfix function = case arguments of
@@ -120,10 +116,10 @@ isNotFullAplliedInfix :: LamTerm i Name -> Bool
 isNotFullAplliedInfix (Appl _ t1 _) = isInfix t1
 isNotFullAplliedInfix t = isInfix t
 
-accumulateVars :: LamTerm i Name -> ([String], LamTerm i Name)
+accumulateVars :: LamTerm i Name -> ([Name], LamTerm i Name)
 accumulateVars = go []
- where go ns (Lambda _ (Name n) t ) = go (n : ns) t
-       go ns t = (reverse ns, t)
+ where go names (Lambda _ name t ) = go (name : names) t
+       go names t = (reverse $ filter (\e-> e/=DummyBegin && e/= DummyEnd) names, t)
 
 accumulateArgs :: LamTerm i n -> [LamTerm i n]
 accumulateArgs = go []

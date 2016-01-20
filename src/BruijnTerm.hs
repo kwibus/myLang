@@ -4,16 +4,16 @@ module BruijnTerm
   , bruijn2Lam
   , lam2Bruijn
   ) where
+
 import Control.Monad.Except
 import qualified Data.Map as M
 import Data.Char
 import Data.List (foldl')
+
 import Name
 import BruijnEnvironment
 import Lambda
 
--- TODO update comment let bruijn index
---
 -- | 'Lambda' term where The Bruijn Index are used.
 --
 -- The name of variables is here only stored in the lambda's.
@@ -37,24 +37,26 @@ data UndefinedVar i n = UndefinedVar i n -- ^ i is extra information (location o
 -- It ad's numbers to names that otherwise would shadowed previous defined variables, so:
 --
 -- "\\\\1" becomes: "\\a.\\a1.a"  not: "\a.\a.a"
--- TODO used names list is inefficient maybe Map Name int
+-- TODO used names list is inefficient maybe Map Name int??
 bruijn2Lam :: BruijnTerm i -> Either (UndefinedVar i Bound) (LamTerm i Name)
 bruijn2Lam t = go t []
-  where newName name env = head $ dropWhile (`elem` env)
-            (map (\ i -> Name (name ++ i)) ("" : map show [(0 :: Int) ..] ))
-            -- first name in [name,name1,name2,..] that is not allready used
+    where
+        -- first name in [name,name1,name2,..] that is not allready used
+        mkNewName name env = head $ dropWhile (`elem` env)
+                (map (\ i -> fromString (toString name ++ i)) ("" : map show [(0 :: Int) ..] ))
         go :: BruijnTerm i -> [Name] -> Either (UndefinedVar i Bound) (LamTerm i Name)
         go (Var info n) env = case getAt env (toInt n ) of
             Nothing -> throwError $ UndefinedVar info n
             Just name -> return $ Var info name
         go (Val i v) _ = return $ Val i v
         go (Appl i e1 e2 ) env = Appl i <$> go e1 env <*> go e2 env
-        go (Lambda info (Name n) e1) env =
-            let name = newName n env
-            in Lambda info name <$> go e1 (name : env)
+        go (Lambda info name e1) env =
+            let newName = mkNewName name env
+            in Lambda info newName <$> go e1 (newName : env)
         go (Let i defs t1) env = Let i <$> newDefs <*> go t1 newEnv
           where
-            defNewNames = map (\ (Def i0 (Name n) t0) -> Def i0 (newName n env) t0) defs
+
+            defNewNames = map (\ (Def i0 name t0) -> Def i0 (mkNewName name env) t0) defs
             newDefs = mapM (\ (Def i0 n t0) -> Def i0 n <$> go t0 newEnv ) defNewNames
             newEnv :: [Name]
             newEnv = foldl' (\ env' (Def _ n _) -> n : env' ) env defNewNames
@@ -70,15 +72,15 @@ bruijn2Lam t = go t []
 
 lam2Bruijn :: LamTerm i Name -> Either (UndefinedVar i Name ) (BruijnTerm i)
 lam2Bruijn t = go t 0 M.empty
-  where removeIndex n = Name $ takeWhile (not . isDigit) n
+  where removeIndex n = fromString $ takeWhile (not . isDigit) n
         go :: LamTerm i Name -> Int -> M.Map Name Int -> Either (UndefinedVar i Name ) (BruijnTerm i)
         go (Var i n) depth env = case M.lookup n env of
         -- (depth - deptDefined ) is how many lamba's  back variable is defiend. -1 so first index is 0
             Just deptDefined -> return $ Var i $ Bound (depth - deptDefined - 1)
             Nothing -> throwError $ UndefinedVar i n
         go (Val i v) _ _ = return $ Val i v
-        go (Lambda i (Name n) t1) depth env =
-                 Lambda i (removeIndex n) <$> go t1 (depth + 1) (M.insert (Name n) depth env)
+        go (Lambda i name t1) depth env =
+                 Lambda i (removeIndex (toString name)) <$> go t1 (depth + 1) (M.insert name depth env)
         go (Appl i t1 t2) depth env = Appl i <$> go t1 depth env <*> go t2 depth env
         go (Let i defs t1) depth env = Let i <$> newDefs <*> go t1 newDepth newEnv
           where
@@ -92,12 +94,3 @@ getAt :: [a] -> Int -> Maybe a
 getAt [] _ = Nothing
 getAt (x : _) 0 = Just x
 getAt (_ : xs) n = getAt xs (n - 1)
-
-
---TODO remov
--- -- env is not applied to it self
--- applyterm :: BruijnEnv (BruijnTerm i) -> BruijnTerm i -> BruijnTerm i
--- applyterm env (Appl i t1 t2) = Appl i (applyterm env t1) (applyterm env t2)
--- applyterm env (Lambda i n t) = Lambda i n (applyterm env t)
--- applyterm env (Var _ n) = bLookup n env
--- applyterm _ t = t
