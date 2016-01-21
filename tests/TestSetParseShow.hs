@@ -26,10 +26,10 @@ basic =
   ]
 letSet :: [(String, LamTerm () Name)]
 letSet =
-  [ ("let a = a" ++
+  [ ("let a = a;" ++
    "\nin a", mkLet [("a", var "a")] (var "a"))
-  , ("let b = 1.0" ++
-   "\n    a = b" ++
+  , ("let b = 1.0;" ++
+   "\n    a = b;" ++
    "\nin a", mkLet [("b", double 1.0), ("a", var "b")] (var "a"))
   ]
 

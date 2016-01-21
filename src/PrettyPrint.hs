@@ -66,7 +66,7 @@ pShow = show . go True lowPrec . removeInfo
                                    align (vcat $ map showDefs defs) <$$>
                                    text "in" <+>
                                    go topLeft p term
-    where showDefs (Def _ (Name n) t) = text (n ++ " = ") <> go True lowPrec t
+    where showDefs (Def _ (Name n) t) = text (n ++ " = ") <> go True lowPrec t <> text ";"
 
   go topLeft p t@(Appl {} )
     | isInfix function = case arguments of
