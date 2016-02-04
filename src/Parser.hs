@@ -44,6 +44,9 @@ pLambdaTerm' = choice parsers
 pLambdaTerm :: Parser Expresion
 pLambdaTerm = pApplication
 
+
+dumy = line <|> line  
+
 pVar :: Parser Expresion
 pVar = do
     pos <- getPosition
@@ -53,7 +56,6 @@ pVar = do
 
 pLine :: Parser Expresion
 pLine = do
-    spaces
     term <- pLambdaTerm
     eof
     return term

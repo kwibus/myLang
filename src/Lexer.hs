@@ -5,13 +5,14 @@ import Text.ParserCombinators.Parsec.Number
 
 import ParserType
 import Text.Parsec
+import Data.Char
 
 identifier :: Parser String
 identifier = do
   -- spaces
   first <- lower
   rest <- many alphaNum
-  spaces
+  whiteSpaces
   return $ first : rest
 
 symbol :: Char -> Parser ()
@@ -22,5 +23,23 @@ symbol c = do
 double :: Parser Double
 double = do
     f <- parsec2parser $ sign <*> floating
-    spaces
+    whiteSpaces
     return f
+
+whiteSpace :: Parser Char
+whiteSpace = satisfy (\ c -> isSpace c && ( c /= '\n' ))
+
+whiteSpaces :: Parser ()
+whiteSpaces = skipMany whiteSpace
+
+indent :: Parser ()
+indent = do
+  newline <> whiteSpaces
+  pos <- getPosition
+  preIndet <- getState
+  if head preIndet > sourceColumn pos
+  then putState ( sourceColumn pos : preIndet)
+  else unexpected "exptexted indentation"
+
+newline :: Parser ()
+newline = void $ char '\n'

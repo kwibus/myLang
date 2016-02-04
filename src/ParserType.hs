@@ -5,7 +5,7 @@ import qualified Text.Parsec as PS
 import InfixFix
 import Control.Monad.Identity
 
-type Parser a = PS.ParsecT String () (Either InfixError) a
+type Parser a = PS.ParsecT String [Int] (Either InfixError) a
 
 data ParseError = Infix InfixError
                 | Parsec PS.ParseError
@@ -18,6 +18,6 @@ parsec2parser p = PS.mkPT $ \ s -> return $ repack $ runIdentity $ PS.runParsecT
             PS.Empty a -> PS.Empty $ return (runIdentity a)
 
 parse :: Parser a -> String -> String -> Either ParseError a
-parse parser file sting = case PS.runParserT parser () file sting of
+parse parser file sting = case PS.runParserT parser [0] file sting of
     Right a -> mapLeft Parsec a
     Left e -> Left $ Infix e
