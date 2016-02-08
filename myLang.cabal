@@ -58,7 +58,6 @@ library
   hs-source-dirs:      src/
   exposed-modules:     Lambda
                       ,Parser
-                      ,ParserType
                       ,Lexer
                       ,Value
                       ,BruijnTerm

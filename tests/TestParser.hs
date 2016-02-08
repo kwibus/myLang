@@ -8,7 +8,6 @@ import ArbitraryLambda
 import TestSetParseShow
 import MakeTerm
 
-import ParserType
 import Name
 import Lambda
 import Operator
