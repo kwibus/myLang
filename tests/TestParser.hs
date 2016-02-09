@@ -20,6 +20,8 @@ testParser = testGroup "parser"
     [ testParserBasic
     , testParserMath
     , testParserAdvanced
+    , testParserLet
+    , testParserLetEdge
     , testParserFail
     , testParseAlternatives
     , testParserProperties
@@ -43,7 +45,7 @@ testParserProperties :: TestTree
 testParserProperties = testGroup "properties"
     [ testProperty "parse all untype lambda pShow " $
         forAllUnTypedLambda (\ t -> case parseString (pShow t) of
-                                        Left (Parsec {}) -> False
+                                        Left Parsec {} -> False
                                         _ -> True
                                     )
     , testProperty "pShow parse = id " $
@@ -55,8 +57,8 @@ testParserProperties = testGroup "properties"
                              "\n\tpshow parsed: " ++ show (fmap pShow parsed)) $
             case parsed of
                 Right t -> t == term
-                Left (Infix {}) -> True
-                Left (Parsec {}) -> False
+                Left Infix {} -> True -- TODO Check , add Lexer
+                Left Parsec {} -> False
    ]
 
 testSet :: String -> [(String, LamTerm () Name)] -> TestTree
@@ -71,11 +73,21 @@ testParserMath = testSet "Math" math
 testParserAdvanced :: TestTree
 testParserAdvanced = testSet "Advanced" advanced
 
+testParserLet :: TestTree
+testParserLet = testSet "let" letSet
+
+testParserLetEdge :: TestTree
+testParserLetEdge = testGroup "let Edge case"
+  [ testCaseParser "let leta = 1.0; in leta " (mkLet [("leta", double 1.0)] (var "leta"))
+  , testCaseParser "let a = 1.0 in a" (mkLet [("a", double 1.0)] (var "a"))
+  ]
+
 testCaseParser :: String -> LamTerm () Name -> TestTree
 testCaseParser string expect = testCase string $
     let result = fmap removeInfo (parseString string)
         expectM = return expect
-    in assertBool ("expected: " ++ show expect ++
+    in assertBool ("try to Parse:\n" ++ string ++
+                 "\nexpected: " ++ show expect ++
                  "\nbut got : " ++ show result ++
                "\n\npshow expected: " ++ show (fmap pShow expectM) ++
                  "\npshow but got : " ++ show (fmap pShow result ))

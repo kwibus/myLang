@@ -19,6 +19,7 @@ import Lexer
 import Operator
 import Info
 import Name
+-- TODO Remove p__
 
 type Parser a = ParsecT [TokenPos] () (Either InfixError) a
 data ParseError = Infix InfixError
@@ -40,6 +41,9 @@ pSatisfy f = getToken <$> tokenPrim showChar nextPos testChar
 
 pSymbol :: ReservedSymbol -> Parser ()
 pSymbol s = void $ pSatisfy (== ReservedS s)
+
+pKeyWord :: ReservedWord -> Parser ()
+pKeyWord w = void $ pSatisfy (== ReservedW w)
 
 pIdentifier :: Parser String
 pIdentifier = do
@@ -81,8 +85,9 @@ pValue = do
 
 pLambdaTerm' :: Parser (Expresion, Bool)
 pLambdaTerm' = choice parsers
-    where parsers = pOperator : fmap (fmap (\ p -> (p, False))) [pLambda, pVar, pParentheses, pValue]
+    where parsers = pOperator : fmap (fmap (\ p -> (p, False))) [pLet, pLambda, pVar, pParentheses, pValue]
 
+-- TODO renoame Expresion
 pLambdaTerm :: Parser Expresion
 pLambdaTerm = pApplication
 
@@ -92,6 +97,26 @@ pVar = do
     n <- pIdentifier
     loc <- pLoc pos
     return $ Var loc (Name n)
+
+pLet :: Parser Expresion
+pLet = do
+  pos <- getPosition
+  defs <- between
+           (pKeyWord Lexer.Let)
+           (pKeyWord In)
+           (sepEndBy1 pDefinition (pSymbol Semicolon ))
+  loc <- pLoc pos
+  exp <- pLambdaTerm
+  return $ Lambda.Let loc defs exp
+
+pDefinition :: Parser (Def Loc Name)
+pDefinition = do
+  pos <- getPosition
+  name <- pIdentifier
+  pSymbol Equal
+  exp <- pLambdaTerm
+  loc <- pLoc pos
+  return $ Def loc (Name name) exp
 
 pLine :: Parser Expresion
 pLine = do
@@ -106,6 +131,8 @@ pOperator = do
     loc <- pLoc pos
     return (Val loc o, True)
 
+
+-- TODO make a LOcation parser with :: Parser a -> Parser Loc
 pLoc :: SourcePos -> Parser Loc
 pLoc start = do
     end <- getPosition
