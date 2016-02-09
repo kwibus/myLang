@@ -24,7 +24,7 @@ instance Monad BackList where
 instance MonadPlus BackList where
     mzero = Steps 1
     mplus (Steps i ) (Steps j ) = Steps $! max i j
-    mplus (Steps {}) b = b
+    mplus Steps {} b = b
     mplus (List l ) b = List $ l ++ toList b
 
 instance Alternative BackList where
@@ -43,7 +43,7 @@ tryM list = case msum list of
    Steps i -> Steps $! i + 1
 
 toList :: BackList a -> [a]
-toList (Steps {}) = []
+toList Steps {} = []
 toList (List l) = l
 
 backsteps :: BackList a -> Int

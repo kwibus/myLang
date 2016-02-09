@@ -14,10 +14,14 @@ import Lambda
 import Name
 import TestSetParseShow
 
--- Todo consider rename TestExpresion  or TestPrintExpresion
-
 testPrettyPrintLambda :: TestTree
-testPrettyPrintLambda = testGroup "pShow" [testPShowBasic,testPShowLet, testPShowMath, testPShowAdvanced,testNoRedundantParens]
+testPrettyPrintLambda = testGroup "pShow"
+  [ testPShowBasic
+  , testPShowLet
+  , testPShowMath
+  , testPShowAdvanced
+  , testNoRedundantParens
+  ]
 
 testPShowMath :: TestTree
 testPShowMath = testGroup "Math" $ map testPShowExample math

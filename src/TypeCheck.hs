@@ -81,7 +81,7 @@ unifyEnv env1 env2 = IM.foldWithKey f (Right env1) env2
             Just typ2 -> mapLeft (: err ) $ unify typ1 typ2 env1
 
 unify :: Type -> Type -> FreeEnv Type -> Either (UnificationError i) (FreeEnv Type) -- retunr type
-unify (TVar n) (t) env = bind n t env
+unify (TVar n) t env = bind n t env
 unify t (TVar n) env = bind n t env
 -- unify (Lambda _ t1 ) t2 env = unify t1 t2 env  -- for full F
 -- unify t2 (Lambda _ t1 ) env = unify t1 t2 env

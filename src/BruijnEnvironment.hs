@@ -45,6 +45,6 @@ bToList :: BruijnEnv a -> [(Int, a)]
 bToList BruijnState {bruijnMap = m} = IM.toList m
 
 bReplace :: Bound -> a -> BruijnEnv a -> BruijnEnv a
-bReplace (Bound i) a b@BruijnState {bruijnDepth = depth, bruijnMap = map}  = assert (bMember (Bound i) b)
- b{bruijnMap = IM.insert (depth -i - 1) a map}
-
+bReplace (Bound i) a b@BruijnState {bruijnDepth = depth, bruijnMap = m} =
+  assert (bMember (Bound i) b)
+  b {bruijnMap = IM.insert (depth - i - 1) a m}

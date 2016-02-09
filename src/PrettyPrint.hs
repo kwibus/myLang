@@ -43,7 +43,7 @@ import Info
 pShow :: LamTerm i Name -> String
 pShow = show . go True lowPrec . removeInfo
  where
-  go :: Bool                         -- ^ indicate if prented term is top leftmost of a expresion 
+  go :: Bool                         -- ^ indicate if prented term is top leftmost of a expresion
                                      -- ^ to indicate of Lambda Terms  Should be enclosed in parenthese
       -> (Precedence, Associativity) -- ^ precedence of previous Infix  (if there is no infix then its lowPrec)
       -> LamTerm () Name             -- ^ term that should be printed
@@ -68,7 +68,7 @@ pShow = show . go True lowPrec . removeInfo
                                    go topLeft p term
     where showDefs (Def _ (Name n) t) = text (n ++ " = ") <> go True lowPrec t <> text ";"
 
-  go topLeft p t@(Appl {} )
+  go topLeft p t@Appl {}
     | isInfix function = case arguments of
         [] -> docFunction
         [arg] -> myConcat (docArg False (decrement (getPrec function)) arg) docFunction

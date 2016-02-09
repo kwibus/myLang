@@ -95,10 +95,10 @@ guardSucces' = do
   guard (x == 10)
 
 stopMzero :: TestTree
-stopMzero= testCase "stop ad mzero" ( backsteps (do
+stopMzero = testCase "stop ad mzero" ( backsteps (do
   i <- try []
   tryM [try [i], mzero]) @?= 1)
 
 twoBacksteps :: TestTree
-twoBacksteps = testCase "2 backsteps " ( backsteps (do
+twoBacksteps = testCase "2 backsteps " ( backsteps (
   tryM [try [], mzero]) @?= 2)

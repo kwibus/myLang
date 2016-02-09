@@ -14,14 +14,14 @@ welFormd t0 = go t0 0
     where go (Lambda _ _ t) dept = go t (dept + 1)
           go (Appl _ t1 t2) dept = go t1 dept && go t2 dept
           go (Var _ (Bound i) ) dept = i < dept && i >= 0
-          go (Val {}) _ = True
+          go Val {} _ = True
 
 -- TODO uneeded check
 welFormdType :: Type -> Bool
 welFormdType = go
     where go (TAppl t1 t2) = go t1 && go t2
           go (TVar (Free i) ) = i >= 0
-          go (TVal {}) = True
+          go TVal {} = True
 
 size :: LamTerm a i -> Int
 size (Lambda _ _ e ) = size e + 1

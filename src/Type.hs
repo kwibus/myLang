@@ -51,11 +51,11 @@ typeVars :: Eq i => TypeA i -> [i]
 typeVars = nub . getTvars
   where getTvars (TVar i) = [i]
         getTvars (TAppl i j) = getTvars i ++ getTvars j
-        getTvars (TVal {}) = []
+        getTvars TVal {} = []
 
 typeSize :: TypeA i -> Int
-typeSize (TVal {}) = 1
-typeSize (TVar {}) = 1
+typeSize TVal {} = 1
+typeSize TVar {} = 1
 typeSize (TAppl t1 t2) = typeSize t1 + typeSize t2
 
 mapVar :: (i -> j) -> TypeA i -> TypeA j

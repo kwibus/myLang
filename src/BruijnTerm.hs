@@ -4,7 +4,6 @@ module BruijnTerm
   , bruijn2Lam
   , lam2Bruijn
   ) where
-import Debug.Trace
 import Control.Monad.Except
 import qualified Data.Map as M
 import Data.Char
@@ -53,7 +52,7 @@ bruijn2Lam t = go t []
         go (Lambda info (Name n) e1) env =
             let name = newName n env
             in Lambda info name <$> go e1 (name : env)
-        go (Let i defs t1) env = trace (show newEnv ) $ Let i <$> newDefs <*> go t1 newEnv
+        go (Let i defs t1) env = Let i <$> newDefs <*> go t1 newEnv
           where
             defNewNames = map (\ (Def i0 (Name n) t0) -> Def i0 (newName n env) t0) defs
             newDefs = mapM (\ (Def i0 n t0) -> Def i0 n <$> go t0 newEnv ) defNewNames

@@ -36,7 +36,7 @@ instance Show TokenPos where
   show = show . getToken
 
 instance Show Token where
-  show (Identifier str) = "<" ++ str ++ ">"
+  show (Identifier str) = show str -- show to enclose in "" to diferentiate with reservedWords
   show (Number n ) = show n
   show (ReservedS s) = "'" ++ (toChar s : "'")
   show (ReservedW w) = show w
@@ -54,6 +54,11 @@ toChar Semicolon = ';'
 toChar LeftParenthesis = '('
 toChar RightParenthesis = ')'
 
+toString :: ReservedWord -> String
+toString w = case show w of
+        (x : xs) -> toLower x : xs
+        [] -> error "incorrect instance show ReservedWord"
+
 data ReservedWord = Let | In deriving (Show, Bounded, Enum, Eq)
 
 reservedWords :: [ReservedWord]
@@ -69,11 +74,12 @@ tokens :: Lexer [TokenPos]
 tokens = spaces *> many (token <* spaces)
 
 token :: Lexer TokenPos
-token = parsePos $ choice [
-        msum (map symbol reservedSymbols),
-        msum (map keyWord reservedWords) ,
-        identifier ,
-        double]
+token = parsePos $ choice
+     [ msum (map symbol reservedSymbols)
+     , msum (map keyWord reservedWords)
+     , identifier
+     , double
+     ]
 
 identifier :: Lexer Token
 identifier = do
@@ -86,8 +92,6 @@ symbol s = char (toChar s) >> return ( ReservedS s)
 
 keyWord :: ReservedWord -> Lexer Token
 keyWord w = try $ string (toString w) >> notFollowedBy alphaNum >> return (ReservedW w)
- where toString w = case show w of
-        (x : xs) -> toLower x : xs
 
 double :: Lexer Token
 double = do

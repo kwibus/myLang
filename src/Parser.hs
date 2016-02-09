@@ -27,16 +27,21 @@ data ParseError = Infix InfixError
                 | Lexer PS.ParseError
                 deriving (Show, Eq)
 
+parseString :: String -> Either ParseError Expresion
+parseString str = case lexer str of
+      Right tokenStream -> parse pLine "" tokenStream
+      Left e -> Left $ Lexer e
+
 parse :: Parser a -> String -> [TokenPos] -> Either ParseError a
 parse parser file sting = case runParserT parser () file sting of
     Right a -> mapLeft Parsec a
     Left e -> Left $ Infix e
 
 pSatisfy :: (Token -> Bool) -> Parser Token
-pSatisfy f = getToken <$> tokenPrim showChar nextPos testChar
+pSatisfy f = getToken <$> tokenPrim showToken nextPos testToken
    where
-     showChar = show . getToken
-     testChar x = if f (getToken x) then Just x else Nothing
+     showToken = show . getToken
+     testToken x = if f (getToken x) then Just x else Nothing
      nextPos _ x _ = getposition x
 
 pSymbol :: ReservedSymbol -> Parser ()
@@ -63,7 +68,7 @@ pLambda :: Parser Expresion
 pLambda = do
     pos <- getPosition
     pSymbol BackSlash
-    ns <- many pIdentifier -- Todo 1) fix location 2) give warning Shadowin variable names (\a a b.t)
+    ns <- many pIdentifier -- TODO 1) fix location 2) give warning Shadowin variable names (\a a b.t)
     pSymbol Dot
     term <- pLambdaTerm
     loc <- pLoc pos
@@ -106,17 +111,17 @@ pLet = do
            (pKeyWord In)
            (sepEndBy1 pDefinition (pSymbol Semicolon ))
   loc <- pLoc pos
-  exp <- pLambdaTerm
-  return $ Lambda.Let loc defs exp
+  term <- pLambdaTerm
+  return $ Lambda.Let loc defs term
 
 pDefinition :: Parser (Def Loc Name)
 pDefinition = do
   pos <- getPosition
-  name <- pIdentifier
+  str <- pIdentifier
   pSymbol Equal
-  exp <- pLambdaTerm
+  term <- pLambdaTerm
   loc <- pLoc pos
-  return $ Def loc (Name name) exp
+  return $ Def loc (Name str) term
 
 pLine :: Parser Expresion
 pLine = do
@@ -157,8 +162,3 @@ pParentheses = do
     pSymbol RightParenthesis
     loc <- pLoc pos
     return $ setInfo loc term
-
-parseString :: String -> Either ParseError Expresion
-parseString str = case lexer str of
-      Right tokenStream -> parse pLine "" tokenStream
-      Left e -> Left $ Lexer e

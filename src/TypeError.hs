@@ -18,7 +18,7 @@ data TypeError i =
     deriving Show
 
 data UnificationError i =
-    Infinit ( Free) Type (FreeEnv Type)
+    Infinit Free Type (FreeEnv Type)
   | Unify Type Type (FreeEnv Type)
   | VarVar
     deriving Show
@@ -31,8 +31,8 @@ instance Eq (TypeError i) where
   (==) _ _ = False
 
 instance Eq (UnificationError i) where
-   (Infinit {}) == (Infinit {}) = True
-   (Unify {}) == (Unify {} ) = True
+   Infinit {} == Infinit {} = True
+   Unify {} == Unify {} = True
    VarVar == VarVar = True
    (==) _ _ = False
 
@@ -42,7 +42,7 @@ showError str (UnifyAp expr t1 t2 err ) = text (showLoc (getLocation expr)) <+> 
 showError _ _ = text "No error messages implemented"
 
 showUnifyApError :: String -> BruijnTerm Loc -> Type -> Type -> UnificationError Loc -> Doc
-showUnifyApError str (Appl i e1 e2) t1 t2 (Unify {}) =
+showUnifyApError str (Appl i e1 e2) t1 t2 Unify {} =
     let compleetDictonarie = mkDictonarie [t1, t2]
         localShow t = text $ pShowWithDic t compleetDictonarie
     in getWord (getLocation e1) str <+> text "is applied to wrong kind of argumts" <$>

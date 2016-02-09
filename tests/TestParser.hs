@@ -45,9 +45,9 @@ testParserProperties :: TestTree
 testParserProperties = testGroup "properties"
     [ testProperty "parse all untype lambda pShow " $
         forAllUnTypedLambda (\ t -> case parseString (pShow t) of
-                                        Left Parsec {} -> False
+                                        Left _ -> False
                                         _ -> True
-                                    )
+                            )
     , testProperty "pShow parse = id " $
         forAllUnTypedLambda $ \ term ->
             let string = pShow term
@@ -57,8 +57,8 @@ testParserProperties = testGroup "properties"
                              "\n\tpshow parsed: " ++ show (fmap pShow parsed)) $
             case parsed of
                 Right t -> t == term
-                Left Infix {} -> True -- TODO Check , add Lexer
-                Left Parsec {} -> False
+                -- Left Infix {} -> True -- TODO Check , add Lexer
+                Left _ -> False
    ]
 
 testSet :: String -> [(String, LamTerm () Name)] -> TestTree
