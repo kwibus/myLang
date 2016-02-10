@@ -1,8 +1,8 @@
 module Associativity where
 
-data Fixity = Prefix | Infix Precedence Associativity
+data Fixity = Prefix
+            | Infix Precedence Associativity
 type Precedence = Int
-
 
 -- TODO make datatype for (Precedence,Associativity) and hide implementation
 -- TODO at support for non Associativity
@@ -19,7 +19,7 @@ higherPrec (p1, AssoLeft) (p2, _) = p1 >= p2
 higherPrec (p1, AssoRight) (p2, _) = p1 > p2
 
 -- | Highest possible Precedence and Associativity.
---
+-
 -- Is Right Associative.
 highPrec :: (Precedence, Associativity)
 highPrec = (100, AssoLeft)

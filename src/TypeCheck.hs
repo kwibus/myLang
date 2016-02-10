@@ -43,6 +43,17 @@ newFreeVar = do
     return $ Free i
 
 solveWith :: BruijnTerm i -> FreeEnv Type -> BruijnEnv Free -> Infer i (Type, FreeEnv Type)
+solveWith e@(Let _ defs e2) env dic = do
+  newVars <- replicateM (length defs) newFreeVar
+  let newDic = foldl (flip bInsert) dic newVars
+  envs <- mapM (solveDefs newDic ) $ zip newVars defs
+  newEnvs <- toExcept $ mapLeft (UnifyEnv e) $ foldM1 unifyEnv envs
+  solveWith e2 newEnvs newDic
+  where -- solveDefs :: BruijnEnv Free -> Def i Bound -> Infer i (FreeEnv Type)
+        solveDefs newDic (v1, Def _ _ en) = do
+            (t2, env1) <- solveWith en env newDic
+            toExcept $ mapLeft (UnifyAp e (TVar v1) t2) $ unify (TVar v1) t2 env1
+
 solveWith (Lambda _ _ e2) env dic = do
     k <- newFreeVar
     let dic1 = bInsert k dic
@@ -50,7 +61,7 @@ solveWith (Lambda _ _ e2) env dic = do
     return (apply (TAppl (TVar k) t2) env2, env2)
 
 solveWith e@(Appl _ e1 e2) env dic = do
-    (t1, env1) <- solveWith e1 env dic -- preverence left
+    (t1, env1) <- solveWith e1 env dic
     (t2, env2) <- solveWith e2 env dic
     newenv <- toExcept $ mapLeft (UnifyEnv e) $ unifyEnv env1 env2
     var <- newFreeVar
@@ -61,6 +72,7 @@ solveWith e@(Appl _ e1 e2) env dic = do
         Right env4 -> return (apply (TVar var ) env4, env4)
 
 solveWith (Val _ v) env _ = return (getType v, env)
+
 solveWith (Var i n) env dic = if bMember n dic
         then return (apply ( TVar (bLookup n dic)) env, env)
         else throwError $ ICE $ UndefinedVar i n
@@ -70,6 +82,14 @@ toExcept :: Monad m => Either a b -> ExceptT a m b
 toExcept eith = case eith of
     Left e -> throwError e
     Right a -> return a
+
+repeatM :: Monad m => m a -> m [a]
+repeatM = sequence . repeat
+
+foldM1 :: Monad m => (a -> a -> m a) -> [a] -> m a
+foldM1 _ [] = error " foldM1 empty List"
+foldM1 _ [a] = return a
+foldM1 f (x : xs) = foldM f x xs
 
 unifyEnv :: FreeEnv Type -> FreeEnv Type -> Either [UnificationError i] (FreeEnv Type)
 unifyEnv env1 env2 = IM.foldWithKey f (Right env1) env2
