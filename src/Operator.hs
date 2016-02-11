@@ -27,9 +27,9 @@ plus = BuildIn
 
 evalplus :: State Stack Value
 evalplus = do
-    MyDouble a <- pop
-    MyDouble b <- pop
-    return $ MyDouble $ a + b
+    Prim (MyDouble a) <- pop
+    Prim (MyDouble b) <- pop
+    return $ Prim $ MyDouble $ a + b
 
 multiply :: Value
 multiply = BuildIn
@@ -44,6 +44,6 @@ multiply = BuildIn
 
 evalMultiply :: State Stack Value
 evalMultiply = do
-    MyDouble a <- pop
-    MyDouble b <- pop
-    return $ MyDouble $ a * b
+    Prim (MyDouble a) <- pop
+    Prim (MyDouble b) <- pop
+    return $ Prim $ MyDouble $ a * b

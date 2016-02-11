@@ -14,13 +14,13 @@ import Type
 import Lambda
 
 shrinkValue :: Value -> [Value]
-shrinkValue (MyDouble n) = if n == 1.0 then [] else [MyDouble 1.0]
+shrinkValue (Prim (MyDouble n)) = if n == 1.0 then [] else [Prim $ MyDouble 1.0]
 shrinkValue _ = []
 
 arbitraryValue :: ArbiRef n => Maybe Type -> Generater ( LamTerm () n)
-arbitraryValue t = oneOfLogic [ arbitraryMyDouble t
-                               , arbitraryBuildIn t
-                               ]
+arbitraryValue t = oneOfLogic [ arbitraryPrimatives t
+                              , arbitraryBuildIn t
+                              ]
 
 arbitraryBuildIn :: ArbiRef n => Maybe Type -> Generater ( LamTerm () n)
 arbitraryBuildIn t = do
@@ -28,8 +28,14 @@ arbitraryBuildIn t = do
     unifyGen t (getType operator )
     return $ val operator
 
-arbitraryMyDouble :: ArbiRef n => Maybe Type -> Generater (LamTerm () n)
-arbitraryMyDouble t = do
-  unifyGen t (TVal TDouble)
+arbitraryPrimatives :: ArbiRef n => Maybe Type -> Generater (LamTerm () n)
+arbitraryPrimatives t = oneOfLogic $ map ($ t)
+  [ mkArbitraryPrimative MyDouble
+  , mkArbitraryPrimative MyBool
+  ]
+
+mkArbitraryPrimative :: (Arbitrary a ) => (a -> Primative ) -> Maybe Type -> Generater (LamTerm () n)
+mkArbitraryPrimative constructor t = do
+  unifyGen t $ getTypePrimative $ constructor (error "should never be used")
   d <- lift $ lift arbitrary
-  return (val (MyDouble d))
+  return $ val $ Prim $ constructor d
