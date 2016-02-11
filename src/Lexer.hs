@@ -1,11 +1,4 @@
 module Lexer
-  -- (
-  -- lexer,
-  -- Token (..),
-  -- TokenPos (getposition, getToken),
-  -- ReservedSymbol (..),
-  -- ReservedWord (..)
-  -- )
 where
 
 import Text.ParserCombinators.Parsec.Number
@@ -26,6 +19,7 @@ data Token = Identifier String
 data ReservedSymbol = Plus
                     | Multiply
                     | Equal
+                    | Is
                     | BackSlash
                     | Dot
                     | Semicolon
@@ -40,21 +34,22 @@ instance Show Token where
   show (Identifier str) = show str -- show to enclose in "" to diferentiate with reservedWords
   show (CapIdentifier str) = show str
   show (Number n ) = show n
-  show (ReservedS s) = "'" ++ (toChar s : "'")
+  show (ReservedS s) = "'" ++ fromSymbol s ++ "'"
   show (ReservedW w) = show w
 
 reservedSymbols :: [ReservedSymbol]
 reservedSymbols = [minBound .. maxBound]
 
-toChar :: ReservedSymbol -> Char
-toChar Plus = '+'
-toChar Multiply = '*'
-toChar Equal = '='
-toChar BackSlash = '\\'
-toChar Dot = '.'
-toChar Semicolon = ';'
-toChar LeftParenthesis = '('
-toChar RightParenthesis = ')'
+fromSymbol :: ReservedSymbol -> String
+fromSymbol Plus = "+"
+fromSymbol Multiply = "*"
+fromSymbol Equal = "=="
+fromSymbol Is = "="
+fromSymbol BackSlash = "\\"
+fromSymbol Dot = "."
+fromSymbol Semicolon = ";"
+fromSymbol LeftParenthesis = "("
+fromSymbol RightParenthesis = ")"
 
 toString :: ReservedWord -> String
 toString w = case show w of
@@ -98,7 +93,7 @@ identifier = do
   return $ Identifier $ first : rest
 
 symbol :: ReservedSymbol -> Lexer Token
-symbol s = char (toChar s) >> return ( ReservedS s)
+symbol s = try $ string (fromSymbol s) >> return ( ReservedS s)
 
 keyWord :: ReservedWord -> Lexer Token
 keyWord w = try $ string (toString w) >> notFollowedBy alphaNum >> return (ReservedW w)

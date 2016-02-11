@@ -67,6 +67,7 @@ pBool = do
     "True" -> return True
     "False" -> return False
     _ -> parserZero
+
 pDouble :: Parser Double
 pDouble = do
   Number n <- pSatisfy (\ x -> case x of
@@ -129,7 +130,7 @@ pDefinition :: Parser (Def Loc Name)
 pDefinition = do
   pos <- getPosition
   str <- pIdentifier
-  pSymbol Equal
+  pSymbol Is
   term <- pLambdaTerm
   loc <- pLoc pos
   return $ Def loc (Name str) term
@@ -143,7 +144,7 @@ pLine = do
 pOperator :: Parser (Expresion, Bool)
 pOperator = do
     pos <- getPosition
-    o <- choice [pPlus, pMultiply ]
+    o <- choice [pPlus, pMultiply, pEqual ]
     loc <- pLoc pos
     return (Val loc o, True)
 
@@ -164,6 +165,9 @@ pPlus = pSymbol Plus >> return plus
 
 pMultiply :: Parser Value
 pMultiply = pSymbol Multiply >> return multiply
+
+pEqual :: Parser Value
+pEqual = pSymbol Equal >> return equal
 
 pParentheses :: Parser Expresion
 pParentheses = do

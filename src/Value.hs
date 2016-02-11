@@ -6,6 +6,9 @@ import Associativity
 
 type Stack = [Value]
 -- TODO make every type a build in
+-- TODO do whee realy need name and prettyName
+-- TODO stack should not be part of value, make new value type closure ?
+-- TODO arrity can be calcultated
 data Value = Prim Primative
     | BuildIn { prettyName :: String
               , vName :: String
