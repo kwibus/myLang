@@ -71,6 +71,7 @@ library
                       ,InfixFix
                       ,Info
                       ,TypeError
+                      ,ErrorCollector
                       ,Name
                       ,Associativity
   default-language:    Haskell2010

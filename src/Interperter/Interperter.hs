@@ -7,11 +7,12 @@ import Text.PrettyPrint.ANSI.Leijen
 import Control.Monad.IO.Class
 
 import Parser
-import TypeCheck
+import TypeCheck hiding (mapLeft) -- FIXME
 import BruijnTerm
 import Eval
 import Type
 import TypeError
+import ErrorCollector
 
 main :: IO ()
 main = runInputT defaultSettings loop
@@ -29,7 +30,7 @@ readEvalPrint :: String -> InputT IO ()
 readEvalPrint input = outPutDoc $ merge $ do
     ast <- mapLeft (text . show) $ parseString input
     bruijn <- mapLeft (text . show) $ lam2Bruijn ast
-    t <- mapLeft (showError input) $ solver bruijn
+    t <- toEither $ mapError (showErrors input) $ solver bruijn
     return $ text $ pShow t
 
 merge :: Either a a -> a

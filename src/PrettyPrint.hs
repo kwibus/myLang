@@ -116,12 +116,3 @@ isNotFullAplliedInfix :: LamTerm i Name -> Bool
 isNotFullAplliedInfix (Appl _ t1 _) = isInfix t1
 isNotFullAplliedInfix t = isInfix t
 
-accumulateVars :: LamTerm i Name -> ([Name], LamTerm i Name)
-accumulateVars = go []
- where go names (Lambda _ name t ) = go (name : names) t
-       go names t = (reverse $ filter (\e-> e/=DummyBegin && e/= DummyEnd) names, t)
-
-accumulateArgs :: LamTerm i n -> [LamTerm i n]
-accumulateArgs = go []
-  where go accuList (Appl _ t1 t2 ) = go (t2 : accuList) t1
-        go accuList t = t : accuList

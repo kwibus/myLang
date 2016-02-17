@@ -1,10 +1,9 @@
 module TestTypeCheker (testTypeChecker) where
-
-import Data.Either
+import Debug.Trace
 import Test.Tasty
 import Test.Tasty.HUnit
 import Test.Tasty.QuickCheck
-import Control.Monad.Except
+-- import Control.Monad.Except
 import Data.IntMap
 
 import qualified ExampleBruijn as B
@@ -20,6 +19,7 @@ import Operator
 import BruijnEnvironment
 import FreeEnvironment
 import TypeError
+import ErrorCollector
 
 testTypeChecker :: TestTree
 testTypeChecker = testGroup "typeChecker"
@@ -80,11 +80,11 @@ testUnify = testGroup "unify"
     , testProperty "idempotence" $
         \ t1 t2 -> let u = unify t1 t2 fEmtyEnv
                  in case u of
-                    Left _ -> True
-                    Right env -> let u2 = unify t1 t2 env
+                    Error _ -> True
+                    Result env -> let u2 = unify t1 t2 env
                                  in case u2 of
-                                     Left _ -> False
-                                     Right env2 -> env == env2
+                                     Error _ -> False
+                                     Result env2 -> env == env2
     ]
 
 testUnifyEnv :: TestTree
@@ -92,15 +92,15 @@ testUnifyEnv = testGroup " Unify Env "
     [testCase "unifyEnv error" $
         let env1 = fromList [(1, TVal TDouble) ]
             env2 = fromList [(1, TAppl (TVal TDouble) (TVal TDouble))]
-        in isLeft (unifyEnv env1 env2) @?= True
+        in hasSucces (unifyEnv env1 env2) @?= False
 
     , testCase "unifyEnv error sum" $
         let env1 = fromList [ (1, TVal TDouble)
                             , (2, TVal TDouble)]
             env2 = fromList [ (1, TAppl (TVal TDouble) (TVal TDouble))
                             , (2, TAppl (TVal TDouble) (TVal TDouble))]
-        in ( case unifyEnv env1 env2 of
-                Left es -> length es == 2
+        in trace (show $ unifyEnv env1 env2) ( case unifyEnv env1 env2 of
+                Error es -> length es == 2
                 _ -> False
           ) @?= True
 
@@ -168,7 +168,7 @@ testSolver = testGroup "Solver"
                     (bvar 0)
                 ))
         @?=
-        throwError ( UnifyAp undefined undefined undefined (Infinit undefined undefined undefined))
+        throw [ UnifyAp undefined undefined undefined [Infinit undefined undefined undefined]]
 
    , testCase "check (\\a.a (a 1.0))" $
         solver (lambda "a" (appl
@@ -211,11 +211,11 @@ testSolver = testGroup "Solver"
 
     , testCase "fail (+)\\a.a" $
         solver (appl (val plus) B.id ) @?=
-        throwError (UnifyAp undefined undefined undefined (Unify undefined undefined undefined))
+        throw [UnifyAp undefined undefined undefined [Unify undefined undefined undefined]]
 
     , testCase "fail \\a.a a" $
         solver (lambda "a" (appl (bvar 0 ) (bvar 0))) @?=
-        throwError (UnifyAp undefined undefined undefined (Infinit undefined undefined undefined))
+        throw [UnifyAp undefined undefined undefined [Infinit undefined undefined undefined]]
     , testCase " " $
         solver (appl (lambda "x" (appl (lambda "y" (bvar 1))
                                        (appl (lambda "z" (bvar 1))
@@ -229,11 +229,11 @@ testSolver = testGroup "Solver"
 
     , testProperty "idempotence" $
         forAllTypedBruijn $ \ e -> case runInfer $ solveWith e fEmtyEnv bEmtyEnv of
-                Left _ -> False
-                Right (t1, env1) -> case runInfer $ solveWith e env1 bEmtyEnv of
-                    Left _ -> False
-                    Right (t2, _) -> close t1 == close t2 -- && env1 == env2
+                Error _ -> False
+                Result (t1, env1) -> case runInfer $ solveWith e env1 bEmtyEnv of
+                    Error _ -> False
+                    Result (t2, _) -> close t1 == close t2 -- && env1 == env2
 
     , testProperty "typeable" $
-        forAllTypedBruijn $ \ e -> isRight $ solver e
+        forAllTypedBruijn $ \ e -> hasSucces $ solver e
     ]

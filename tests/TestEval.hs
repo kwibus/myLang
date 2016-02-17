@@ -18,6 +18,7 @@ import MakeTerm
 import Operator
 import Value
 import PrettyPrint
+import ErrorCollector
 import qualified Type as T
 
 testEval :: TestTree
@@ -52,7 +53,7 @@ testEvalBasic = testGroup "basic"
       forAllTypedBruijn $ \ e -> let result = eval (e :: BruijnTerm ())
             in isJust result ==>
                 let expr2 = fromJust result
-                in eitht2bool $ do
+                in errorCol2Bool $ do
                     t2 <- solver expr2
                     t1 <- solver e
                     return $ counterexample (
@@ -74,9 +75,9 @@ testEvalBasic = testGroup "basic"
 -- because is generated type's would normally have a big numbers in it; so no overlap
   ]
 
-eitht2bool :: Either e Property -> Property
-eitht2bool (Right p ) = p
-eitht2bool (Left _ ) = property False
+errorCol2Bool :: ErrorCollector e Property -> Property
+errorCol2Bool (Result p ) = p
+errorCol2Bool (Error _ ) = property False
 
 testEvalBuildin :: TestTree
 testEvalBuildin = testGroup "Buildin"

@@ -26,7 +26,7 @@ mkDictonarieWithReserved fixedNames ts = fst $ foldl go (fixedNames, letters ) $
         Just _ -> (dic, freeNames)
         Nothing ->
             let usedNames = map snd $ IM.toList dic
-                name : newFreeNames = dropWhile (\ n -> (elem n usedNames )) freeNames
+                name : newFreeNames = dropWhile (\ n -> elem n usedNames) freeNames
             in (IM.insert i name dic, newFreeNames)
 
 pShow :: Type -> String

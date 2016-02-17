@@ -11,6 +11,7 @@ import FreeEnvironment
 import BruijnEnvironment
 import Type
 import TypeCheck
+import ErrorCollector
 
 data GenState n = State
   { freeNames :: [String]
@@ -35,8 +36,8 @@ unifyGen Nothing _ = return ()
 unifyGen (Just t1) t2 = do
     env <- getEnv
     case unify t1 t2 env of
-        Left {} -> mzero
-        Right env1 -> setEnv env1
+        Error {} -> mzero
+        (Result env1) -> setEnv env1
 
 getEnv :: Generater (FreeEnv Type)
 getEnv = liftM fst get

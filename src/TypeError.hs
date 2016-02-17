@@ -12,7 +12,7 @@ import Info
 import Data.Char
 
 data TypeError i =
-      UnifyAp (BruijnTerm i) Type Type (UnificationError i)
+      UnifyAp (BruijnTerm i) Type Type [UnificationError i]
     | UnifyEnv (BruijnTerm i) [UnificationError i]
     | ICE (UndefinedVar i Bound)
     deriving Show
@@ -36,23 +36,26 @@ instance Eq (UnificationError i) where
    VarVar == VarVar = True
    (==) _ _ = False
 
+showErrors :: String -> [TypeError Loc] -> Doc
+showErrors str = vcat . map (showError str)
+
 showError :: String -> TypeError Loc -> Doc
 showError str (UnifyAp expr t1 t2 err ) = text (showLoc (getLocation expr)) <+> text "TypeError " <$>
         indent 4 ( showUnifyApError str expr t1 t2 err)
 showError _ _ = text "No error messages implemented"
 
-showUnifyApError :: String -> BruijnTerm Loc -> Type -> Type -> UnificationError Loc -> Doc
-showUnifyApError str (Appl i e1 e2) t1 t2 Unify {} =
-    let compleetDictonarie = mkDictonarie [t1, t2]
-        localShow t = text $ pShowWithDic t compleetDictonarie
-    in getWord (getLocation e1) str <+> text "is applied to wrong kind of argumts" <$>
-            text "in" <+> dquotes (getWord i str) <$>
-            indent 2 (
-                getWord (getLocation e1) str <+> text "::" <+> localShow t1 <$>
-                getWord (getLocation e2) str <+> text "::" <+> localShow t2
-            )
+showUnifyApError :: String -> BruijnTerm Loc -> Type -> Type -> [UnificationError Loc] -> Doc
+showUnifyApError str (Appl i e1 e2) t1 t2 _ =
+  let compleetDictonarie = mkDictonarie [t1, t2]
+      localShow t = text $ pShowWithDic t compleetDictonarie
+  in getWord (getLocation e1) str <+> text "is applied to wrong type of argumts" <$>
+      dquotes (getWord i str) <$>
+      indent 2 (
+          getWord (getLocation e1) str <+> text "::" <+> localShow t1 <$>
+          getWord (getLocation e2) str <+> text "::" <+> localShow t2
+      )
 showUnifyApError _ _ _ _ _ = text "No error messages implemented"
---
+
 -- showUnifyApError str expr t1 t2(Infinit f t  env ) = undefined
 -- showError str (UnifyAp Infinit  f  t env) =
     -- "can`t construct infinit Type " -- ++tShow (TVar f) ++ "= "
