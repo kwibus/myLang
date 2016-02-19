@@ -7,7 +7,7 @@ import Text.PrettyPrint.ANSI.Leijen
 import Control.Monad.IO.Class
 
 import Parser
-import TypeCheck hiding (mapLeft) -- FIXME
+import TypeCheck 
 import BruijnTerm
 import Eval
 import Type

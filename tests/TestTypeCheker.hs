@@ -1,5 +1,5 @@
 module TestTypeCheker (testTypeChecker) where
-import Debug.Trace
+
 import Test.Tasty
 import Test.Tasty.HUnit
 import Test.Tasty.QuickCheck
@@ -99,10 +99,10 @@ testUnifyEnv = testGroup " Unify Env "
                             , (2, TVal TDouble)]
             env2 = fromList [ (1, TAppl (TVal TDouble) (TVal TDouble))
                             , (2, TAppl (TVal TDouble) (TVal TDouble))]
-        in trace (show $ unifyEnv env1 env2) ( case unifyEnv env1 env2 of
+        in (case unifyEnv env1 env2 of
                 Error es -> length es == 2
                 _ -> False
-          ) @?= True
+           ) @?= True
 
     , testCase "unifyEnv error" $
         let env1 = fromList [(1, tVar 2) ]

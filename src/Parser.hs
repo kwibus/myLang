@@ -4,7 +4,8 @@ module Parser (
 ) where
 
 
-import Data.Either.Unwrap
+-- import Data.Either.Unwrap
+import Data.Bifunctor
 import Control.Monad.Identity
 import Control.Monad.Trans.Class
 import Text.Parsec.Pos
@@ -34,7 +35,7 @@ parseString str = case lexer str of
 
 parse :: Parser a -> String -> [TokenPos] -> Either ParseError a
 parse parser file sting = case runParserT parser () file sting of
-    Right a -> mapLeft Parsec a
+    Right a -> first Parsec a
     Left e -> Left $ Infix e
 
 pSatisfy :: (Token -> Bool) -> Parser Token

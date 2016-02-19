@@ -1,11 +1,4 @@
 module Lexer
-  -- (
-  -- lexer,
-  -- Token (..),
-  -- TokenPos (getposition, getToken),
-  -- ReservedSymbol (..),
-  -- ReservedWord (..)
-  -- )
 where
 
 import Text.ParserCombinators.Parsec.Number
@@ -57,8 +50,7 @@ toChar RightParenthesis = ')'
 toString :: ReservedWord -> String
 toString w = case show w of
         (x : xs) -> toLower x : xs
-        [] -> error "incorrect resevedw: emptyString"
-            -- thic can never happen with default show
+        [] -> error "incorrect instance show ReservedWord"
 
 data ReservedWord = Let | In deriving (Show, Bounded, Enum, Eq)
 
