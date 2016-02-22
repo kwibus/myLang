@@ -59,36 +59,29 @@ solveWith (Lambda _ _ e2) env dic = do
     (t2, env2) <- solveWith e2 env dic1
     return (apply (TAppl (TVar k) t2) env2, env2)
 
-solveWith e @(Appl _ e1 e2) env dic = do
-    -- let (function : args) = accumulateArgs e
-    -- (t1, env1) <- solveWith function env dic
-    -- (t2, env2) <- map (\ arg -> solveWith args env dic) args
-    -- newenv <- toExcept $ throwT (UnifyEnv e) $ unifyEnv env1 env2
-    (t1, env1) <- solveWith e1 env dic
-    (t2, env2) <- solveWith e2 env dic
-    newenv <- toExcept $ mapError (\ erro -> [UnifyEnv e erro]) $ unifyEnv env1 env2
+solveWith e@Appl{} env dic = do
+    let (function : args) = accumulateArgs e
+    (functionTyp, env1) <- solveWith function env dic
+    (argsTyps, envs) <- unzip <$> (mapM (\ arg -> solveWith arg env dic) args)
+    combinedEnv <-toExcept $ mapError (\erros -> [UnifyEnv e erros]) $ foldM1 unifyEnv (env1:envs)
     var <- newFreeVar
-    let t11 = apply t1 newenv
-    let t12 = apply (TAppl t2 (TVar var)) newenv
-    case unify t11 t12 newenv of
-        Error err -> throwT [UnifyAp e t11 t2 err]
-        Result env4 -> return (apply (TVar var ) env4, env4)
+    let typeArg = foldr1 TAppl (argsTyps ++ [TVar var])
+    newEnv <- toExcept $ mapError (\erro -> [UnifyAp e functionTyp typeArg erro]) $ unify functionTyp typeArg combinedEnv
+    let newTyp = apply (TVar var ) newEnv
+    return (newTyp,newEnv)
 
 solveWith (Val _ v) env _ = return (getType v, env)
 
 solveWith (Var i n) env dic = if bMember n dic
         then return (apply ( TVar (bLookup n dic)) env, env)
-        else throwT [ICE $ UndefinedVar i n]
-
-repeatM :: Monad m => m a -> m [a]
-repeatM = sequence . repeat
+        else throwT [ICE $ UndefinedVar n i]
 
 foldM1 :: Monad m => (a -> a -> m a) -> [a] -> m a
 foldM1 _ [] = error " foldM1 empty List"
 foldM1 _ [a] = return a
 foldM1 f (x : xs) = foldM f x xs
 
-unifyEnv :: FreeEnv Type -> FreeEnv Type -> ErrorCollector [UnificationError i] (FreeEnv Type)
+unifyEnv :: FreeEnv Type -> FreeEnv Type -> ErrorCollector [UnificationError] (FreeEnv Type)
 unifyEnv env1 env2 = IM.foldWithKey f (return env1) env2
     where f key typ1 (Result env) = case IM.lookup key env of
             Nothing -> unify typ1 (TVar (Free key)) env
@@ -98,7 +91,7 @@ unifyEnv env1 env2 = IM.foldWithKey f (return env1) env2
             Just typ2 -> throw err *> unify typ1 typ2 env1
 
 --TODO only changes?
-unify :: Type -> Type -> FreeEnv Type -> ErrorCollector [UnificationError i] (FreeEnv Type) -- retunr type
+unify :: Type -> Type -> FreeEnv Type -> ErrorCollector [UnificationError] (FreeEnv Type) -- retunr type
 unify (TVar n) t env = bind n t env
 unify t (TVar n) env = bind n t env
 -- unify (Lambda _ t1 ) t2 env = unify t1 t2 env  -- for full F
@@ -122,7 +115,7 @@ apply (TAppl t1 t2) env =
   in TAppl t1' t2'
 apply t _ = t
 
-bind ::  Free -> Type -> FreeEnv Type -> ErrorCollector [UnificationError i] (FreeEnv Type )
+bind ::  Free -> Type -> FreeEnv Type -> ErrorCollector [UnificationError] (FreeEnv Type )
 bind n1 t env
     | TVar n1 == t = return env
     | fMember n1 env = unify (fLookup n1 env) t env
