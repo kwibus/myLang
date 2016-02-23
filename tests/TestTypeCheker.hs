@@ -47,44 +47,15 @@ testApply = testGroup "apply"
     ]
 testUnify :: TestTree
 testUnify = testGroup "unify"
-    [ testCase " unifys a b {a-:b}" $
-        let env = finsertAt (tVar 2 ) ( Free 1) fEmtyEnv
-        in unifys (tVar 1) (tVar 2) env @?= True
-
-    , testCase " unifys a b {b-:a}" $
-        let env = finsertAt (tVar 1 ) ( Free 2) fEmtyEnv
-        in unifys (tVar 1) (tVar 2) env @?= True
-
-    , testCase " unifys a (b ->c)  {b-:a}" $
-        let env = finsertAt (tVar 1 ) ( Free 2) fEmtyEnv
-        in unifys (tVar 1) (TAppl (tVar 2) (tVar 3)) env @?= False
-
-    , testCase " unifys a (b ->c)  {a-:b}" $
-        let env = finsertAt (tVar 2 ) ( Free 1) fEmtyEnv
-        in unifys (tVar 1) (TAppl (tVar 2) (tVar 3)) env @?= False
-
-    , testCase " unifys a (a ->b) {a-:c}" $
-        let env = finsertAt (tVar 1 ) ( Free 3) fEmtyEnv
-        in unifys (tVar 1) (TAppl (tVar 1) (tVar 2)) env @?= False
-
-    , testCase " unifys a (a ->b) {a-:c}" $
-        let env = finsertAt (tVar 1 ) ( Free 3) fEmtyEnv
-        in unifys (tVar 1) (TAppl (tVar 1) (tVar 2)) env @?= False
+    [ testCase " unifys a a -> " $
+        unifys (tVar 1) (TAppl (tVar 1) (tVar 2)) @?= False
 
     , testProperty "unify self" $
-        \ t -> unifys t t fEmtyEnv
+        \ t -> unifys t t
 
     , testProperty "symetric " $
-        \ t1 t2 -> unifys t1 t2 fEmtyEnv == unifys t2 t1 fEmtyEnv
+        \ t1 t2 -> unifys t1 t2 == unifys t2 t1
 
-    , testProperty "idempotence" $
-        \ t1 t2 -> let u = unify t1 t2 fEmtyEnv
-                 in case u of
-                    Error _ -> True
-                    Result env -> let u2 = unify t1 t2 env
-                                 in case u2 of
-                                     Error _ -> False
-                                     Result env2 -> env == env2
     ]
 
 testUnifyEnv :: TestTree
@@ -104,10 +75,35 @@ testUnifyEnv = testGroup " Unify Env "
                 _ -> False
            ) @?= True
 
-    , testCase "unifyEnv error" $
+    , testCase "unifyEnv [a/b] [b/a]" $
         let env1 = fromList [(1, tVar 2) ]
             env2 = fromList [(2, tVar 1) ]
         in unifyEnv env1 env2 @?= return env1
+
+    , testCase " unifysEnv [a/(b ->c)]  [b/a] failse" $
+        let env1 = fromList [(1,TAppl (tVar 2) (tVar 3))]
+            env2 = fromList [(2,tVar 1)]
+        in hasSucces (unifyEnv env1 env2 ) @?= False
+
+    , testCase " unifysEnv [a/(b ->c)]  [a/b] fails" $
+        let env1 = fromList [(1,TAppl (tVar 2) (tVar 3))]
+            env2 = fromList [(1,tVar 2)]
+        in hasSucces (unifyEnv env1 env2 ) @?= False
+
+    , testCase " unifysEnv [b/a] [a/(b ->c)] failse" $
+        let env2 = fromList [(1,TAppl (tVar 2) (tVar 3))]
+            env1 = fromList [(2,tVar 1)]
+        in hasSucces (unifyEnv env1 env2 ) @?= False
+
+    , testCase " unifysEnv [a/b] [a/(b ->c)] fails" $
+        let env2 = fromList [(1,TAppl (tVar 2) (tVar 3))]
+            env1 = fromList [(1,tVar 2)]
+        in hasSucces (unifyEnv env1 env2 ) @?= False
+
+    , testCase " unifysEnv [a/b->c] [b/(a ->c)] fails" $
+        let env2 = fromList [(1,TAppl (tVar 2) (tVar 3))]
+            env1 = fromList [(2,TAppl (tVar 1) (tVar 3))]
+        in hasSucces (unifyEnv env1 env2 ) @?= False
     ]
 
 testClose :: TestTree
@@ -168,7 +164,7 @@ testSolver = testGroup "Solver"
                     (bvar 0)
                 ))
         @?=
-        throw [ UnifyAp undefined undefined undefined [Infinit undefined undefined undefined]]
+        throw [ UnifyAp undefined undefined undefined [Infinit undefined undefined ]]
 
    , testCase "check (\\a.a (a 1.0))" $
         solver (lambda "a" (appl
@@ -211,11 +207,11 @@ testSolver = testGroup "Solver"
 
     , testCase "fail (+)\\a.a" $
         solver (appl (val plus) B.id ) @?=
-        throw [UnifyAp undefined undefined undefined [Unify undefined undefined undefined]]
+        throw [UnifyAp undefined undefined undefined [Unify undefined undefined]]
 
     , testCase "fail \\a.a a" $
         solver (lambda "a" (appl (bvar 0 ) (bvar 0))) @?=
-        throw [UnifyAp undefined undefined undefined [Infinit undefined undefined undefined]]
+        throw [UnifyAp undefined undefined undefined [Infinit undefined undefined]]
     , testCase " " $
         solver (appl (lambda "x" (appl (lambda "y" (bvar 1))
                                        (appl (lambda "z" (bvar 1))

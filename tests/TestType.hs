@@ -20,6 +20,6 @@ testType = testGroup "testType"
       @?= "(Double -> Double) -> Double"
 
   , testCase "a -> b" $
-      pShow (TAppl (TVar (Free 1)) (TVar (Free 2)))
+      pShow (TAppl (tVar 1) (tVar 2))
       @?= "a -> b"
   ]

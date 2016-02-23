@@ -18,9 +18,8 @@ data TypeError i =
     deriving Show
 
 data UnificationError =
-    Infinit Free Type (FreeEnv Type)
-  | Unify Type Type (FreeEnv Type)
-  | VarVar
+    Infinit Free Type
+  | Unify Type Type
     deriving Show
 
 -- TODO better EqalitieA / remove and make seperate for unittest
@@ -33,7 +32,6 @@ instance Eq (TypeError i) where
 instance Eq UnificationError where
    Infinit {} == Infinit {} = True
    Unify {} == Unify {} = True
-   VarVar == VarVar = True
    (==) _ _ = False
 
 showErrors :: String -> [TypeError Loc] -> Doc

@@ -51,7 +51,7 @@ solveWith e@(Let _ defs e2) env dic = do
   where -- solveDefs :: BruijnEnv Free -> (Free, Def i Bound ) -> Infer i (FreeEnv Type)
         solveDefs newDic (v1, Def _ _ en) = do
             (t2, env1) <- solveWith en env newDic
-            toExcept $ mapError (\ l -> [UnifyAp e (TVar v1) t2 l ]) $ unify (TVar v1) t2 env1
+            toExcept $ mapError (\ l -> [UnifyAp e (TVar v1) t2 l ]) $ unify (TVar v1) t2
 
 solveWith (Lambda _ _ e2) env dic = do
     k <- newFreeVar
@@ -63,10 +63,12 @@ solveWith e@Appl{} env dic = do
     let (function : args) = accumulateArgs e
     (functionTyp, env1) <- solveWith function env dic
     (argsTyps, envs) <- unzip <$> (mapM (\ arg -> solveWith arg env dic) args)
-    combinedEnv <-toExcept $ mapError (\erros -> [UnifyEnv e erros]) $ foldM1 unifyEnv (env1:envs)
+
     var <- newFreeVar
     let typeArg = foldr1 TAppl (argsTyps ++ [TVar var])
-    newEnv <- toExcept $ mapError (\erro -> [UnifyAp e functionTyp typeArg erro]) $ unify functionTyp typeArg combinedEnv
+    newsup <- toExcept $ mapError (\erro -> [UnifyAp e functionTyp typeArg erro]) $ unify functionTyp typeArg
+    newEnv <- toExcept $ mapError (\erros -> [UnifyEnv e erros]) $ foldM1 unifyEnv (newsup:env:env1:envs)
+    -- newEnv <- toExcept $ mapError (\erro -> [UnifyAp e functionTyp typeArg erro]) $ unifyEnv combinedEnv newsup
     let newTyp = apply (TVar var ) newEnv
     return (newTyp,newEnv)
 
@@ -84,29 +86,28 @@ foldM1 f (x : xs) = foldM f x xs
 unifyEnv :: FreeEnv Type -> FreeEnv Type -> ErrorCollector [UnificationError] (FreeEnv Type)
 unifyEnv env1 env2 = IM.foldWithKey f (return env1) env2
     where f key typ1 (Result env) = case IM.lookup key env of
-            Nothing -> unify typ1 (TVar (Free key)) env
-            Just typ2 -> unify typ1 typ2 env
+            Nothing ->  fmap (IM.union env) $unify (apply typ1 env) (apply (TVar (Free key)) env)
+            Just typ2 -> fmap (IM.union env) $ unify (apply typ1 env ) (apply typ2 env)
           f key typ1 (Error err ) = case IM.lookup key env1 of
             Nothing -> throw err
-            Just typ2 -> throw err *> unify typ1 typ2 env1
+            Just typ2 -> throw err *> unify (apply typ1 env1 ) (apply typ2 env1 )
 
 --TODO only changes?
-unify :: Type -> Type -> FreeEnv Type -> ErrorCollector [UnificationError] (FreeEnv Type) -- retunr type
-unify (TVar n) t env = bind n t env
-unify t (TVar n) env = bind n t env
--- unify (Lambda _ t1 ) t2 env = unify t1 t2 env  -- for full F
--- unify t2 (Lambda _ t1 ) env = unify t1 t2 env
-unify (TAppl t11 t12 ) (TAppl t21 t22) env =
-  do env2 <- unify t11 t21 env
-     unify (apply t12 env2) (apply t22 env2) env2
-unify (TVal v1) (TVal v2) env = if v1 == v2
-    then return env
-    else throw [VarVar]
-unify t1 t2 env = throw [Unify (apply t1 env) (apply t2 env) env]
+unify :: Type -> Type -> ErrorCollector [UnificationError] (FreeEnv Type) -- retunr type
+unify (TVar n) t = fromEither $ bind n t
+unify t (TVar n) = fromEither $ bind n t
+unify (TAppl t11 t12 ) (TAppl t21 t22) =
+  do env1 <- unify t11 t21
+     env2 <- unify t12 t22
+     unifyEnv env1 env2
+unify t1@(TVal v1) t2@(TVal v2) = if v1 == v2
+    then return fEmtyEnv
+    else throw [Unify t1 t2 ]
+unify t1 t2 = throw [Unify t1 t2 ]
 
 apply :: Type -> FreeEnv Type -> Type
 apply (TVar i) env = if fMember i env
-    then assert (not (isIn i (fLookup i env) env)) $
+    then assert (not (isIn i (fLookup i env) )) $
          apply (fLookup i env) env
     else TVar i
 apply (TAppl t1 t2) env =
@@ -115,29 +116,20 @@ apply (TAppl t1 t2) env =
   in TAppl t1' t2'
 apply t _ = t
 
-bind ::  Free -> Type -> FreeEnv Type -> ErrorCollector [UnificationError] (FreeEnv Type )
-bind n1 t env
-    | TVar n1 == t = return env
-    | fMember n1 env = unify (fLookup n1 env) t env
-    | infinit n1 t env = throw [ Infinit n1 t env]
-    | otherwise = case t of
-        TVar n2 -> if fMember n2 env
-                        then unify (TVar n1 ) (fLookup n2 env) env -- TODO check can remove unify and make use of either instead of ErrorCollector
-                        else return $ finsertAt t n1 env
-        _ -> return $ finsertAt t n1 env
+bind ::  Free -> Type ->  Either UnificationError (FreeEnv Type )
+bind n1 t
+    | TVar n1 == t = return fEmtyEnv
+    | infinit n1 t = Left $ Infinit n1 t
+    | otherwise = return $ finsertAt t n1 fEmtyEnv
 
-infinit :: Free -> Type -> FreeEnv Type -> Bool
-infinit var (TAppl t1 t2) env = isIn var t1 env || isIn var t2 env
-infinit _ TVal {} _ = False
-infinit var1 (TVar var2 ) env =
-    fMember var2 env && let var2' = fLookup var2 env
-                        in if var2 == var1 then isIn var1 var2' env
-                                          else infinit var1 var2' env
+infinit :: Free -> Type ->  Bool
+infinit var (TAppl t1 t2) = isIn var t1 || isIn var t2
+infinit _ _ = False
 
-isIn :: Free -> Type -> FreeEnv Type -> Bool
-isIn _ TVal {} _ = False
-isIn var (TAppl t1 t2) env = isIn var t1 env || isIn var t2 env
-isIn var1 (TVar var2 ) env = var1 == var2 || (fMember var2 env && isIn var1 (fLookup var2 env) env)
+isIn :: Free -> Type -> Bool
+isIn _ TVal {} = False
+isIn var (TAppl t1 t2) = isIn var t1 || isIn var t2
+isIn var1 (TVar var2 ) = var1 == var2
 
-unifys :: Type -> Type -> FreeEnv Type -> Bool
-unifys t1 t2 e = hasSucces $ unify t1 t2 e
+unifys :: Type -> Type -> Bool
+unifys t1 t2 = hasSucces $ unify t1 t2

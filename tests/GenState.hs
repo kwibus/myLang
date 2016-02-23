@@ -35,7 +35,7 @@ unifyGen :: Maybe Type -> Type -> Generater ()
 unifyGen Nothing _ = return ()
 unifyGen (Just t1) t2 = do
     env <- getEnv
-    case unify t1 t2 env of
+    case unify (apply t1 env)(apply  t2 env) >>= unifyEnv  env of
         Error {} -> mzero
         (Result env1) -> setEnv env1
 

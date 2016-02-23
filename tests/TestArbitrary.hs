@@ -7,7 +7,6 @@ import Data.Maybe
 import TestUtils
 import ArbitraryLambda
 
-import FreeEnvironment
 import BruijnTerm
 import qualified Type as T
 import TypeCheck
@@ -44,7 +43,7 @@ testGeneration = testGroup "genration"
     , testProperty "corect type" $
          forAll ( genTerm (Just (T.TVal T.TDouble )))
                 (\ e -> isJust e ==> case solver (fromJust (e :: Maybe (BruijnTerm ()))) of
-                    (Result t) -> unifys t (T.TVal T.TDouble ) fEmtyEnv
+                    (Result t) -> unifys t (T.TVal T.TDouble )
                     _ -> False
                 )
    ]
