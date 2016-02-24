@@ -49,16 +49,20 @@ pShow = show . go True lowPrec . removeInfo
       -> LamTerm () Name             -- ^ term that should be printed
       -> Doc                         -- ^ result
   go _ _ (Var _ (Name "#")) = empty  -- ignore #
+  go _ _ (Var _ (Name "##")) = empty  -- ignore #
+
   go _ _ (Var _ (Name n)) = text n
 
   go _ _ (Val _ v) = text $ pShowVal v
 
-  go topLeft _ (Lambda _ (Name "#") t) = go topLeft lowPrec t  -- ignore #
+  go _ _ (Lambda _ (Name "##") t) = go False lowPrec t  -- ignore ##
+  go topLeft _ (Lambda _ (Name "#") t) =parensIf (not topLeft)$ go True lowPrec t  -- ignore #
+
   go topLeft _ (Lambda _ (Name n) t) =
     let (vars, nextTerm) = accumulateVars t
     in parensIf (not topLeft) $
       backslash <>
-      text ( unwords (filter (/= "#") (n : vars))) <>
+      text ( unwords (filter (\e ->head e /= '#') (n : vars))) <>
       dot <>
       go True lowPrec nextTerm
 
@@ -71,12 +75,12 @@ pShow = show . go True lowPrec . removeInfo
   go topLeft p t@Appl {}
     | isInfix function = case arguments of
         [] -> docFunction
-        [arg] -> myConcat (docArg False (decrement (getPrec function)) arg) docFunction
+        [arg] -> myConcat [docArg False (decrement (getPrec function)) arg, docFunction]
         [arg1 , arg2 ] -> if higherPrec p (getPrec function)
                           then parens (go True lowPrec t)
-                          else myConcat (docArg False (decrement (getPrec function)) arg1)
-                                   docFunction
-                            <+> docArg topLeft (getPrec function ) arg2
+                          else myConcat [docArg False (decrement (getPrec function)) arg1
+                                   ,docFunction
+                                   ,docArg topLeft (getPrec function ) arg2]
         (arg1 : arg2 : args) -> if higherPrec p precApplication
                                 then parens $ go True lowPrec t
                                 else parens (go True lowPrec (Appl () (Appl () function arg1) arg2))
@@ -103,11 +107,14 @@ parensIf :: Bool -> Doc -> Doc
 parensIf True doc = parens doc
 parensIf False doc = doc
 
-myConcat :: Doc -> Doc -> Doc
-myConcat d1 d2
+myAppend:: Doc -> Doc -> Doc
+myAppend d1 d2
   | show d1 == "" = d2
   | show d2 == "" = d1
   | otherwise = d1 <+> d2
+
+myConcat :: [Doc] -> Doc
+myConcat = foldl1 myAppend
 
 isNotFullAplliedInfix :: LamTerm i Name -> Bool
 isNotFullAplliedInfix (Appl _ t1 _) = isInfix t1

@@ -2,12 +2,11 @@ module InfixFix
   ( fixInfix
   , InfixError (MultipleInfix)
   ) where
-
 import Lambda
 import Info
 import Name
 import Associativity
-
+--
 -- | Possible errors that fixity can generate.
 data InfixError = MultipleInfix Expresion Expresion
                 -- ^ detect two infix terms next to each other
@@ -17,13 +16,31 @@ data InfixError = MultipleInfix Expresion Expresion
 -- and transforms them to a term where the arre applied in the correct order.
 -- it fails if you have 2 infix terms next to each other,
 -- because when it get "+ *" it cant differentiate it with "(+) *" or "+ (*)"
+
 fixInfix :: [(Expresion, Bool)] -- ^ List of terms in the order the appear.
     -> Either InfixError Expresion -- ^ Invalid stream or term with correct order.
-fixInfix expresions = case reverse <$> shuntingYard expresions [] [] of
-    exprs @ (Right (Appl _ _ (Var pos (Name "#")) : _)) -> Lambda pos (Name "#") <$> (fixStream <$> exprs)
-    exprs -> fixStream <$> exprs
-    where fixStream :: [Expresion] -> Expresion
-          fixStream = foldl1 (\ e1 e2 -> Appl (mergLoc e1 e2) e1 e2 )
+fixInfix expresions = case expresions of
+    -- infix that are only applied from the left are replaced with:
+    -- (+1..) == \a.(a+1..)
+    ((e, True) : _ :_) ->  fmap (Lambda (getLocation e) (Name "#")) $ -- double _ because it has to be applied from left
+            inserMissingLastVar ((Var (getLocation e) (Name "#"),False): expresions)
+    _ -> inserMissingLastVar expresions
+    where list2Appl:: [Expresion] -> Expresion
+          list2Appl = foldl1 (\ e1 e2 -> Appl (mergLoc e1 e2) e1 e2 )
+          -- shuntingYard does not work with not fully applied infix
+          -- so append variable if last expresion is infix and prepend with lambda for that variable
+          inserMissingLastVar ::  [(Expresion, Bool)] -> Either InfixError Expresion
+          inserMissingLastVar stream =  case last stream of
+                   (_, False) -> toPolishNotation stream
+                   (lastE,True) -> fixEndingHiddenVariable <$> toPolishNotation  (stream++[(Var (getLocation lastE) (Name "##" ),False)])
+          toPolishNotation :: [(Expresion, Bool)] -> Either InfixError Expresion
+          toPolishNotation stream = list2Appl . reverse  <$> (shuntingYard stream [] [])
+          -- append variable can be remove via eta conversion
+          -- for eta conversion you normally have to consider if the removed variable is used in the body
+          -- but now you don't have to consider that, because its only appended on the end
+          fixEndingHiddenVariable :: Expresion -> Expresion
+          fixEndingHiddenVariable (Appl _ e (Var _ (Name "##")))  = e
+          fixEndingHiddenVariable e  = Lambda (getLocation  e) (Name "##") e
 
 -- |Modifyd ShuntingYard is a algoritme to convert infix to revers polish notation
 shuntingYard ::
@@ -32,19 +49,8 @@ shuntingYard ::
   -> [Expresion] -- ^ value end normal functions stack
   -> [Expresion] -- ^ operator stack
   -> Either InfixError [Expresion] -- ^ either error od reverse polish notation
+
 shuntingYard [] vs op = return $ fst $ unwindStack vs op
---
--- The program crash if operator is followed by a operator.
--- So you can only have one operator on the stack and one variables on the
--- stack if you end or start with a operator.
--- but in this case it is not end with a operator because the stream is non empty
--- So it`s operator only apply from the left "(+1..)".
--- So you applied from the right with a dummy variable # and put a Lambda # in front of it
--- when you have the full term (\#.#+1..).
--- Here you have to apply with #, 'fixInfix' we corrects for #.
-shuntingYard (e : es) [] [o] =
-    let pos = getLocation o
-    in shuntingYard (e : es) [Appl pos o (Var pos (Name "#"))] []
 
 -- when you find "+ *" it  cant differentiate (+) * or + (*)
 shuntingYard ((e1, True) : (e2, True) : _) _ _ = Left $ MultipleInfix e1 e2
@@ -52,10 +58,10 @@ shuntingYard ((e, True) : es) vs op = if higherThenTop e op
             then let (vs1, op1) = unwindStack vs op
                  in shuntingYard es vs1 (e : op1)
             else shuntingYard es vs (e : op)
---
+
 -- when you find to non operators next to each other ("f a").
 -- then the first one is a function and you want to apply function to its argents.
--- the result of this is a value so push it on the vallue stack.
+-- the result of this is a value so push it on the value stack.
 shuntingYard ((e, False) : es) vs op =
     let (functionsAndArgs, rest) = break snd es
         nonInfix = foldl1 (\ e1 e2 -> Appl (mergLoc e1 e2) e1 e2) (e : map fst functionsAndArgs)

@@ -131,6 +131,24 @@ advanced =
 
   , ("1.0 (1.0 +)", appl (double 1.0) (appl (val plus) (double 1.0)))
 
+  , ("(\\a b.a + 1.0 * b) 2.0 3.0", appl (appl (lambda "a" (lambda "b"(appl (appl (val plus) (var "a"))
+                                            (appl (appl (val multiply) (double 1.0)) (var "b") ))))
+                                (double 2.0))(double 3.0))
+
+  , ("(\\a.a + 1.0 *) 2.0 3.0", appl (appl (lambda "a" (lambda "##"(appl (appl (val plus) (var "a"))
+                                            (appl (appl (val multiply) (double 1.0)) (var "##") ))))
+                                (double 2.0))(double 3.0))
+
+
+  , ("(+ 1.0 +) 2.0 3.0", appl (appl (lambda "#" ( appl (val plus)
+                                           (appl (appl (val plus) (var "#"))(double 1.0))))
+                                    (double 2.0))
+                            (double 3.0))
+
+  , ("(+ 1.0 *) 2.0 3.0", appl (appl (lambda "#" (lambda "##"(appl (appl (val plus) (var "#"))
+                                            (appl (appl (val multiply) (double 1.0)) (var "##") ))))
+                                (double 2.0))(double 3.0))
+
   , ("1.0 \\t.1.0 1.0", appl (double 1.0) (lambda "t" (appl (double 1.0) (double 1.0))))
  ]
 
