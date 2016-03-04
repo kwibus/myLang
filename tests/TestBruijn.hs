@@ -19,10 +19,10 @@ testBruijn = testGroup "bruijn index"
       bruijn2Lam B.id @?= return (L.id "a")
   , testCase "lam2Bruijn id " $
       lam2Bruijn (L.id "a") @?= return B.id
-  , testCase "test S combinator from lambda  S=\\x.\\y.x" $
-      lam2Bruijn L.s @?= return B.s
-  , testCase "test S combinator from bruijn S=\\\\1" $
-      bruijn2Lam B.s @?= return L.s
+  , testCase "test k combinator from lambda  k=\\x.\\y.x" $
+      lam2Bruijn L.k @?= return B.k
+  , testCase "test k combinator from bruijn k=\\\\1" $
+      bruijn2Lam B.k @?= return L.k
   , testCase "lam2Bruijn \\a .\\ a.a " $
       lam2Bruijn (lambda "a" (lambda "a" (var "a")))
       @?= return ( lambda "a" (lambda "a" (bvar 0)))
