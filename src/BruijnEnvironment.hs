@@ -2,7 +2,8 @@ module BruijnEnvironment where
 
 import qualified Data.IntMap as IM
 import Control.Exception.Base
-
+import Data.Maybe
+--
 -- | Bound is wrapper arround Int and is used to represent BruijnIndex.
 -- BruijnIndex rever to a env, but are dependent on the surrounding terms.
 -- If you add extra lambda:
@@ -30,12 +31,15 @@ bEmtyEnv = BruijnState
     , bruijnMap = IM.empty
     }
 bMember :: Bound -> BruijnEnv a -> Bool
-bMember (Bound i) BruijnState {bruijnDepth = depth, bruijnMap = m}
-    = IM.member (depth - i - 1) m
+bMember b e= isJust $ bMaybeLookup b e
 
 bLookup :: Bound -> BruijnEnv a -> a
 bLookup (Bound i) BruijnState {bruijnDepth = depth, bruijnMap = m} =
     m IM.! (depth - i - 1)
+
+bMaybeLookup :: Bound -> BruijnEnv a -> Maybe a
+bMaybeLookup (Bound i) BruijnState {bruijnDepth = depth, bruijnMap = m} =
+    IM.lookup (depth - i - 1) m
 
 bInsert :: a -> BruijnEnv a -> BruijnEnv a
 bInsert a b@BruijnState {bruijnDepth = depth, bruijnMap = m} =

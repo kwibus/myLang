@@ -234,7 +234,7 @@ testSolver = testGroup "Solver"
                         (appl (bvar 0) (val plus)))))
                 (lambda "a" (bvar 0)))
 
-        @?= (return $TVal $TDouble)
+        @?= (throw [UnifySubs undefined  [Unify undefined undefined ] ])
 
     , testCase "let id = \\a .a in (\\ a b .a) (id 1.0) (id +) " $
         solver (mkLet [("id",lambda "a" (bvar 0))] (appl (appl
