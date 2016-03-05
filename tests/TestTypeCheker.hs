@@ -9,6 +9,7 @@ import Data.IntMap
 
 import qualified ExampleBruijn as B
 import MakeTerm
+import MakeType
 import ArbitraryType ()
 import TestUtils
 import ArbitraryLambda
@@ -32,43 +33,43 @@ testTypeChecker = testGroup "typeChecker"
 testApply :: TestTree
 testApply = testGroup "apply"
     -- [ testCase " apply a {a-:a}}== a" $
-    --     let t = TVar (Free 1)
+    --     let t = tVar 1
     --         env = finsertAt t (Free 1) fEmtyEnv
     --     in apply t env @?= t
 
     [ testCase " apply a {a-:b}}== b" $
-        let env = finsertAt (TVar (Free 2)) (Free 1) fEmtyEnv
-        in apply (TVar (Free 1)) env @?= TVar (Free 2)
+        let env = finsertAt (tVar 2) (Free 1) fEmtyEnv
+        in apply (tVar 1) env @?= tVar 2
 
     , testCase " apply a {a-:b, b-:c}}== c" $
-        let env = fFromList [(TVar (Free 2), Free 1), (TVar (Free 3), Free 2)]
-        in apply (TVar (Free 1)) env @?= TVar (Free 3)
+        let env = fFromList [(tVar 2, Free 1), (tVar 3, Free 2)]
+        in apply (tVar 1) env @?= tVar 3
     ]
 testUnify :: TestTree
 testUnify = testGroup "unify"
     [ testCase " unifys a b {a-:b}" $
-        let env = finsertAt (TVar (Free 2 )) ( Free 1) fEmtyEnv
-        in unifys (TVar (Free 1)) (TVar (Free 2)) env @?= True
+        let env = finsertAt (tVar 2 ) ( Free 1) fEmtyEnv
+        in unifys (tVar 1) (tVar 2) env @?= True
 
     , testCase " unifys a b {b-:a}" $
-        let env = finsertAt (TVar (Free 1 )) ( Free 2) fEmtyEnv
-        in unifys (TVar (Free 1)) (TVar (Free 2)) env @?= True
+        let env = finsertAt (tVar 1 ) ( Free 2) fEmtyEnv
+        in unifys (tVar 1) (tVar 2) env @?= True
 
     , testCase " unifys a (b ->c)  {b-:a}" $
-        let env = finsertAt (TVar (Free 1 )) ( Free 2) fEmtyEnv
-        in unifys (TVar (Free 1)) (TAppl (TVar (Free 2)) (TVar (Free 3))) env @?= False
+        let env = finsertAt (tVar 1 ) ( Free 2) fEmtyEnv
+        in unifys (tVar 1) (TAppl (tVar 2) (tVar 3)) env @?= False
 
     , testCase " unifys a (b ->c)  {a-:b}" $
-        let env = finsertAt (TVar (Free 2 )) ( Free 1) fEmtyEnv
-        in unifys (TVar (Free 1)) (TAppl (TVar (Free 2)) (TVar (Free 3))) env @?= False
+        let env = finsertAt (tVar 2 ) ( Free 1) fEmtyEnv
+        in unifys (tVar 1) (TAppl (tVar 2) (tVar 3)) env @?= False
 
     , testCase " unifys a (a ->b) {a-:c}" $
-        let env = finsertAt (TVar (Free 1 )) ( Free 3) fEmtyEnv
-        in unifys (TVar (Free 1)) (TAppl (TVar (Free 1)) (TVar (Free 2))) env @?= False
+        let env = finsertAt (tVar 1 ) ( Free 3) fEmtyEnv
+        in unifys (tVar 1) (TAppl (tVar 1) (tVar 2)) env @?= False
 
     , testCase " unifys a (a ->b) {a-:c}" $
-        let env = finsertAt (TVar (Free 1 )) ( Free 3) fEmtyEnv
-        in unifys (TVar (Free 1)) (TAppl (TVar (Free 1)) (TVar (Free 2))) env @?= False
+        let env = finsertAt (tVar 1 ) ( Free 3) fEmtyEnv
+        in unifys (tVar 1) (TAppl (tVar 1) (tVar 2)) env @?= False
 
     , testProperty "unify self" $
         \ t -> unifys t t fEmtyEnv
@@ -104,8 +105,8 @@ testUnifyEnv = testGroup " Unify Env "
           ) @?= True
 
     , testCase "unifyEnv error" $
-        let env1 = fromList [(1, TVar (Free 2)) ]
-            env2 = fromList [(2, TVar (Free 1)) ]
+        let env1 = fromList [(1, tVar 2) ]
+            env2 = fromList [(2, tVar 1) ]
         in unifyEnv env1 env2 @?= return env1
     ]
 
@@ -122,7 +123,7 @@ testSolver = testGroup "Solver"
         solver (appl (val plus) (double 1.0)) @?=
         return (TAppl (TVal TDouble) (TVal TDouble))
    , testCase "check id" $
-        solver B.id @?= return (TAppl (TVar (Free 0)) (TVar (Free 0)))
+        solver B.id @?= return (TAppl (tVar 0) (tVar 0))
 
    , testCase "check id 1.0" $
         solver (appl B.id (double 1.0)) @?= return (TVal TDouble )
@@ -146,7 +147,7 @@ testSolver = testGroup "Solver"
                )
         @?=
         return (TAppl
-                  (TVar (Free 0 ))
+                  (tVar 0 )
                   (TVal TDouble))
    , testCase "check \\a\\b.b a" $
         solver (lambda "a" (lambda "b" (appl
@@ -155,9 +156,9 @@ testSolver = testGroup "Solver"
                 )))
         @?=
         return (TAppl
-                  (TVar (Free 0 ))
-                  (TAppl (TAppl (TVar (Free 0)) (TVar (Free 1)))
-                         (TVar (Free 1))
+                  (tVar 0 )
+                  (TAppl (TAppl (tVar 0) (tVar 1))
+                         (tVar 1)
                   )
                 )
 
@@ -187,13 +188,13 @@ testSolver = testGroup "Solver"
                  )))
         @?=
         return (TAppl (TAppl
-                            (TVar (Free 0))
+                            (tVar 0)
                             (TAppl
-                                 (TVar (Free 0))
-                                 (TVar (Free 1))
+                                 (tVar 0)
+                                 (tVar 1)
                     )) (TAppl
-                        (TVar (Free 0))
-                        (TVar (Free 1))
+                        (tVar 0)
+                        (tVar 1)
                ))
     , testCase "check (\\a.a)(\\b.\\c.b 1.0)" $
         solver (appl (lambda "a " (bvar 0))
@@ -203,9 +204,9 @@ testSolver = testGroup "Solver"
                ) )) )
         @?=
         return (TAppl (TAppl (TVal TDouble )
-                             (TVar (Free 0)))
-                      (TAppl (TVar (Free 1))
-                             (TVar (Free 0)))
+                             (tVar 0))
+                      (TAppl (tVar 1)
+                             (tVar 0))
                 )
 
     , testCase "fail (+)\\a.a" $
@@ -222,8 +223,8 @@ testSolver = testGroup "Solver"
                                                    (lambda "w" (bvar 0))))))
                B.id)
         @?=
-        return ( TAppl (TAppl (TVar (Free 0)) (TVar (Free 0)))
-                       (TAppl (TVar (Free 0)) (TVar (Free 0))))
+        return ( TAppl (TAppl (tVar 0) (tVar 0))
+                       (TAppl (tVar 0) (tVar 0)))
 
 
     , testProperty "idempotence" $
