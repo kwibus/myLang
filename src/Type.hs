@@ -9,13 +9,15 @@ import FreeEnvironment
 
 type Dictionary = FreeEnv String
 type Type = TypeA Free
-data PolyType = Forall [Free] Type deriving Show
+-- data PolyType = Forall [Free] Type deriving Show
 
 data TypeInstance = TDouble deriving (Eq, Show)
 
--- TODO replace i by Free
+-- TODO replace i by Free ?
+-- TODO merge tvar poly with (TVar kind i)
 data TypeA i = TVal TypeInstance
             | TVar i
+            | TPoly i
             | TAppl (TypeA i) (TypeA i) deriving (Eq, Show)
 
 mkDictonarie :: [Type] -> Dictionary
@@ -32,21 +34,13 @@ mkDictonarieWithReserved fixedNames ts = fst $ foldl go (fixedNames, letters ) $
                 name : newFreeNames = dropWhile (\ n -> elem n usedNames) freeNames
             in (IM.insert i name dic, newFreeNames)
 
-pShowPoly :: PolyType -> String
-pShowPoly (Forall pvs t) =
-    "Forall " ++
-    unwords (map (\pv -> fLookup pv dic) pvs) ++
-    " . " ++
-    pShowWithDic t dic
-  where
-    dic = mkDictonarie [t]
-
 pShow :: Type -> String
 pShow t = pShowWithDic t (mkDictonarie [t])
 
 pShowWithDic :: Type -> Dictionary -> String
 pShowWithDic = go
   where
+    go (TPoly f) dic = '*':go (TVar f ) dic
     go (TVar (Free i)) dic = fromMaybe
                   (error "incomplete dictonary; missing name for: " ++ show i)
                   (IM.lookup i dic)
@@ -63,15 +57,16 @@ typeVars :: Eq i => TypeA i -> [i]
 typeVars = nub . getTvars
   where getTvars (TVar i) = [i]
         getTvars (TAppl i j) = getTvars i ++ getTvars j
+        getTvars (TPoly i) = [i]
         getTvars TVal {} = []
 
 typeSize :: TypeA i -> Int
-typeSize TVal {} = 1
-typeSize TVar {} = 1
 typeSize (TAppl t1 t2) = typeSize t1 + typeSize t2
+typeSize _ = 1
 
 mapVar :: (i -> j) -> TypeA i -> TypeA j
 mapVar f (TAppl t1 t2) = TAppl (mapVar f t1) (mapVar f t2)
+mapVar f (TPoly i) = TPoly (f i)
 mapVar f (TVar i) = TVar (f i)
 mapVar _ (TVal a) = TVal a
 
