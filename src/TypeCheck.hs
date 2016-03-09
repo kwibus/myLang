@@ -61,8 +61,8 @@ solveWith e@(Let _ defs e2) sub tenv = do
 solveWith (Lambda _ _ e2) sub tenv = do
     k <- newFreeVar
     let newTEnv = bInsert (Forall [] $TVar k) tenv
-    (t2, sub2) <- solveWith e2 sub newTEnv
-    return (apply sub2 (TAppl (TVar k) t2), sub2)
+    (t, newSub) <- solveWith e2 sub newTEnv
+    return (apply newSub (TAppl (TVar k) t), newSub)
 
 solveWith e@Appl{} sub tenv = do
     let (function : args) = accumulateArgs e
@@ -75,12 +75,12 @@ solveWith e@Appl{} sub tenv = do
     let newTyp = apply newSub (TVar var)
     return (newTyp,newSub)
 
-solveWith (Val _ v) sub _ = return (getType v, sub)
+solveWith (Val _ v) _ _ = return (getType v, fEmtyEnv)
 
 solveWith (Var i n) sub tEnv = case  bMaybeLookup n tEnv of
         Just pt -> do
             t <- instantiate pt
-            return (apply sub t, sub)
+            return (apply sub t, fEmtyEnv)
         Nothing -> throwT [ICE $ UndefinedVar n i]
 
 foldM1 :: Monad m => (a -> a -> m a) -> [a] -> m a
