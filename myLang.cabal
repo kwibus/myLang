@@ -59,6 +59,7 @@ library
                       ,Operator
                       ,PrettyPrint
                       ,Type
+                      ,MakeType
                       ,TypeCheck
                       ,FreeEnvironment
                       ,BruijnEnvironment

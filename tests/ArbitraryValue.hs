@@ -10,7 +10,8 @@ import GenState
 
 import Value
 import Operator
-import Type
+import Type (Type)
+import MakeType
 import Lambda
 
 shrinkValue :: Value -> [Value]
@@ -30,6 +31,6 @@ arbitraryBuildIn t = do
 
 arbitraryMyDouble :: ArbiRef n => Maybe Type -> Generater (LamTerm () n)
 arbitraryMyDouble t = do
-  unifyGen t (TVal TDouble)
+  unifyGen t tDouble
   d <- lift $ lift arbitrary
   return (val (MyDouble d))

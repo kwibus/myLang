@@ -8,7 +8,7 @@ import TestUtils
 import ArbitraryLambda
 
 import BruijnTerm
-import qualified Type as T
+import MakeType
 import TypeCheck
 import ErrorCollector
 
@@ -41,9 +41,9 @@ testGeneration = testGroup "genration"
         forAllTypedBruijn $ \ e -> hasSucces $ solver e
 
     , testProperty "corect type" $
-         forAll ( genTerm (Just (T.TVal T.TDouble )))
+         forAll ( genTerm (Just tDouble ))
                 (\ e -> isJust e ==> case solver (fromJust (e :: Maybe (BruijnTerm ()))) of
-                    (Result t) -> unifys t (T.TVal T.TDouble )
+                    (Result t) -> unifys t tDouble
                     _ -> False
                 )
    ]

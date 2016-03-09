@@ -14,7 +14,6 @@ import TestUtils
 import ArbitraryLambda
 
 import TypeCheck
-import Type
 import Operator
 import BruijnEnvironment
 import FreeEnvironment
@@ -48,7 +47,7 @@ testApply = testGroup "apply"
 testUnify :: TestTree
 testUnify = testGroup "unify"
     [ testCase " unifys a a -> " $
-        unifys (tVar 1) (TAppl (tVar 1) (tVar 2)) @?= False
+        unifys (tVar 1) ((tVar 1) ~> (tVar 2)) @?= False
 
     , testProperty "unify self" $
         \ t -> unifys t t
@@ -61,15 +60,15 @@ testUnify = testGroup "unify"
 testUnifySubs :: TestTree
 testUnifySubs = testGroup " UnifySubs "
     [testCase "unifySubs error" $
-        let sub1 = fromList [(1, TVal TDouble) ]
-            sub2 = fromList [(1, TAppl (TVal TDouble) (TVal TDouble))]
+        let sub1 = fromList [(1, tDouble) ]
+            sub2 = fromList [(1, tDouble ~> tDouble)]
         in hasSucces (unifySubs sub1 sub2) @?= False
 
     , testCase "unifySubs error sum" $
-        let sub1 = fromList [ (1, TVal TDouble)
-                            , (2, TVal TDouble)]
-            sub2 = fromList [ (1, TAppl (TVal TDouble) (TVal TDouble))
-                            , (2, TAppl (TVal TDouble) (TVal TDouble))]
+        let sub1 = fromList [ (1, tDouble)
+                            , (2, tDouble)]
+            sub2 = fromList [ (1, tDouble ~> tDouble)
+                            , (2, tDouble ~> tDouble)]
         in (case unifySubs sub1 sub2 of
                 Error es -> length es == 2
                 _ -> False
@@ -81,28 +80,28 @@ testUnifySubs = testGroup " UnifySubs "
         in unifySubs sub1 sub2 @?= return sub1
 
     , testCase " unifysSubs [a/(b ->c)]  [b/a] failse" $
-        let sub1 = fromList [(1,TAppl (tVar 2) (tVar 3))]
+        let sub1 = fromList [(1,tVar 2 ~> tVar 3)]
             sub2 = fromList [(2,tVar 1)]
         in hasSucces (unifySubs sub1 sub2 ) @?= False
 
     , testCase " unifysSubs [a/(b ->c)]  [a/b] fails" $
-        let sub1 = fromList [(1,TAppl (tVar 2) (tVar 3))]
+        let sub1 = fromList [(1,tVar 2 ~> tVar 3)]
             sub2 = fromList [(1,tVar 2)]
         in hasSucces (unifySubs sub1 sub2 ) @?= False
 
     , testCase " unifysSubs [b/a] [a/(b ->c)] failse" $
-        let sub2 = fromList [(1,TAppl (tVar 2) (tVar 3))]
+        let sub2 = fromList [(1,tVar 2 ~> tVar 3)]
             sub1 = fromList [(2,tVar 1)]
         in hasSucces (unifySubs sub1 sub2 ) @?= False
 
     , testCase " unifysSubs [a/b] [a/(b ->c)] fails" $
-        let sub2 = fromList [(1,TAppl (tVar 2) (tVar 3))]
+        let sub2 = fromList [(1,(tVar 2) ~>(tVar 3))]
             sub1 = fromList [(1,tVar 2)]
         in hasSucces (unifySubs sub1 sub2 ) @?= False
 
     , testCase " unifysSubs [a/b->c] [b/(a ->c)] fails" $
-        let sub2 = fromList [(1,TAppl (tVar 2) (tVar 3))]
-            sub1 = fromList [(2,TAppl (tVar 1) (tVar 3))]
+        let sub2 = fromList [(1,tVar 2 ~> tVar 3)]
+            sub1 = fromList [(2,tVar 1 ~> tVar 3)]
         in hasSucces (unifySubs sub1 sub2 ) @?= False
     ]
 
@@ -114,27 +113,27 @@ testClose = testGroup "close"
 testSolver :: TestTree
 testSolver = testGroup "Solver"
    [ testCase "check Double" $
-        solver (double 1.0) @?= return (TVal TDouble)
+        solver (double 1.0) @?= return tDouble
    , testCase "check (+1)" $
         solver (appl (val plus) (double 1.0)) @?=
-        return (TAppl (TVal TDouble) (TVal TDouble))
+        return (tDouble ~> tDouble)
    , testCase "check id" $
-        solver B.id @?= return (TAppl (tVar 0) (tVar 0))
+        solver B.id @?= return (tVar 0 ~> tVar 0)
 
    , testCase "check id 1.0" $
-        solver (appl B.id (double 1.0)) @?= return (TVal TDouble )
+        solver (appl B.id (double 1.0)) @?= return tDouble
     , testCase "check \\a.1+a" $
         solver (lambda "a" (appl
                     (appl (val plus ) (double 1.0))
                     (bvar 0)))
                 @?=
-        return (TAppl (TVal TDouble ) (TVal TDouble))
+        return (tDouble ~> tDouble)
    , testCase "check \\a.a+1" $
         solver (lambda "a" (appl
                     (appl (val plus ) (bvar 0))
                     (double 1.0)))
                 @?=
-        return (TAppl (TVal TDouble ) (TVal TDouble))
+        return (tDouble ~> tDouble)
 
    , testCase "check (\\a\\b.a) 1" $
         solver (appl
@@ -142,21 +141,15 @@ testSolver = testGroup "Solver"
                     (double 1)
                )
         @?=
-        return (TAppl
-                  (tVar 0 )
-                  (TVal TDouble))
+        return (tVar 0 ~> tDouble)
+
    , testCase "check \\a\\b.b a" $
         solver (lambda "a" (lambda "b" (appl
                     (bvar 0)
                     (bvar 1)
                 )))
         @?=
-        return (TAppl
-                  (tVar 0 )
-                  (TAppl (TAppl (tVar 0) (tVar 1))
-                         (tVar 1)
-                  )
-                )
+        return ( tVar 0 ~> (tVar 0 ~> tVar 1) ~> tVar 1 )
 
    , testCase "check \\a.a a" $
         solver (lambda "a" (appl
@@ -174,7 +167,7 @@ testSolver = testGroup "Solver"
                     )
                 ))
         @?=
-        return (TAppl (TAppl (TVal TDouble) (TVal TDouble)) (TVal TDouble))
+        return ((tDouble ~> tDouble) ~> tDouble)
 
    , testCase "check (\\f.\\a. f a a)" $
         solver (lambda "f" (lambda "a" (appl
@@ -183,15 +176,8 @@ testSolver = testGroup "Solver"
                     (bvar 0)
                  )))
         @?=
-        return (TAppl (TAppl
-                            (tVar 0)
-                            (TAppl
-                                 (tVar 0)
-                                 (tVar 1)
-                    )) (TAppl
-                        (tVar 0)
-                        (tVar 1)
-               ))
+        return (( tVar 0 ~> (tVar 0 ~> tVar 1)) ~> (tVar 0 ~>tVar 1))
+
     , testCase "check (\\a.a)(\\b.\\c.b 1.0)" $
         solver (appl (lambda "a " (bvar 0))
                      (lambda "b" (lambda "c" (
@@ -199,11 +185,7 @@ testSolver = testGroup "Solver"
                             (double 1.0)
                ) )) )
         @?=
-        return (TAppl (TAppl (TVal TDouble )
-                             (tVar 0))
-                      (TAppl (tVar 1)
-                             (tVar 0))
-                )
+        return ((tDouble ~>tVar 0) ~> (tVar 1 ~> tVar 0))
 
     , testCase "fail (+)\\a.a" $
         solver (appl (val plus) B.id ) @?=
@@ -220,12 +202,11 @@ testSolver = testGroup "Solver"
                                                    (lambda "w" (bvar 0))))))
                B.id)
         @?=
-        return ( TAppl (TAppl (tVar 0) (tVar 0))
-                       (TAppl (tVar 0) (tVar 0)))
+        return ( (tVar 0 ~> tVar 0) ~> (tVar 0 ~>tVar 0))
 
   , testCase "let id = \\a .a in id id" $
         solver (mkLet [("id",lambda "a" (bvar 0))] (appl (bvar 0) (bvar 0)))
-        @?= return ( TAppl (tVar 0) (tVar 0))
+        @?= return (tVar 0 ~> tVar 0)
     -- TODO fail let polymorfise lambca
     , testCase "\\id. ((\\ a b .a) (id 1.0) (id *))(\\a.a) " $
         solver (appl (lambda "id "( lambda "c" (appl (appl
@@ -242,7 +223,7 @@ testSolver = testGroup "Solver"
                     (appl (bvar 0) (double 1.0)))
                (appl (bvar 0) (val plus))
             ))
-        @?= return  (TVal TDouble)
+        @?= return tDouble
 
     , testProperty "idempotence" $
         forAllTypedBruijn $ \ e -> case runInfer $ solveWith e fEmtyEnv bEmtyEnv of

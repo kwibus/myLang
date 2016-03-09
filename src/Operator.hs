@@ -2,7 +2,7 @@ module Operator where
 
 import Value
 import Control.Monad.State.Strict
-import Type
+import MakeType
 import Associativity
 
 pop :: State Stack Value
@@ -20,7 +20,7 @@ plus = BuildIn
     , vName = "plus"
     , arrity = 2
     , fixity = Infix 2 AssoLeft
-    , myType = TAppl (TVal TDouble) (TAppl (TVal TDouble ) (TVal TDouble))
+    , myType = tDouble ~> tDouble ~> tDouble
     , evaluator = evalplus
     , stack = []
     }
@@ -37,7 +37,7 @@ multiply = BuildIn
     , vName = "multiply"
     , arrity = 2
     , fixity = Infix 3 AssoLeft
-    , myType = TAppl (TVal TDouble) (TAppl (TVal TDouble ) (TVal TDouble))
+    , myType = tDouble ~> tDouble ~> tDouble
     , evaluator = evalMultiply
     , stack = []
     }

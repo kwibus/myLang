@@ -1,7 +1,8 @@
 module Value where
 
 import Control.Monad.State.Strict
-import Type
+import Type (Type)
+import MakeType
 import Associativity
 
 type Stack = [Value]
@@ -18,7 +19,7 @@ data Value = MyDouble !Double
 
 -- TODO remove if every type is build in
 getType :: Value -> Type
-getType MyDouble {} = TVal TDouble
+getType MyDouble {} = tDouble
 getType BuildIn {myType = t} = t
 
 isInfix :: Value -> Bool
