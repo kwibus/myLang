@@ -11,6 +11,8 @@ type Dictionary = FreeEnv String
 type Type = TypeA Free
 
 data TypeInstance = TDouble deriving (Eq, Show)
+
+-- TODO replace i by Free
 data TypeA i = TVal TypeInstance
             | TVar i
             | TAppl (TypeA i) (TypeA i) deriving (Eq, Show)

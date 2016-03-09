@@ -25,7 +25,7 @@ testTypeChecker :: TestTree
 testTypeChecker = testGroup "typeChecker"
                     [ testApply
                     , testUnify
-                    , testUnifyEnv
+                    , testUnifySubs
                     , testSolver
                     , testClose
                     ]
@@ -34,16 +34,16 @@ testApply :: TestTree
 testApply = testGroup "apply"
     -- [ testCase " apply a {a-:a}}== a" $
     --     let t = tVar 1
-    --         env = finsertAt t (Free 1) fEmtyEnv
-    --     in apply t env @?= t
+    --         sub = finsertAt t (Free 1) fEmtyEnv
+    --     in apply t sub @?= t
 
     [ testCase " apply a {a-:b}}== b" $
-        let env = finsertAt (tVar 2) (Free 1) fEmtyEnv
-        in apply (tVar 1) env @?= tVar 2
+        let sub = finsertAt (tVar 2) (Free 1) fEmtyEnv
+        in apply sub (tVar 1) @?= tVar 2
 
     , testCase " apply a {a-:b, b-:c}}== c" $
-        let env = fFromList [(tVar 2, Free 1), (tVar 3, Free 2)]
-        in apply (tVar 1) env @?= tVar 3
+        let sub = fFromList [(tVar 2, Free 1), (tVar 3, Free 2)]
+        in apply sub (tVar 1) @?= tVar 3
     ]
 testUnify :: TestTree
 testUnify = testGroup "unify"
@@ -58,52 +58,52 @@ testUnify = testGroup "unify"
 
     ]
 
-testUnifyEnv :: TestTree
-testUnifyEnv = testGroup " Unify Env "
-    [testCase "unifyEnv error" $
-        let env1 = fromList [(1, TVal TDouble) ]
-            env2 = fromList [(1, TAppl (TVal TDouble) (TVal TDouble))]
-        in hasSucces (unifyEnv env1 env2) @?= False
+testUnifySubs :: TestTree
+testUnifySubs = testGroup " UnifySubs "
+    [testCase "unifySubs error" $
+        let sub1 = fromList [(1, TVal TDouble) ]
+            sub2 = fromList [(1, TAppl (TVal TDouble) (TVal TDouble))]
+        in hasSucces (unifySubs sub1 sub2) @?= False
 
-    , testCase "unifyEnv error sum" $
-        let env1 = fromList [ (1, TVal TDouble)
+    , testCase "unifySubs error sum" $
+        let sub1 = fromList [ (1, TVal TDouble)
                             , (2, TVal TDouble)]
-            env2 = fromList [ (1, TAppl (TVal TDouble) (TVal TDouble))
+            sub2 = fromList [ (1, TAppl (TVal TDouble) (TVal TDouble))
                             , (2, TAppl (TVal TDouble) (TVal TDouble))]
-        in (case unifyEnv env1 env2 of
+        in (case unifySubs sub1 sub2 of
                 Error es -> length es == 2
                 _ -> False
            ) @?= True
 
-    , testCase "unifyEnv [a/b] [b/a]" $
-        let env1 = fromList [(1, tVar 2) ]
-            env2 = fromList [(2, tVar 1) ]
-        in unifyEnv env1 env2 @?= return env1
+    , testCase "unifySubs [a/b] [b/a]" $
+        let sub1 = fromList [(1, tVar 2)]
+            sub2 = fromList [(2, tVar 1)]
+        in unifySubs sub1 sub2 @?= return sub1
 
-    , testCase " unifysEnv [a/(b ->c)]  [b/a] failse" $
-        let env1 = fromList [(1,TAppl (tVar 2) (tVar 3))]
-            env2 = fromList [(2,tVar 1)]
-        in hasSucces (unifyEnv env1 env2 ) @?= False
+    , testCase " unifysSubs [a/(b ->c)]  [b/a] failse" $
+        let sub1 = fromList [(1,TAppl (tVar 2) (tVar 3))]
+            sub2 = fromList [(2,tVar 1)]
+        in hasSucces (unifySubs sub1 sub2 ) @?= False
 
-    , testCase " unifysEnv [a/(b ->c)]  [a/b] fails" $
-        let env1 = fromList [(1,TAppl (tVar 2) (tVar 3))]
-            env2 = fromList [(1,tVar 2)]
-        in hasSucces (unifyEnv env1 env2 ) @?= False
+    , testCase " unifysSubs [a/(b ->c)]  [a/b] fails" $
+        let sub1 = fromList [(1,TAppl (tVar 2) (tVar 3))]
+            sub2 = fromList [(1,tVar 2)]
+        in hasSucces (unifySubs sub1 sub2 ) @?= False
 
-    , testCase " unifysEnv [b/a] [a/(b ->c)] failse" $
-        let env2 = fromList [(1,TAppl (tVar 2) (tVar 3))]
-            env1 = fromList [(2,tVar 1)]
-        in hasSucces (unifyEnv env1 env2 ) @?= False
+    , testCase " unifysSubs [b/a] [a/(b ->c)] failse" $
+        let sub2 = fromList [(1,TAppl (tVar 2) (tVar 3))]
+            sub1 = fromList [(2,tVar 1)]
+        in hasSucces (unifySubs sub1 sub2 ) @?= False
 
-    , testCase " unifysEnv [a/b] [a/(b ->c)] fails" $
-        let env2 = fromList [(1,TAppl (tVar 2) (tVar 3))]
-            env1 = fromList [(1,tVar 2)]
-        in hasSucces (unifyEnv env1 env2 ) @?= False
+    , testCase " unifysSubs [a/b] [a/(b ->c)] fails" $
+        let sub2 = fromList [(1,TAppl (tVar 2) (tVar 3))]
+            sub1 = fromList [(1,tVar 2)]
+        in hasSucces (unifySubs sub1 sub2 ) @?= False
 
-    , testCase " unifysEnv [a/b->c] [b/(a ->c)] fails" $
-        let env2 = fromList [(1,TAppl (tVar 2) (tVar 3))]
-            env1 = fromList [(2,TAppl (tVar 1) (tVar 3))]
-        in hasSucces (unifyEnv env1 env2 ) @?= False
+    , testCase " unifysSubs [a/b->c] [b/(a ->c)] fails" $
+        let sub2 = fromList [(1,TAppl (tVar 2) (tVar 3))]
+            sub1 = fromList [(2,TAppl (tVar 1) (tVar 3))]
+        in hasSucces (unifySubs sub1 sub2 ) @?= False
     ]
 
 testClose :: TestTree
@@ -207,12 +207,13 @@ testSolver = testGroup "Solver"
 
     , testCase "fail (+)\\a.a" $
         solver (appl (val plus) B.id ) @?=
-        throw [UnifyAp undefined undefined undefined [Unify undefined undefined]]
+        throw [UnifyAp undefined undefined undefined [Unify undefined undefined ]]
 
     , testCase "fail \\a.a a" $
         solver (lambda "a" (appl (bvar 0 ) (bvar 0))) @?=
-        throw [UnifyAp undefined undefined undefined [Infinit undefined undefined]]
-    , testCase " " $
+        throw [UnifyAp undefined undefined undefined [Infinit undefined undefined ]]
+
+    , testCase "(\\y.(\\x y)((\\z y)y(\\w.w)) )\\a.a " $
         solver (appl (lambda "x" (appl (lambda "y" (bvar 1))
                                        (appl (lambda "z" (bvar 1))
                                              (appl (bvar 0)
@@ -222,13 +223,33 @@ testSolver = testGroup "Solver"
         return ( TAppl (TAppl (tVar 0) (tVar 0))
                        (TAppl (tVar 0) (tVar 0)))
 
+  , testCase "let id = \\a .a in id id" $
+        solver (mkLet [("id",lambda "a" (bvar 0))] (appl (bvar 0) (bvar 0)))
+        @?= return ( TAppl (tVar 0) (tVar 0))
+    -- TODO fail let polymorfise lambca
+    , testCase "\\id. ((\\ a b .a) (id 1.0) (id *))(\\a.a) " $
+        solver (appl (lambda "id "( lambda "c" (appl (appl
+                            (lambda "a" (lambda "b"(bvar 1)))
+                            (appl (bvar 0) (double 1.0)))
+                        (appl (bvar 0) (val plus)))))
+                (lambda "a" (bvar 0)))
+
+        @?= (return $TVal $TDouble)
+
+    , testCase "let id = \\a .a in (\\ a b .a) (id 1.0) (id +) " $
+        solver (mkLet [("id",lambda "a" (bvar 0))] (appl (appl
+                    (lambda "a" (lambda "b"(bvar 1)))
+                    (appl (bvar 0) (double 1.0)))
+               (appl (bvar 0) (val plus))
+            ))
+        @?= return  (TVal TDouble)
 
     , testProperty "idempotence" $
         forAllTypedBruijn $ \ e -> case runInfer $ solveWith e fEmtyEnv bEmtyEnv of
                 Error _ -> False
-                Result (t1, env1) -> case runInfer $ solveWith e env1 bEmtyEnv of
+                Result (t1, sub1) -> case runInfer $ solveWith e sub1 bEmtyEnv of
                     Error _ -> False
-                    Result (t2, _) -> close t1 == close t2 -- && env1 == env2
+                    Result (t2, _) -> close t1 == close t2 -- && sub1 == sub2
 
     , testProperty "typeable" $
         forAllTypedBruijn $ \ e -> hasSucces $ solver e

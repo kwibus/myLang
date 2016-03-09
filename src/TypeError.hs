@@ -13,7 +13,7 @@ import Data.Char
 
 data TypeError i =
       UnifyAp (BruijnTerm i) Type Type [UnificationError]
-    | UnifyEnv (BruijnTerm i) [UnificationError]
+    | UnifySubs (BruijnTerm i) [UnificationError]
     | ICE (UndefinedVar Bound i)
     deriving Show
 
@@ -25,7 +25,7 @@ data UnificationError =
 -- TODO better EqalitieA / remove and make seperate for unittest
 instance Eq (TypeError i) where
   (==) (UnifyAp _ _ _ err1) (UnifyAp _ _ _ err2) = err1 == err2
-  (==) (UnifyEnv _ _) (UnifyEnv _ _ ) = True
+  (==) (UnifySubs _ _) (UnifySubs _ _ ) = True
   (==) (ICE _) (ICE _) = True
   (==) _ _ = False
 

@@ -3,8 +3,8 @@ module TestType (testType ) where
 import Test.Tasty
 import Test.Tasty.HUnit
 
-import FreeEnvironment
 import Type
+import MakeType
 
 testType :: TestTree
 testType = testGroup "testType"

@@ -15,13 +15,13 @@ import ErrorCollector
 
 data GenState n = State
   { freeNames :: [String]
-  , dictionary :: BruijnEnv (String, Free)
+  , tEnv :: BruijnEnv (String, Free)
   } deriving Show
 
 -- TODO rename defualtgenstate
 defualtGenState :: GenState n
 defualtGenState = State
-  { dictionary = bEmtyEnv
+  { tEnv = bEmtyEnv
   , freeNames = letters
   }
 
@@ -34,13 +34,13 @@ runGenerartor g = fmap listToMaybe (evalT g (fEmtyEnv, 0))
 unifyGen :: Maybe Type -> Type -> Generater ()
 unifyGen Nothing _ = return ()
 unifyGen (Just t1) t2 = do
-    env <- getEnv
-    case unify (apply t1 env)(apply  t2 env) >>= unifyEnv  env of
+    sub <- getSub
+    case unify (apply sub t1)(apply sub t2) >>= unifySubs sub of
         Error {} -> mzero
-        (Result env1) -> setEnv env1
+        (Result sub1) -> setEnv sub1
 
-getEnv :: Generater (FreeEnv Type)
-getEnv = liftM fst get
+getSub :: Generater TSubst
+getSub = liftM fst get
 
 setEnv :: FreeEnv Type -> Generater ()
 setEnv env = modify (\ (_, m) -> (env, m))
@@ -58,5 +58,5 @@ getMax = do
 
 typeSizeBigger :: Int -> Type -> Generater Bool
 typeSizeBigger i t = do
-    env <- getEnv
-    return $ i < typeSize ( apply t env )
+    sub <- getSub
+    return $ i < typeSize ( apply sub t)

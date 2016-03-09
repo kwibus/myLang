@@ -5,7 +5,7 @@ module ArbitraryType (arbitraryType) where
 import Test.QuickCheck.Gen
 import Test.QuickCheck
 import Type
-import FreeEnvironment
+import MakeType
 
 instance Arbitrary Type where
     arbitrary = sized arbitraryType
@@ -26,4 +26,4 @@ arbitraryMonoType = elements [TDouble]
 arbitraryTVar :: Gen Type
 arbitraryTVar = do
     d <- choose (0, 10)
-    return $ TVar $ Free d
+    return $ tVar d

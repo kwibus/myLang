@@ -1,4 +1,3 @@
-{-# OPTIONS_GHC -fno-warn-orphans  #-}
 module ArbitraryLambda
 where
 
@@ -154,7 +153,7 @@ arbitraryLambda size t maxlist state = do
 
 newVarRef :: ArbiRef n => GenState n -> Free -> Gen (String, GenState n)
 newVarRef state free = do
-  let names = bToList $ dictionary state
+  let names = bToList $ tEnv state
   boolNewName <- case names of
       [] -> return True
       _ -> frequency [(4, return True), (1, return False)]

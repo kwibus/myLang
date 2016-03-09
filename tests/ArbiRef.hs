@@ -24,24 +24,24 @@ instance ArbiRef Name where
 -- TODO decouple bruijnMap
 boundFromState :: GenState Bound -> Generater (Bound, Free )
 boundFromState s = do
-   (i, (_, f)) <- elementsLogic $ bToList $ dictionary s
-   return (Bound (bruijnDepth (dictionary s ) - i - 1), f)
+   (i, (_, f)) <- elementsLogic $ bToList $ tEnv s
+   return (Bound (bruijnDepth (tEnv s ) - i - 1), f)
 
 updateStateBound :: GenState n -> Bool -> String -> Free -> GenState n
-updateStateBound state _ name free = state {dictionary = newdic}
-    where newdic = bInsert (name, free) (dictionary state)
+updateStateBound state _ name free = state {tEnv = newTEnv}
+    where newTEnv= bInsert (name, free) (tEnv state)
 
 nameFromState :: GenState Name -> Generater (Name, Free )
 nameFromState s = do
-   (_, (name, f)) <- elementsLogic $ bToList $ dictionary s
+   (_, (name, f)) <- elementsLogic $ bToList $ tEnv s
    return (Name name, f)
 
 updateStateName :: GenState n -> Bool -> String -> Free -> GenState n
-updateStateName state@State {dictionary = dic} newVar name free = state {dictionary = newDic}
-    where newDic :: BruijnEnv (String, Free)
-          newDic = bInsert (name, free) (if newVar
-            then removeVar name dic
-            else dic)
+updateStateName state@State {tEnv=env } newVar name free = state {tEnv = newTEnv}
+    where newTEnv :: BruijnEnv (String, Free)
+          newTEnv = bInsert (name, free) (if newVar
+            then removeVar name env
+            else env)
 
 -- TODO decouple bruijnMap
 removeVar :: String -> BruijnEnv (String, b) -> BruijnEnv (String, b)
