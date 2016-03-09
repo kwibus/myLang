@@ -9,6 +9,7 @@ import FreeEnvironment
 
 type Dictionary = FreeEnv String
 type Type = TypeA Free
+data PolyType = Forall [Free] Type deriving Show
 
 data TypeInstance = TDouble deriving (Eq, Show)
 
@@ -30,6 +31,15 @@ mkDictonarieWithReserved fixedNames ts = fst $ foldl go (fixedNames, letters ) $
             let usedNames = map snd $ IM.toList dic
                 name : newFreeNames = dropWhile (\ n -> elem n usedNames) freeNames
             in (IM.insert i name dic, newFreeNames)
+
+pShowPoly :: PolyType -> String
+pShowPoly (Forall pvs t) =
+    "Forall " ++
+    unwords (map (\pv -> fLookup pv dic) pvs) ++
+    " . " ++
+    pShowWithDic t dic
+  where
+    dic = mkDictonarie [t]
 
 pShow :: Type -> String
 pShow t = pShowWithDic t (mkDictonarie [t])

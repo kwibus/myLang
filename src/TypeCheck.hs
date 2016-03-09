@@ -15,6 +15,9 @@ import BruijnEnvironment
 import FreeEnvironment
 import TypeError
 
+-- $setup
+-- >>> import MakeType
+
 close :: Type -> Type
 close t = fst3 $ go t fEmtyEnv 0
  where go (TVar free ) env n = if fMember free env
@@ -33,7 +36,6 @@ solver e = fmap ( close . uncurry (flip apply)) $ runInfer $ solveWith e fEmtyEn
 
 type Infer i a = ErrorCollectorT [TypeError i] ( State Int ) a
 type TSubst = FreeEnv Type
-data PolyType = Forall [Free] Type deriving Show
 type TEnv = BruijnEnv PolyType
 
 runInfer :: Infer i a -> ErrorCollector [TypeError i] a
@@ -93,6 +95,13 @@ instantiate (Forall vs t) = do
   vs' <- mapM (const newFreeVar) vs
   let s = fFromList $ zip (map TVar vs') vs
   return $ apply s t
+
+-- | generalize takes a type and converts it to its most polymorfic form/ principle form
+-- it should not quantife over variable that are already quantified in the env
+-- so:
+--
+-- >>> pShowPoly $ generalize (bInsert (Forall [Free 3] (tVar 2 ~> tVar 3))bEmtyEnv) (tVar 1 ~> tVar 2 ~> tVar 3 ~> tVar 4)
+--"Forall a c d . a -> b -> c -> d"
 
 generalize :: TEnv -> Type -> PolyType
 generalize env t  = Forall vs t
