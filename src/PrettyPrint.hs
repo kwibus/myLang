@@ -39,7 +39,7 @@ import Info
 -- >>> pShow $Lambda ()(DummyBegin)(Var () (Name"a")   )
 -- "a"
 --
--- >>> pShow $Lambda ()(DummyBegin) (Appl () (Appl () (Val () plus)(Var ()DummyBegin))(Val () (MyDouble 1)))
+-- >>> pShow $Lambda ()(DummyBegin) (Appl () (Appl () (Val () plus)(Var ()DummyBegin))(Val () (Prim $ MyDouble 1)))
 -- "+ 1.0"
 
 pShow :: LamTerm i Name -> String

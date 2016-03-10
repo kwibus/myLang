@@ -20,7 +20,8 @@ import Lexer
 import Operator
 import Info
 import Name
--- TODO Remove p__
+
+-- TODO Remove p
 
 type Parser a = ParsecT [TokenPos] () (Either InfixError) a
 data ParseError = Infix InfixError
@@ -58,6 +59,15 @@ pIdentifier = do
     _ -> False)
   return str
 
+pBool :: Parser Bool
+pBool = do
+  CapIdentifier c <- pSatisfy (\ x -> case x of
+        CapIdentifier _ -> True
+        _ -> False)
+  case c of
+    "True" -> return True
+    "False" -> return False
+    _ -> parserZero
 pDouble :: Parser Double
 pDouble = do
   Number n <- pSatisfy (\ x -> case x of
@@ -85,7 +95,8 @@ pApplication = do
 pValue :: Parser Expresion
 pValue = do
     pos <- getPosition
-    v <- choice [fmap MyDouble pDouble]
+    v <- choice [ fmap (Prim . MyDouble) pDouble
+                , fmap (Prim . MyBool ) pBool]
     loc <- pLoc pos
     return $ Val loc v
 

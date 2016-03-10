@@ -10,6 +10,7 @@ type Lexer a = Parsec String () a
 
 data TokenPos = TokenPos {getToken :: Token, getposition :: SourcePos}
 data Token = Identifier String
+           | CapIdentifier String
            | Number Double
            | ReservedS ReservedSymbol
            | ReservedW ReservedWord
@@ -30,6 +31,7 @@ instance Show TokenPos where
 
 instance Show Token where
   show (Identifier str) = show str -- show to enclose in "" to diferentiate with reservedWords
+  show (CapIdentifier str) = show str
   show (Number n ) = show n
   show (ReservedS s) = "'" ++ (toChar s : "'")
   show (ReservedW w) = show w
@@ -70,9 +72,16 @@ token :: Lexer TokenPos
 token = parsePos $ choice
      [ msum (map symbol reservedSymbols)
      , msum (map keyWord reservedWords)
+     , capIdentifier
      , identifier
      , double
      ]
+
+capIdentifier :: Lexer Token
+capIdentifier = do
+  first <- upper
+  rest <- many alphaNum
+  return $ CapIdentifier $ first : rest
 
 identifier :: Lexer Token
 identifier = do

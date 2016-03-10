@@ -105,7 +105,7 @@ arbitraryTerm n mabeytype maxlist s
         Nothing -> return False
       if b
       then mzero
-      else whenBacksteps (< 15) (
+      else whenBacksteps (< 20) (
            oneOfLogic [ arbitraryAppl n mabeytype maxlist s
                    , arbitraryLambda n mabeytype maxlist s
                    ] ) $ error $ show mabeytype ++ "\n" ++ show n

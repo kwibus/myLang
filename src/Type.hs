@@ -9,9 +9,11 @@ import FreeEnvironment
 
 type Dictionary = FreeEnv String
 type Type = TypeA Free
--- data PolyType = Forall [Free] Type deriving Show
 
-data TypeInstance = TDouble deriving (Eq, Show)
+
+data TypeInstance = TDouble
+                  | TBool
+                  deriving (Eq, Show)
 
 -- TODO replace i by Free ?
 -- TODO merge tvar poly with (TVar kind i)
@@ -72,6 +74,7 @@ mapVar _ (TVal a) = TVal a
 
 showTypeInstance :: TypeInstance -> String
 showTypeInstance TDouble = "Double"
+showTypeInstance TBool = "Bool"
 
 dropTypeArg :: TypeA i -> TypeA i
 dropTypeArg (TAppl _ t ) = t

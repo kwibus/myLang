@@ -21,7 +21,7 @@ arbitraryType s | s <= 1 = oneof [fmap TVal arbitraryMonoType, arbitraryTVar]
      return $ TAppl t1 t2
 
 arbitraryMonoType :: Gen TypeInstance
-arbitraryMonoType = elements [TDouble]
+arbitraryMonoType = elements [TDouble, TBool]
 
 arbitraryTVar :: Gen Type
 arbitraryTVar = do
