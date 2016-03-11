@@ -97,3 +97,22 @@ test-suite doctests
                       ,doctest
   default-language:    Haskell2010
   ghc-options:         -threaded -Wall
+
+Benchmark bench
+    type:       exitcode-stdio-1.0
+    main-is:    benchmark.hs
+    Hs-Source-Dirs: tests, tests/bench
+    build-depends:  base
+                    ,criterion
+                    ,QuickCheck
+                    ,myLang
+                    ,mtl
+                    ,ansi-wl-pprint
+                    ,parsec
+                    ,parsec-numbers
+                    ,either-unwrap
+                    ,transformers
+                    ,containers
+                    ,deepseq
+                    ,deepseq-generics
+    default-language:    Haskell2010
