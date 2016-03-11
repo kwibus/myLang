@@ -40,17 +40,17 @@ testEvalBasic = testGroup "basic"
   , testCase "call by vallu termination" $
       eval (lambda "z" (appl B.id (bvar 1))) @?= Nothing
 
-  , testProperty "welformd presevation eval" $
-      forAllTypedBruijn $ \ t -> let result = welFormd <$> eval (t :: BruijnTerm ())
-            in isNothing result || fromJust result
+  , testProperty "everystep a change" $ forAllTypedBruijn  $
+        hasRelation (/=) .take 10. evalSteps
 
-  , testProperty "keep normalisation under eval" $
-     forAllTypedBruijn $ \ t ->
-            let result = eval t
-            in isJust result ==> normalised $ fromJust result
+  , testProperty "welformd presevation eval" $ forAllTypedBruijn $
+        all welFormd . take 10 . evalSteps
 
-  , testProperty "keep type under eval" $
-      forAllTypedBruijn $ \ e -> let result = eval (e :: BruijnTerm ())
+  , testProperty "keep normalisation under eval" $ forAllTypedBruijn $
+            all normalised . take 10 . evalSteps
+
+  , testProperty "keep type under eval" $ forAllTypedBruijn $ \ e
+        -> let result = eval e
             in isJust result ==>
                 let expr2 = fromJust result
                 in errorCol2Bool $ do
@@ -77,6 +77,13 @@ testEvalBasic = testGroup "basic"
 errorCol2Bool :: ErrorCollector e Property -> Property
 errorCol2Bool (Result p ) = p
 errorCol2Bool (Error _ ) = property False
+
+hasRelation  :: (a -> a -> Bool) -> [a] -> Bool
+hasRelation _ [] = True
+hasRelation _ [_] = True
+hasRelation relation (a:b:rest )
+    | relation a b  = hasRelation relation  (b:rest)
+    | otherwise = False
 
 testEvalBuildin :: TestTree
 testEvalBuildin = testGroup "Buildin"

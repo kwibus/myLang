@@ -1,5 +1,6 @@
 module Eval (
   eval
+  , evalSteps
   , fullEval
   , applyValue
   , evalWithEnv)
@@ -21,7 +22,10 @@ import Type
 -- |eval term in accordance with call by value.
 -- If a term can't be further be evaluated it will return 'Nothing'
 eval :: Show i => BruijnTerm i -> Maybe (BruijnTerm i)
-eval = fmap fst . listToMaybe . toList . evalWithEnv bEmtyEnv
+eval = listToMaybe . evalSteps
+
+evalSteps ::Show i => BruijnTerm i -> [BruijnTerm i]
+evalSteps = fmap fst . toList . evalWithEnv bEmtyEnv
 
 evalWithEnv :: Show i => BruijnEnv (BruijnTerm i) -> BruijnTerm i ->
   DList (BruijnTerm i, BruijnEnv (BruijnTerm i))
