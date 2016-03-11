@@ -5,8 +5,8 @@ where
 import Data.Maybe
 import Control.Monad
 import Control.Monad.Trans.Class
-import Test.QuickCheck.Gen
 import Test.QuickCheck
+import Test.QuickCheck.Property
 
 import Logic
 import GenState
@@ -19,15 +19,28 @@ import FreeEnvironment
 import Type
 import Name
 import ArbiRef
+import PrettyPrint
+import Info
 
 forAllTypedBruijn :: Testable prop => (BruijnTerm () -> prop) -> Property
 forAllTypedBruijn = forAllShrink genTyped shrinkTyped
+
+printBrujin :: BruijnTerm i -> String
+printBrujin = either show PrettyPrint.pShow . bruijn2Lam . removeInfo
 
 forAllUnTypedLambda :: Testable prop => (LamTerm () Name -> prop) -> Property
 forAllUnTypedLambda = forAllShrink genUnTyped shrinkUntypedLamba
 
 forAllUnTypedBruijn :: Testable prop => (BruijnTerm () -> prop) -> Property
 forAllUnTypedBruijn = forAllShrink genUnTyped shrinkUntypedBruijn
+
+forAllShowShrink :: Testable prop => Gen a -> ( a -> String) -> (a -> [a]) -> (a -> prop) -> Property
+forAllShowShrink gen myShow shrinker pf =
+  MkProperty $
+  gen >>= \x ->
+    unProperty $
+    shrinking shrinker x $ \x' ->
+      counterexample (myShow x') (pf x')
 
 shrinkTyped :: BruijnTerm () -> [BruijnTerm () ]
 shrinkTyped = shrinkTerm False elimanateBruijn
