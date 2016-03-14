@@ -5,6 +5,7 @@ import Control.Exception.Base (assert)
 import qualified Data.IntMap as IM
 import qualified Data.Set as Set
 import Control.Monad.State hiding (sequence)
+import Data.Foldable (traverse_)
 
 import ErrorCollector
 import Value
@@ -34,31 +35,51 @@ fst3 (a, _, _) = a
 solver :: BruijnTerm i -> ErrorCollector [TypeError i] Type
 solver e = fmap ( close . uncurry (flip apply)) $ runInfer $ solveWith e fEmtyEnv bEmtyEnv
 
-type Infer i a = ErrorCollectorT [TypeError i] ( State Int ) a
+type Infer i a = ErrorCollectorT [TypeError i] ( State InferState ) a
 type TSubst = FreeEnv Type
 type TEnv = BruijnEnv PolyType
+type ArgList = FreeEnv Alias
+data InferState = InferState { newvar::Int
+                             , arglist :: ArgList
+                             } deriving Show
+
+type Alias = [Free]
+
 
 runInfer :: Infer i a -> ErrorCollector [TypeError i] a
-runInfer infer = evalState ( runErrorT infer) 0
+runInfer infer = evalState ( runErrorT infer) initState
+  where
+    initState = InferState 0 fEmtyEnv
 
 newFreeVar :: Infer i Free
 newFreeVar = do
-    i <- get
-    put (i + 1)
+    s <- get
+    let i = newvar s
+    put s{newvar = i+1}
     return $ Free i
+
 
 solveWith :: BruijnTerm i -> TSubst -> TEnv -> Infer i (Type, TSubst)
 solveWith e@(Let _ defs e2) sub tenv = do
   newVars <- replicateM (length defs) newFreeVar
-  let tempTEnv= foldl ( flip ( bInsert. Forall [] . TVar)) tenv newVars
+  traverse_ addArglist newVars
+  let tempTEnv= foldl ( \tenvN v ->  bInsert (Forall [v] $ TVar v) tenvN) tenv newVars
   (polys, subs) <- unzip <$> mapM (solveDefs tempTEnv) defs
   newSubs <- toExcept $ mapError (\erros -> [UnifySubs e erros]) $foldM1 unifySubs  subs
   let newTEnv = foldl ( flip  bInsert) tenv polys
+  zipWithM_ (unifyDefinitionUse newSubs) newVars $ map unPoly polys
   solveWith e2 newSubs newTEnv
   where solveDefs dic ( Def _ _ en) = do
             (t2, newsub) <- solveWith en sub dic
             let poly = generalize dic t2
             return (poly,newsub)
+        -- unifyDefinitionUse ::TSubst -> Free -> Type -> Infer i ()
+        unifyDefinitionUse subs (Free i) t = do
+             state <- get
+             let alias = arglist state IM.!  i
+             toExcept $ mapError (\erros -> [UnifySubs e erros]) $
+                        traverse_ (unify t . apply subs.TVar) alias
+             put state{arglist=IM.delete i (arglist state) }
 
 solveWith (Lambda _ _ e2) sub tenv = do
     k <- newFreeVar
@@ -69,7 +90,7 @@ solveWith (Lambda _ _ e2) sub tenv = do
 solveWith e@Appl{} sub tenv = do
     let (function : args) = accumulateArgs e
     (functionTyp, sub1) <- solveWith function sub tenv
-    (argsTyps, subs) <- unzip <$> (mapM (\ arg -> solveWith arg sub tenv) args)
+    (argsTyps, subs) <- unzip <$> mapM (\ arg -> solveWith arg sub tenv) args
     var <- newFreeVar
     let typeArg = foldr1 TAppl (argsTyps ++ [TVar var])
     newsup <- toExcept $ mapError (\erro -> [UnifyAp e functionTyp typeArg erro]) $ unify functionTyp typeArg
@@ -85,16 +106,32 @@ solveWith (Var i n) sub tEnv = case  bMaybeLookup n tEnv of
             return (apply sub t, fEmtyEnv)
         Nothing -> throwT [ICE $ UndefinedVar n i]
 
+unPoly :: PolyType -> Type
+unPoly (Forall _ t) = t
+
 foldM1 :: Monad m => (a -> a -> m a) -> [a] -> m a
 foldM1 _ [] = error " foldM1 empty List"
 foldM1 _ [a] = return a
 foldM1 f (x : xs) = foldM f x xs
 
-instantiate ::  PolyType -> Infer a Type
+-- | instantiate copys all qualified variabls and replace them with new vars
+--  and ad the var to the alias in arglist
+-- >>> runInfer $ instantiate $ Forall [Free 1] (tVar 2 ~> tVar 1)
+-- Result (TAppl (TVar (Free 2)) (TVar (Free 0)))
+
+instantiate ::  PolyType -> Infer i Type
 instantiate (Forall vs t) = do
   vs' <- mapM (const newFreeVar) vs
   let s = fFromList $ zip (map TVar vs') vs
+  zipWithM_ addAlias vs vs'
   return $ apply s t
+
+addArglist:: Free ->  Infer i ()
+addArglist (Free f) = modify (\s-> s{arglist = IM.insert f [] (arglist s)})
+
+addAlias :: Free -> Free -> Infer a ()
+addAlias (Free orignal) alias = modify (\s ->
+                    s{arglist= IM.adjust (alias :) orignal (arglist s)})
 
 -- | generalize takes a type and converts it to its most polymorfic form/ principle form
 -- it should not quantife over variable that are already quantified in the env
@@ -120,13 +157,12 @@ freeVars _ = Set.empty
 unifySubs :: TSubst -> TSubst -> ErrorCollector [UnificationError] TSubst
 unifySubs sub1 sub2 = IM.foldWithKey f (return sub1) sub2
     where f key typ1 (Result sub) = case IM.lookup key sub of
-            Nothing ->  fmap (IM.union sub) $ unify (apply sub typ1 ) (apply sub (TVar (Free key)))
-            Just typ2 -> fmap (IM.union sub) $ unify (apply  sub typ1) (apply sub typ2)
+            Nothing -> IM.union sub <$> unify (apply sub typ1 ) (apply sub (TVar (Free key)))
+            Just typ2 -> IM.union sub <$> unify (apply  sub typ1) (apply sub typ2)
           f key typ1 (Error err ) = case IM.lookup key sub1 of
             Nothing -> throw err
             Just typ2 -> throw err *> unify (apply sub1 typ1) (apply sub1 typ2)
 
---TODO only changes?
 unify :: Type -> Type -> ErrorCollector [UnificationError] TSubst -- retunr type
 unify (TVar n) t = fromEither $ bind n t
 unify t (TVar n) = fromEither $ bind n t

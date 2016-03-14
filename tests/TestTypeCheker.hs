@@ -220,7 +220,7 @@ cassesSolver =
             )
         , return tDouble)
 
-    , (mkLet [ ("a", true),("b", appl (val plus )(bvar 0))] (bvar 1)
+    , (mkLet [ ("a", true),("b", appl (val plus )(bvar 1))] (bvar 1)
         , throw  [ UnifySubs undefined [Unify undefined undefined ]])
     ]
 
