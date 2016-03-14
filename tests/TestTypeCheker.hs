@@ -205,6 +205,22 @@ cassesSolver =
     , (lambda "f" (appl (bvar 0) (appl (bvar 0 ) true))
         , return ((tBool ~> tBool) ~> tBool ))
 
+    , (lambda "f" (appl (val multiply)(appl (bvar 0) (appl (bvar 0 ) true)))
+        , return ((tVar 0 ~> tDouble) ~> tDouble ~> tDouble ))
+
+    , (appl (lambda "id "(appl (appl
+                        (lambda "a" (lambda "b"(bvar 1)))
+                        (appl (bvar 0) (double 1.0)))
+                        (appl (bvar 0) false )))
+            B.id
+        ,return tDouble)
+    , (appl (lambda "id "(appl (appl
+                        (lambda "a" (lambda "b"(bvar 1)))
+                        (appl (bvar 0) (double 1.0)))
+                        (appl (bvar 0) (val plus))))
+            B.id
+        ,return tDouble)
+
 
     , (mkLet [("id",lambda "a" (bvar 0))] (appl (appl
                     (lambda "a" (lambda "b"(bvar 1)))
