@@ -5,7 +5,6 @@ import Control.Exception.Base (assert)
 import qualified Data.IntMap as IM
 import qualified Data.Set as Set
 import Control.Monad.State hiding (sequence)
-import Data.Bifunctor
 
 import ErrorCollector
 import Value
@@ -19,29 +18,25 @@ import TypeError
 -- $setup
 -- >>> import MakeType
 
--- TODO make every variable poly, and maybe enforce in type
 close :: Type -> Type
-close t = fst $ go t fEmtyEnv 0
- where finedNewName:: Free -> FreeEnv Free -> Int ->  (Free , (FreeEnv Free , Int))
-       finedNewName f env n = if fMember f env
-             then (fLookup f env,( env, n))
-             else (Free n,( finsertAt (Free n ) f env, n + 1))
-       go (TVar f ) env n = first TVar (finedNewName f env n)
-       go (TPoly f ) env n = first TPoly (finedNewName f env n)
-       go (TAppl t1 t2 ) env n = let (t1',( env', n' )) = go t1 env n
-                                     (t2',( env'', n'')) = go t2 env' n'
-                                 in (TAppl t1' t2',( env'', n''))
-       go (TVal t1) e n = (TVal t1, (e, n))
+close t = fst3 $ go t fEmtyEnv 0
+ where go (TVar free ) env n = if fMember free env
+             then (TVar $ fLookup free env, env, n)
+             else (TVar (Free n), finsertAt (Free n ) free env, n + 1)
+       go (TAppl t1 t2 ) env n = let (t1', env', n' ) = go t1 env n
+                                     (t2', env'', n'') = go t2 env' n'
+                                 in (TAppl t1' t2', env'', n'')
+       go (TVal t1) e n = (TVal t1, e, n)
 
 fst3 :: (a, b, c) -> a
 fst3 (a, _, _) = a
 
 solver :: BruijnTerm i -> ErrorCollector [TypeError i] Type
-solver e = fmap ( close . uncurry (flip apply) ) $ runInfer $ solveWith e fEmtyEnv bEmtyEnv
+solver e = fmap ( close . uncurry (flip apply)) $ runInfer $ solveWith e fEmtyEnv bEmtyEnv
 
 type Infer i a = ErrorCollectorT [TypeError i] ( State Int ) a
 type TSubst = FreeEnv Type
-type TEnv = BruijnEnv Type
+type TEnv = BruijnEnv PolyType
 
 runInfer :: Infer i a -> ErrorCollector [TypeError i] a
 runInfer infer = evalState ( runErrorT infer) 0
@@ -55,7 +50,7 @@ newFreeVar = do
 solveWith :: BruijnTerm i -> TSubst -> TEnv -> Infer i (Type, TSubst)
 solveWith e@(Let _ defs e2) sub tenv = do
   newVars <- replicateM (length defs) newFreeVar
-  let tempTEnv= foldl ( flip ( bInsert. TVar)) tenv newVars
+  let tempTEnv= foldl ( flip ( bInsert. Forall [] . TVar)) tenv newVars
   (polys, subs) <- unzip <$> mapM (solveDefs tempTEnv) defs
   newSubs <- toExcept $ mapError (\erros -> [UnifySubs e erros]) $foldM1 unifySubs  subs
   let newTEnv = foldl ( flip  bInsert) tenv polys
@@ -67,7 +62,7 @@ solveWith e@(Let _ defs e2) sub tenv = do
 
 solveWith (Lambda _ _ e2) sub tenv = do
     k <- newFreeVar
-    let newTEnv = bInsert (TVar k) tenv
+    let newTEnv = bInsert (Forall [] $TVar k) tenv
     (t, newSub) <- solveWith e2 sub newTEnv
     return (apply newSub (TAppl (TVar k) t), newSub)
 
@@ -95,50 +90,32 @@ foldM1 _ [] = error " foldM1 empty List"
 foldM1 _ [a] = return a
 foldM1 f (x : xs) = foldM f x xs
 
-
--- | instantiate copys all variabls and replace them with new vars
--- >>> runInfer $ instantiate ((tVar (-1)) ~> (TPoly $ Free (-1)))
--- Result (TAppl (TVar (Free (-1))) (TVar (Free 0)))
-
-instantiate :: Type -> Infer a Type
-instantiate = fmap snd . toTVar fEmtyEnv
-  where
-    toTVar :: FreeEnv Free -> Type -> Infer a (FreeEnv Free, Type)
-    toTVar conversion  (TPoly (Free i)) = case IM.lookup i conversion  of
-             Just j -> return (conversion, TVar j)
-             Nothing -> newFreeVar >>= ( \j -> return (IM.insert i j conversion, TVar $ j))
-
-    toTVar conversion (TAppl t1 t2) = do
-         (conversion', t1') <- toTVar conversion t1
-         (newconversion, t2')<- toTVar conversion' t2
-         return (newconversion,TAppl t1' t2')
-
-    toTVar conversion t = return (conversion,t)
+instantiate ::  PolyType -> Infer a Type
+instantiate (Forall vs t) = do
+  vs' <- mapM (const newFreeVar) vs
+  let s = fFromList $ zip (map TVar vs') vs
+  return $ apply s t
 
 -- | generalize takes a type and converts it to its most polymorfic form/ principle form
 -- it should not quantife over variable that are already quantified in the env
 -- so:
 --
--- >>> generalize (bInsert (tVar 2 ~> (TPoly (Free 3)))bEmtyEnv) (tVar 1 ~> tVar 2 ~> TPoly (Free 3) ~> tVar 4)
--- TAppl (TPoly (Free 1)) (TAppl (TVar (Free 2)) (TAppl (TPoly (Free 3)) (TPoly (Free 4))))
---
--- "Forall a c d . a -> b -> c -> d"
+-- >>> pShowPoly $ generalize (bInsert (Forall [Free 3] (tVar 2 ~> tVar 3))bEmtyEnv) (tVar 1 ~> tVar 2 ~> tVar 3 ~> tVar 4)
+--"Forall a c d . a -> b -> c -> d"
 
-generalize :: TEnv -> Type -> Type
-generalize env = toPoly
-  where
-    freeInEnv = Set.unions $ map (freeVars . snd) $ bToList env
-    toPoly (TAppl t1 t2 ) = TAppl (toPoly t1) (toPoly t2)
-    toPoly (TVar i) | not (Set.member i freeInEnv) = TPoly i
-    toPoly t = t
+generalize :: TEnv -> Type -> PolyType
+generalize env t  = Forall vs t
+  where vs = Set.toList $ freeVars  t `Set.difference`  freeInEnv
+        freeInEnv :: Set.Set Free
+        freeInEnv = Set.unions $ map (freeVarsPoly . snd) $ bToList env
+
+freeVarsPoly :: PolyType-> Set.Set Free
+freeVarsPoly (Forall bv t) =  freeVars t `Set.difference` Set.fromList bv
 
 freeVars :: Type -> Set.Set Free
 freeVars (TVar v ) = Set.singleton v
 freeVars (TAppl t1 t2) = freeVars t1 `Set.union` freeVars t2
 freeVars _ = Set.empty
-
--- instanceOf :: PolyType -> PolyType -> _
--- instanceOf (Forall v1 t1 ) (Forall v2 t2 ) = undefined
 
 unifySubs :: TSubst -> TSubst -> ErrorCollector [UnificationError] TSubst
 unifySubs sub1 sub2 = IM.foldWithKey f (return sub1) sub2
@@ -150,7 +127,7 @@ unifySubs sub1 sub2 = IM.foldWithKey f (return sub1) sub2
             Just typ2 -> throw err *> unify (apply sub1 typ1) (apply sub1 typ2)
 
 --TODO only changes?
-unify :: Type -> Type -> ErrorCollector [UnificationError] TSubst
+unify :: Type -> Type -> ErrorCollector [UnificationError] TSubst -- retunr type
 unify (TVar n) t = fromEither $ bind n t
 unify t (TVar n) = fromEither $ bind n t
 unify (TAppl t11 t12 ) (TAppl t21 t22) =
@@ -185,7 +162,6 @@ infinit _ _ = False
 
 isIn :: Free -> Type -> Bool
 isIn _ TVal {} = False
-isIn _ TPoly {} = False
 isIn var (TAppl t1 t2) = isIn var t1 || isIn var t2
 isIn var1 (TVar var2 ) = var1 == var2
 
