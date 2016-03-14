@@ -48,6 +48,7 @@ library
                       ,transformers
                       ,ansi-wl-pprint
                       ,dlist
+                      ,NoTrace
 
   hs-source-dirs:      src/
   exposed-modules:     Lambda

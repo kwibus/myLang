@@ -11,8 +11,7 @@ tVar :: Int -> Type
 tVar  = TVar . Free
 
 tDouble :: Type
-tDouble = TVal TDouble
-
+tDouble = TVal Nothing TDouble
 
 tBool :: Type
-tBool = TVal TBool
+tBool = TVal Nothing TBool

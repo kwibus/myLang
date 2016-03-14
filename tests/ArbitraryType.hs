@@ -12,7 +12,7 @@ instance Arbitrary Type where
 
 -- TODO Beter Arbitrary type  possible ?
 arbitraryType :: Int -> Gen Type
-arbitraryType s | s <= 1 = oneof [fmap TVal arbitraryMonoType, arbitraryTVar]
+arbitraryType s | s <= 1 = oneof [fmap (TVal Nothing )arbitraryMonoType, arbitraryTVar]
                 | otherwise =
   do
      sizeleft <- choose (1, s - 1)

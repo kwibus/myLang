@@ -17,7 +17,7 @@ data TypeInstance = TDouble
 
 -- TODO replace i by Free ?
 -- TODO merge tvar poly with (TVar kind i)
-data TypeA i = TVal TypeInstance
+data TypeA i = TVal (Maybe i) TypeInstance
             | TVar i
             | TPoly i
             | TAppl (TypeA i) (TypeA i) deriving (Eq, Show)
@@ -52,7 +52,7 @@ pShowWithDic = go
             _ -> go t1 dic
           string2 = go t2 dic
       in string1 ++ " -> " ++ string2
-    go (TVal v) _ = showTypeInstance v
+    go (TVal _ v) _ = showTypeInstance v
 
 
 typeVars :: Eq i => TypeA i -> [i]
@@ -70,7 +70,7 @@ mapVar :: (i -> j) -> TypeA i -> TypeA j
 mapVar f (TAppl t1 t2) = TAppl (mapVar f t1) (mapVar f t2)
 mapVar f (TPoly i) = TPoly (f i)
 mapVar f (TVar i) = TVar (f i)
-mapVar _ (TVal a) = TVal a
+mapVar f (TVal i a) = TVal (fmap f i) a
 
 showTypeInstance :: TypeInstance -> String
 showTypeInstance TDouble = "Double"
