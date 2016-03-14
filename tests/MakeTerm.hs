@@ -13,7 +13,13 @@ var :: String -> LamTerm () Name
 var = Var () . fromString
 
 double :: Double -> LamTerm () n
-double = Val () . Prim . MyDouble
+double = val . Prim . MyDouble
+
+false :: LamTerm () n
+false = val . Prim . MyBool $ False
+
+true :: LamTerm () n
+true = val . Prim . MyBool $ True
 
 bvar :: Int -> BruijnTerm ()
 bvar = Var () . Bound

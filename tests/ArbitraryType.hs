@@ -20,6 +20,7 @@ arbitraryType s | s <= 1 = oneof [fmap TVal arbitraryMonoType, arbitraryTVar]
      t2 <- arbitraryType (s - sizeleft )
      return $ TAppl t1 t2
 
+ -- TODO rename. is not a monot typt but primitive or TypeInstance
 arbitraryMonoType :: Gen TypeInstance
 arbitraryMonoType = elements [TDouble, TBool]
 

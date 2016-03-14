@@ -2,6 +2,8 @@ module FreeEnvironment where
 
 import qualified Data.IntMap as IM
 
+-- TODO remmove FreeEnv and replace free with int. or hidde its Intmap
+
 -- | Free is also a wrapper arround Int but is used when BruijnIndex can`t be used
 -- it uses a absolute inex
 -- and bacause Bound And Free are implemented with newtype you can't execdentalyy mix them

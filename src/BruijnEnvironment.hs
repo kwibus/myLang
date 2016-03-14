@@ -3,7 +3,7 @@ module BruijnEnvironment where
 import qualified Data.IntMap as IM
 import Control.Exception.Base
 import Data.Maybe
---
+
 -- | Bound is wrapper arround Int and is used to represent BruijnIndex.
 -- BruijnIndex rever to a env, but are dependent on the surrounding terms.
 -- If you add extra lambda:

@@ -50,8 +50,11 @@ testApply = testGroup "apply"
     ]
 testUnify :: TestTree
 testUnify = testGroup "unify"
-    [ testCase " unifys a a -> " $
+    [ testCase "fail: unifys a (a ->b) " $
         unifys (tVar 1) ((tVar 1) ~> (tVar 2)) @?= False
+
+    , testCase "fail: unify (Bool -> a) (a -> Double)" $
+        unifys (tBool ~> tVar 1) (tVar 1 ~> tDouble) @?= False
 
     , testProperty "unify self" $
         \ t -> unifys t t
@@ -199,13 +202,16 @@ cassesSolver =
     , (mkLet [("id",lambda "a" (bvar 0))] (appl (bvar 0) (bvar 0))
         ,return (tVar 0 ~> tVar 0))
 
-    , (appl (lambda "id "( lambda "c" (appl (appl
-                            (lambda "a" (lambda "b"(bvar 1)))
-                            (appl (bvar 0) (double 1.0)))
-                        (appl (bvar 0) (val plus)))))
-                (lambda "a" (bvar 0))
+    , (lambda "f" (appl (bvar 0) (appl (bvar 0 ) true))
+        , return ((tBool ~> tBool) ~> tBool ))
 
-         ,throw [UnifySubs undefined  [Unify undefined undefined ] ])
+
+    , (mkLet [("id",lambda "a" (bvar 0))] (appl (appl
+                    (lambda "a" (lambda "b"(bvar 1)))
+                    (appl (bvar 0) (double 1.0)))
+               (appl (bvar 0) false )
+            )
+            ,return tDouble)
 
     , (mkLet [("id",B.id)] (appl (appl
                     (lambda "a" (lambda "b"(bvar 1)))
@@ -213,6 +219,9 @@ cassesSolver =
                (appl (bvar 0) (val plus))
             )
         , return tDouble)
+
+    , (mkLet [ ("a", true),("b", appl (val plus )(bvar 0))] (bvar 1)
+        , throw  [ UnifySubs undefined [Unify undefined undefined ]])
     ]
 
 testCaseSolver :: LamTerm () Bound -> ErrorCollector [TypeError ()] Type -> TestTree

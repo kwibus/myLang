@@ -19,7 +19,7 @@ data Value = Prim Primative
 
 data Primative = MyDouble Double
                | MyBool Bool -- make Bool libary data type (sum type)
-
+               deriving Show
 -- TODO remove if every type is build in
 getType :: Value -> Type
 getType (Prim p) = getTypePrimative p
@@ -42,15 +42,15 @@ pShowPrimitive (MyDouble d) = show d
 pShowPrimitive (MyBool b) = show b
 
 instance Show Value where
-    show (Prim p) = show p
+    show (Prim p) = "(Prim (" ++ show p ++ "))"
     show BuildIn {vName = n, stack = s } = n ++
         if null s
         then ""
         else show s
 
-instance Show Primative where
-  show (MyDouble a) = "(MyDouble ( " ++ show a ++ "))"
-  show (MyBool b) = show b
+-- instance Show Primative where
+--   show (MyDouble a) = "(MyDouble ( " ++ show a ++ "))"
+--   show (MyBool b) = "(MyBool "++ show b ++ ")"
 
 instance Eq Value where
   BuildIn {vName = n1 , stack = s1} == BuildIn {vName = n2 , stack = s2} =

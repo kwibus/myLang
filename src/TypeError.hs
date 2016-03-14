@@ -2,14 +2,14 @@ module TypeError where
 
 import Prelude hiding ( (<$>) )
 import Text.PrettyPrint.ANSI.Leijen
+import Data.Char
+
 import FreeEnvironment
 import BruijnEnvironment
 import Type
 import BruijnTerm
 import Lambda
 import Info
-
-import Data.Char
 
 data TypeError i =
       UnifyAp (BruijnTerm i) Type Type [UnificationError]
