@@ -41,6 +41,8 @@ executable sample
 
 library
   build-depends:       base >=4 && < 5
+-- FIXME
+                      ,NoTrace 
                       ,containers
                       ,parsec
                       ,parsec-numbers
@@ -77,6 +79,8 @@ test-suite tests
   Type:                exitcode-stdio-1.0
 
   Build-Depends:       base >=4 && < 5
+                        -- FIXME
+                      ,NoTrace 
                       ,myLang
                       ,tasty
                       ,tasty-hunit
@@ -85,6 +89,13 @@ test-suite tests
                       ,mtl
                       ,containers
                       ,transformers
+
+                      ,parsec
+                      ,parsec-numbers
+                      ,mtl
+                      ,transformers
+                      ,ansi-wl-pprint
+                      ,dlist
   Ghc-Options:          -Wall -threaded -with-rtsopts=-N
   default-language:    Haskell2010
 

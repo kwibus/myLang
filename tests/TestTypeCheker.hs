@@ -29,8 +29,9 @@ testTypeChecker = testGroup "typeChecker"
                     [ testApply
                     , testUnify
                     , testUnifySubs
-                    , testSolver
                     , testClose
+                    , testSpecialise
+                    , testSolver
                     ]
 
 testApply :: TestTree
@@ -48,6 +49,7 @@ testApply = testGroup "apply"
         let sub = IM.fromList [(1,tVar 2), (2,tVar 3)]
         in apply sub (tVar 1) @?= tVar 3
     ]
+
 testUnify :: TestTree
 testUnify = testGroup "unify"
     [ testCase "fail: unifys a (a ->b) " $
@@ -116,6 +118,31 @@ testClose = testGroup "close"
     [testProperty "welformd close" $
         welFormdType . close ]
 
+testSpecialise :: TestTree
+testSpecialise = testGroup "specialise"
+    [ testCase "Bool Double" $
+        runInfer ( specialise  tBool tDouble) @?= (return (tVar 0, IM.empty)::ErrorCollector [TypeError ()] (Type,TSubst))
+
+    , testCase "Bool (a->b)" $
+        runInfer ( specialise  tBool (tVar 1~> tVar 2)) @?= (return (tVar 0, IM.empty)::ErrorCollector [TypeError ()] (Type,TSubst))
+
+    , testCase "(a->b) Bool " $
+        runInfer ( specialise (tVar 1~> tVar 2) tBool ) @?= (return (tVar 0, IM.empty)::ErrorCollector [TypeError ()] (Type,TSubst))
+
+    , testCase "(a-> Bool) (Bool -> a)" $
+        runInfer ( specialise (tVar 1~> tBool) (tBool ~> tVar 1) ) @?= (return (tBool ~> tBool, IM.singleton 1 tBool) ::ErrorCollector [TypeError ()] (Type,TSubst))
+
+    , testCase "(a-> Bool) (Bool -> a)" $
+        runInfer ( specialise (tVar 1~> tBool) (tBool ~> tVar 1) ) @?= (return (tBool ~> tBool, IM.singleton 1 tBool) ::ErrorCollector [TypeError ()] (Type,TSubst))
+
+    , testCase "(a-> a) (Bool -> TDouble)" $
+        runInfer ( specialise (tVar 1~> tVar 1) (tBool ~> tDouble) ) @?= (return (tVar 0~> tDouble, IM.singleton 1 (tVar 2)) ::ErrorCollector [TypeError ()] (Type,TSubst))
+    , testCase "(a-> TDouble) (Bool -> a)" $
+        runInfer ( specialise (tVar 1~> tDouble) (tBool ~> tVar 1) ) @?= (return (tVar 0~> tDouble, IM.singleton 1 (tVar 2)) ::ErrorCollector [TypeError ()] (Type,TSubst))
+    ,    testProperty "unify ~ specialise" $ \ t1 t2 ->
+            unifys  t1 t2 ==> (snd $ getResult $ runInfer (specialise t1 t2)) === getResult( unify t1 t2)
+    ]
+
 testSolver :: TestTree
 testSolver = testGroup "Solver"
     [ testGroup "testCases" (map (uncurry testCaseSolver) cassesSolver)
@@ -129,6 +156,7 @@ testSolver = testGroup "Solver"
     , testProperty "typeable" $
         forAllTypedBruijn $ \ e -> hasSucces $ solver e
     ]
+
 cassesSolver :: [(LamTerm () Bound, ErrorCollector [TypeError ()] Type)]
 cassesSolver =
     [ (double 1.0, return tDouble)
@@ -148,8 +176,8 @@ cassesSolver =
                     (double 1.0))
       , return (tDouble ~> tDouble))
 
-    , ((appl (lambda "a" (lambda "b" (bvar 1)))
-            (double 1))
+    , (appl (lambda "a" (lambda "b" (bvar 1)))
+            (double 1)
        , return (tVar 0 ~> tDouble))
 
     , (lambda "a" (lambda "b" (appl
@@ -157,12 +185,6 @@ cassesSolver =
                     (bvar 1)
                 ))
         , return ( tVar 0 ~> (tVar 0 ~> tVar 1) ~> tVar 1 ))
-
-    , (lambda "a" (appl
-                    (bvar 0)
-                    (bvar 0)
-                )
-          , throw [ UnifyAp undefined undefined undefined [Infinit undefined undefined ]])
 
     , (lambda "a" (appl
                     (bvar 0)
@@ -179,10 +201,15 @@ cassesSolver =
                  ))
         ,return (( tVar 0 ~> (tVar 0 ~> tVar 1)) ~> (tVar 0 ~>tVar 1)))
 
+    , ( lambda "b" (lambda "c" (
+                appl (bvar 1)
+                     (double 1.0)
+               ) )
+        , return ((tDouble ~>tVar 0) ~> (tVar 1 ~> tVar 0)))
     , (appl (lambda "a " (bvar 0))
                      (lambda "b" (lambda "c" (
                             appl (bvar 1)
-                            (double 1.0)
+                                 (double 1.0)
                ) ))
         , return ((tDouble ~>tVar 0) ~> (tVar 1 ~> tVar 0)))
 
@@ -190,7 +217,7 @@ cassesSolver =
        , throw [UnifyAp undefined undefined undefined [Unify undefined undefined ]])
 
     , (lambda "a" (appl (bvar 0 ) (bvar 0))
-        , throw [UnifyAp undefined undefined undefined [Infinit undefined undefined ]])
+        , return tBool) -- FIXME throw [UnifyAp undefined undefined undefined [Infinit undefined undefined ]])
 
     , (appl (lambda "x" (appl (lambda "y" (bvar 1))
                               (appl (lambda "z" (bvar 1))

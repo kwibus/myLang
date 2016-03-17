@@ -15,6 +15,9 @@ data TypeError i =
       UnifyAp (BruijnTerm i) Type Type [UnificationError]
     | UnifySubs (BruijnTerm i) [UnificationError]
     | ICE (UndefinedVar Bound i)
+    | Dummy1 -- FIXME
+    | Dummy2 -- FIXME
+    | Dummy3 -- FIXME
     deriving Show
 
 data UnificationError =

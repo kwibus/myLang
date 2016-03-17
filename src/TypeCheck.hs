@@ -1,6 +1,9 @@
 {-#LANGUAGE FlexibleContexts #-}
 module TypeCheck where
 
+import Name
+-- import Debug.NoTrace
+import Debug.Trace
 import Control.Exception.Base (assert)
 import qualified Data.IntMap as IM
 import qualified Data.Set as Set
@@ -77,15 +80,24 @@ solveWith e@(Let _ defs e2) sub tenv = do
         unifyDefinitionUse subs (Free i) t = do
              state <- get
              let alias = arglist state IM.!  i
+             put state{arglist=IM.delete i (arglist state) }
              toExcept $ mapError (\erros -> [UnifySubs e erros]) $
                         traverse_ (unify t . apply subs.TVar) alias
-             put state{arglist=IM.delete i (arglist state) }
 
-solveWith (Lambda _ _ e2) sub tenv = do
+solveWith (Lambda _ n e2) sub tenv = do
     k <- newFreeVar
-    let newTEnv = bInsert (Forall [] $TVar k) tenv
-    (t, newSub) <- solveWith e2 sub newTEnv
-    return (apply newSub (TAppl (TVar k) t), newSub)
+    addArglist k
+    let newTEnv = bInsert (Forall [k] $TVar k) tenv
+    (t2, newSub) <- solveWith e2 sub newTEnv
+
+    traceM $ prettyPrint n ++ "\n t2 pre:" ++ show (apply newSub t2)
+       ++ "\n sub pre:" ++ show newSub
+    (t1, subalias) <-   specialiseAlias newSub k
+    traceM $ prettyPrint n
+       ++ "\n t1:" ++ show (apply subalias t1)
+       ++ "\n t2:" ++ show (apply subalias t2)
+       ++ "\n sub:" ++ show subalias
+    return (apply subalias (TAppl t1 t2), subalias)
 
 solveWith e@Appl{} sub tenv = do
     let (function : args) = accumulateArgs e
@@ -93,6 +105,8 @@ solveWith e@Appl{} sub tenv = do
     (argsTyps, subs) <- unzip <$> mapM (\ arg -> solveWith arg sub tenv) args
     var <- newFreeVar
     let typeArg = foldr1 TAppl (argsTyps ++ [TVar var])
+    traceM $ "funcT:" ++ show functionTyp ++
+           "\nargT:" ++ show typeArg
     newsup <- toExcept $ mapError (\erro -> [UnifyAp e functionTyp typeArg erro]) $ unify functionTyp typeArg
     newSub <- toExcept $ mapError (\erros -> [UnifySubs e erros]) $ foldM1 unifySubs (newsup:sub:sub1:subs)
     let newTyp = apply newSub (TVar var)
@@ -106,19 +120,42 @@ solveWith (Var i n) sub tEnv = case  bMaybeLookup n tEnv of
             return (apply sub t, fEmtyEnv)
         Nothing -> throwT [ICE $ UndefinedVar n i]
 
+fromUnifySub :: BruijnTerm i -> ErrorCollector [UnificationError] TSubst -> Infer i TSubst
+fromUnifySub e = toExcept . mapError (\erros -> [UnifySubs e erros])
+
 unPoly :: PolyType -> Type
 unPoly (Forall _ t) = t
+
+toInt :: Free -> Int -- TODO remove
+toInt (Free i) = i
 
 foldM1 :: Monad m => (a -> a -> m a) -> [a] -> m a
 foldM1 _ [] = error " foldM1 empty List"
 foldM1 _ [a] = return a
 foldM1 f (x : xs) = foldM f x xs
 
+specialiseAlias :: TSubst -> Free ->  Infer i (Type, TSubst)
+specialiseAlias subs (Free i) = do
+    state <- get
+    put state{arglist=IM.delete i (arglist state) }
+    let alias = arglist state IM.!  i
+    (t,sub3) <- case alias of
+         [] -> return (TVar (Free i ), subs)
+         (a:as) -> foldM (\(t1,sub1) t2 -> do
+                      (t,sub2) <- specialise (apply sub1 t1) (apply sub1 t2)
+
+
+                      newsub <- toExcept $ mapError (const [Dummy1]) $ unifySubs sub2 sub1
+                      return ( t,newsub)
+                    ) (TVar a,subs) $ map TVar as
+    -- let newt = apply sub3 t
+    -- let subalias =foldl  (flip IM.delete ) sub3 $ map  TypeCheck.toInt  alias
+    return (t,sub3)
+
 -- | instantiate copys all qualified variabls and replace them with new vars
 --  and ad the var to the alias in arglist
 -- >>> runInfer $ instantiate $ Forall [Free 1] (tVar 2 ~> tVar 1)
 -- Result (TAppl (TVar (Free 2)) (TVar (Free 0)))
-
 instantiate ::  PolyType -> Infer i Type
 instantiate (Forall vs t) = do
   vs' <- mapM (const newFreeVar) vs
@@ -163,7 +200,7 @@ unifySubs sub1 sub2 = IM.foldWithKey f (return sub1) sub2
             Nothing -> throw err
             Just typ2 -> throw err *> unify (apply sub1 typ1) (apply sub1 typ2)
 
-unify :: Type -> Type -> ErrorCollector [UnificationError] TSubst -- retunr type
+unify :: Type -> Type -> ErrorCollector [UnificationError] TSubst
 unify (TVar n) t = fromEither $ bind n t
 unify t (TVar n) = fromEither $ bind n t
 unify (TAppl t11 t12 ) (TAppl t21 t22) =
@@ -174,6 +211,27 @@ unify t1@(TVal v1) t2@(TVal v2) = if v1 == v2
     then return fEmtyEnv
     else throw [Unify t1 t2 ]
 unify t1 t2 = throw [Unify t1 t2 ]
+
+specialise :: Type -> Type -> Infer i(Type , TSubst)
+specialise (TVar n) t = do
+            sub <- case bind n t of
+                 Right sub -> return sub
+                 Left _ -> throwT [Dummy2]
+            return (t, sub)
+
+specialise t1 t2@(TVar _) = specialise  t2 t1
+specialise (TAppl t11 t12) (TAppl t21 t22) = do
+  (t2, sub1) <- specialise t12 t22
+  (t1, sub2) <- specialise (apply sub1 t11) (apply sub1 t21)
+  newsub <- toExcept $ mapError (const [Dummy3])$ unifySubs sub1 sub2
+  return (TAppl (apply sub2 t1) t2,newsub)
+specialise t1@(TVal v1) (TVal v2)
+    | v1 == v2 = return (t1,fEmtyEnv)
+
+specialise _ _ = do
+    v <-newFreeVar
+    return (TVar v, IM.empty)
+
 
 apply ::  TSubst -> Type -> Type
 apply sub (TVar i) = if fMember i sub
@@ -190,7 +248,7 @@ bind ::  Free -> Type ->  Either UnificationError TSubst
 bind n1 t
     | TVar n1 == t = return fEmtyEnv
     | infinit n1 t = Left $ Infinit n1 t
-    | otherwise = return $ finsertAt t n1 fEmtyEnv
+    | otherwise = return $ finsertAt t n1 fEmtyEnv -- todo replace singleton
 
 infinit :: Free -> Type ->  Bool
 infinit var (TAppl t1 t2) = isIn var t1 || isIn var t2

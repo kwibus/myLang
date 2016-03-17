@@ -119,3 +119,8 @@ mapError = first
 toEither :: ErrorCollector e a -> Either e a
 toEither (Error e ) = Left e
 toEither (Result a) = Right a
+
+getResult :: ErrorCollector e a -> a
+getResult e =case e of
+    Result a -> a
+    _ -> error "cant get result, has error"
