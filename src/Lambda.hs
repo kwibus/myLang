@@ -24,7 +24,7 @@ getPrec _ = highPrec
 accumulateVars :: LamTerm i Name -> ([Name], LamTerm i Name)
 accumulateVars = go []
  where go names (Lambda _ name t ) = go (name : names) t
-       go names t = (reverse $ filter (\e-> e/=DummyBegin && e/= DummyEnd) names, t)
+       go names t = (reverse $ filter (\e-> e/=DummyBegin && e/= DummyEnd) names, t) -- TODO split filter out not alwyas needed
 
 accumulateArgs :: LamTerm i n -> [LamTerm i n]
 accumulateArgs = go []

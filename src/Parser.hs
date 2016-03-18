@@ -130,10 +130,18 @@ pDefinition :: Parser (Def Loc Name)
 pDefinition = do
   pos <- getPosition
   str <- pIdentifier
+  args <- many $ withLoc $ Name <$> pIdentifier
   pSymbol Equal
   term <- pLambdaTerm
   loc <- pLoc pos
-  return $ Def loc (Name str) term
+  return $ Def loc (Name str) $ foldr (uncurry Lambda ) term args
+
+withLoc :: Parser a -> Parser (Loc,a)
+withLoc pars = do
+    pos <- getPosition
+    a <- pars
+    loc <- pLoc pos
+    return (loc,a)
 
 pLine :: Parser Expresion
 pLine = do

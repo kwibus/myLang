@@ -66,7 +66,14 @@ pShow = show . go True lowPrec . removeInfo
                                    align (vcat $ map showDefs defs) <$$>
                                    text "in" <+>
                                    go topLeft p term
-    where showDefs (Def _ n t) = text (toString n ++ " = ") <> go True lowPrec t <> text ";"
+    where showDefs (Def _ n t) =
+            text (
+             unwords (map toString (n : args)) ++
+              " = ")
+            <>
+            go True lowPrec t' <>
+            text ";"
+              where  (args, t') = accumulateVars t
 
   go topLeft p t@Appl {}
     | isInfix function = case arguments of
