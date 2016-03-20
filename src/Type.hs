@@ -19,7 +19,7 @@ data TypeInstance = TDouble
 -- TODO merge tvar poly with (TVar kind i)
 data TypeA i = TVal TypeInstance
             | TVar i
-            | TPoly i
+            | TPoly i --TODO remove
             | TAppl (TypeA i) (TypeA i) deriving (Eq, Show)
 
 mkDictonarie :: [Type] -> Dictionary

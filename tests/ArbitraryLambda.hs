@@ -1,6 +1,7 @@
 module ArbitraryLambda
 where
 
+import Data.List
 import Data.Maybe
 import Control.Monad
 import Control.Monad.Trans.Class
@@ -77,6 +78,8 @@ elimanateBruijn _ = go 0
     go _ (v@Val {}) = Just v
     go i (Lambda _ n t) = Lambda () n <$> go (i + 1) t
     go i (Appl _ t1 t2) = Appl () <$> go i t1 <*> go i t2
+    go i (Let _ defs term) = Let () <$> (mapM (elimanateDef (i + length defs)) defs ) <*> go (i + length defs) term
+    elimanateDef i (Def _ n t) = Def () n <$> go i t
 
 elimanateLambda :: Name -> LamTerm () Name -> Maybe ( LamTerm () Name )
 elimanateLambda name = go
@@ -89,6 +92,8 @@ elimanateLambda name = go
       | n == name = Just t1
       | otherwise = Lambda () n <$> go t2
     go (Appl _ t1 t2) = Appl () <$> go t1 <*> go t2
+    go (Let _ defs term) = Let () <$> (mapM elimanateDef defs) <*> go term
+    elimanateDef (Def _ n t) = Def () n <$> go t
 
 genTyped :: ArbiRef n => Gen (LamTerm () n )
 genTyped = fromJust <$> genTerm (Just (TVar (Free (-1))))
@@ -118,10 +123,10 @@ arbitraryTerm n mabeytype maxlist s
         Nothing -> return False
       if b
       then mzero
-      else whenBacksteps (< 20) (
-           oneOfLogic [ arbitraryAppl n mabeytype maxlist s
-                   , arbitraryLambda n mabeytype maxlist s
-                   ] ) $ error $ show mabeytype ++ "\n" ++ show n
+      else oneOfLogic [ arbitraryAppl n mabeytype maxlist s
+                      , arbitraryLambda n mabeytype maxlist s
+                      , arbitraryLet n mabeytype maxlist s
+                      ]
 
 -- TODO fix also genarate var Empty
 arbitraryVar :: ArbiRef n => Maybe Type -> GenState n -> Generater (LamTerm () n)
@@ -163,6 +168,46 @@ arbitraryLambda size t maxlist state = do
     Just _ -> arbitraryTerm (size - 1) (Just (TVar var2 )) maxlist newState
     Nothing -> arbitraryTerm (size - 1) Nothing [] newState
   return $ lambda n expr
+
+arbitraryLet :: ArbiRef n => Int -> Maybe Type -> [Type] -> GenState n -> Generater (LamTerm () n)
+arbitraryLet size t maxlist state =
+    let minmalSize = 4
+        maxDefs = 5
+        maxnumberDefs = min (size `div`minmalSize) (maxDefs+1)
+    in do
+    numberDefs <- lift$ lift $ choose (1,maxnumberDefs) -- no bactracking here?
+    if numberDefs <= 1
+    then mzero
+    else do
+            let totallExtra = size - minmalSize * numberDefs
+            randomextra <- lift $ lift $ uniformBucket numberDefs totallExtra
+            let (resultSize :varSize)= map (minmalSize +) randomextra
+            vars <- replicateM (numberDefs-1) newFreeVar
+            (varNames, newState) <- lift $ lift $ makeVars state vars
+            let newmaxlist = maxlist ++ map TVar vars
+            term  <- arbitraryTerm resultSize t newmaxlist newState
+            defs  <- mapM (\( v, name,sizeTerm) -> do
+
+                        termN <- arbitraryTerm sizeTerm (fmap (const (TVar v)) t) maxlist newState -- TODO remove self from maxlist
+                        return $ Def () name termN
+                        ) $ zip3 vars (map Name varNames) varSize
+            return $ Let () defs term
+
+makeVars::ArbiRef n => GenState n -> [Free] -> Gen ([String],GenState n)
+makeVars state [] = return ([],state)
+makeVars state (f:fs) = do
+    (newVar,newState) <- newVarRef state f
+    (resetVar,finalState) <- makeVars newState fs
+    return (newVar:resetVar, finalState)
+
+uniformBucket :: Int -> Int -> Gen [Int]
+uniformBucket buckets totaal = do
+    randomList <- replicateM (buckets-1)$ choose (0,totaal) :: Gen [Int]
+    return $ diff $ 0: ((sort randomList)++[totaal])
+    where diff :: [Int] -> [Int]
+          diff (a:b:rest) = (b-a):diff (b:rest)
+          diff [_]  = []
+
 
 newVarRef :: ArbiRef n => GenState n -> Free -> Gen (String, GenState n)
 newVarRef state free = do
