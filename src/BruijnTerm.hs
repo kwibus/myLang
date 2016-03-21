@@ -49,7 +49,7 @@ bruijn2Lam t = go t []
             Nothing -> throwError $ UndefinedVar info n
             Just name -> return $ Var info name
         go (Val i v) _ = return $ Val i v
-        go (Appl i e1 e2 ) env = Appl i <$> go e1 env <*> go e2 env
+        go (Appl e1 e2 ) env = Appl <$> go e1 env <*> go e2 env
         go (Lambda info name e1) env =
             let newName = mkNewName name env
             in Lambda info newName <$> go e1 (newName : env)
@@ -81,7 +81,7 @@ lam2Bruijn t = go t 0 M.empty
         go (Val i v) _ _ = return $ Val i v
         go (Lambda i name t1) depth env =
                  Lambda i (removeIndex (toString name)) <$> go t1 (depth + 1) (M.insert name depth env)
-        go (Appl i t1 t2) depth env = Appl i <$> go t1 depth env <*> go t2 depth env
+        go (Appl t1 t2) depth env = Appl <$> go t1 depth env <*> go t2 depth env
         go (Let i defs t1) depth env = Let i <$> newDefs <*> go t1 newDepth newEnv
           where
             newDepth = depth + length defs
