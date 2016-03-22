@@ -20,10 +20,13 @@ instance Monad m => Monad (BackListT m ) where
   m >>= f = BackListT $ do
       b <- run m
       case b of
-          Failures i -> return $ Failures i
-          List [] -> error "to low"
-          List [l] -> run $ f l
-          List ls -> run (tryMT (map f ls))
+         Failures i -> return $ Failures i
+         List (l:ls) next -> do
+                 b' <- run $ f l
+                 next' <- run $ BackListT (return (List ls next)) >>= f
+                 return $ setTop (Just next') b'
+         List  [] (Just next) -> run $ ( BackListT $ return next) >>= f
+         List  [] Nothing  -> return $ Failures 0
 
 instance Monad m => MonadPlus (BackListT m) where
   mzero = BackListT $ return mzero

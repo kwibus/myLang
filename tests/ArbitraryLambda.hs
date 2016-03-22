@@ -164,7 +164,7 @@ arbitraryLambda size t maxlist state = do
   (n, newState) <- lift $ lift $ newVarRef state var1
   unifyGen t $ TAppl (TVar var1) (TVar var2)
   expr <- case t of
-    Just _ -> arbitraryTerm (size - 1) (Just (TVar var2 )) maxlist newState
+    Just _ -> arbitraryTerm (size - 1) (Just (TVar var2 )) maxlist newState --TODO remove reption
     Nothing -> arbitraryTerm (size - 1) Nothing [] newState
   return $ lambda n expr
 

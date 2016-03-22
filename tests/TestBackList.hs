@@ -47,7 +47,7 @@ testGuardFail :: TestTree
 testGuardFail = testCase "guard fail return" $ toList guardFail @?= []
 
 testGuardFailBacksteps :: TestTree
-testGuardFailBacksteps = testCase "fail  guard return is one backstep" $
+testGuardFailBacksteps = testCase "fail guard return is one backstep" $
                      failures guardFail @?= 10
 
 testGuardFail' :: TestTree

@@ -85,6 +85,11 @@ test-suite tests
                       ,mtl
                       ,containers
                       ,transformers
+
+                      ,parsec
+                      ,parsec-numbers
+                      ,ansi-wl-pprint
+                      ,dlist
   Ghc-Options:          -Wall -threaded -with-rtsopts=-N
   default-language:    Haskell2010
 
