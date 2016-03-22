@@ -3,7 +3,7 @@ module BackList where
 import Control.Monad
 import Control.Applicative
 
-data BackList a = Steps !Int | List [a] deriving Show
+data BackList a = Failures !Int | List [a] deriving Show
 
 instance Functor BackList where
   fmap = liftM
@@ -14,17 +14,15 @@ instance Applicative BackList where
 
 instance Monad BackList where
     return a = List [a]
-    Steps i >>= _ = Steps i
-    List [] >>= _ = error "emty backlist"
-    List [l] >>= f = f l
-    List l >>= f = case msum (map f l) of
-          Steps i -> Steps $! i + 1
-          List l2 -> List l2
+    Failures i >>= _ = Failures i
+    -- List [] >>= _ = error "emty backlist"
+    List l >>= f = tryM (map f l)
 
+--  TODO remove is not mplus
 instance MonadPlus BackList where
-    mzero = Steps 1
-    mplus (Steps i ) (Steps j ) = Steps $! max i j
-    mplus Steps {} b = b
+    mzero = Failures 1
+    mplus (Failures i ) (Failures j ) = Failures $! i + j
+    mplus Failures {} b = b
     mplus (List l ) b = List $ l ++ toList b
 
 instance Alternative BackList where
@@ -32,20 +30,17 @@ instance Alternative BackList where
    (<|>) = mplus
 
 try :: [a] -> BackList a
-try [] = Steps 1
+try [] = Failures 1
 try as = List as
 
 tryM :: [BackList a] -> BackList a
-tryM [] = Steps 1
-tryM list = case msum list of
-   List [] -> error "null list" --  Steps 1
-   List l -> List l
-   Steps i -> Steps $! i + 1
+tryM [] = Failures 1
+tryM list = foldr1 mplus list
 
 toList :: BackList a -> [a]
-toList Steps {} = []
+toList Failures {} = []
 toList (List l) = l
 
-backsteps :: BackList a -> Int
-backsteps List {} = 0
-backsteps (Steps i) = i
+failures :: BackList a -> Int
+failures List {} = 0
+failures (Failures i) = i

@@ -20,7 +20,7 @@ instance Monad m => Monad (BackListT m ) where
   m >>= f = BackListT $ do
       b <- run m
       case b of
-          Steps i -> return $ Steps i
+          Failures i -> return $ Failures i
           List [] -> error "to low"
           List [l] -> run $ f l
           List ls -> run (tryMT (map f ls))
@@ -48,8 +48,5 @@ tryMT list = BackListT (tryM <$> mapM run list)
 toListT :: Functor m => BackListT m a -> m [a]
 toListT = fmap toList . run
 
-backstepsT :: Functor m => BackListT m a -> m Int
-backstepsT b = fmap backsteps $! run b
-
-stepsT :: Monad m => Int -> BackListT m a
-stepsT = BackListT . return . Steps
+failuresT :: Functor m => BackListT m a -> m Int
+failuresT b = fmap failures $! run b

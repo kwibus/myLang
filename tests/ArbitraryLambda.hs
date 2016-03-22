@@ -20,6 +20,7 @@ import Name
 import ArbiRef
 import PrettyPrint
 import Info
+import TypeCheck (apply)
 
 forAllTypedBruijn :: Testable prop => (BruijnTerm () -> prop) -> Property
 forAllTypedBruijn = forAllShowShrink genTyped printBrujin shrinkTyped
@@ -118,10 +119,13 @@ arbitraryTerm n mabeytype maxlist s
         Nothing -> return False
       if b
       then mzero
-      else whenBacksteps (< 20) (
+      else whenBacksteps (< 20000) (
            oneOfLogic [ arbitraryAppl n mabeytype maxlist s
                    , arbitraryLambda n mabeytype maxlist s
-                   ] ) $ error $ show mabeytype ++ "\n" ++ show n
+                   ]
+            ) $ do
+                    sub <- getSub
+                    return $ error $ show (apply sub <$> mabeytype) ++ "\n" ++ show n
 
 -- TODO fix also genarate var Empty
 arbitraryVar :: ArbiRef n => Maybe Type -> GenState n -> Generater (LamTerm () n)

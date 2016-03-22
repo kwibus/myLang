@@ -30,9 +30,9 @@ whenBacksteps condition result alternative = StateT $ \ s -> BackListT $
      bs <- backListAS
      case bs of
         B.List l -> return $ B.List l
-        B.Steps i ->
+        B.Failures i ->
            if condition i
-           then return $ B.Steps i
+           then return $ B.Failures i
            else run $ runStateT alternative s
 
 evalT :: Monad m => StateT s (BackListT m) a -> s -> m [a]

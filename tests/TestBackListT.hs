@@ -9,8 +9,7 @@ import BackListT
 
 testBackListT :: TestTree
 testBackListT = testGroup "backListT"
-  [ testCase "1+2" $ generate (backstepsT (tryMT [stepsT 1, stepsT 2])) >>= (@?= 3 )
-  , testLazy1
+  [ testLazy1
   , testLazy2
   , testGuardFail
   , testGuardFailBacksteps
@@ -26,10 +25,10 @@ testBackListT = testGroup "backListT"
   ]
 
 testLazy1 :: TestTree
-testLazy1 = testCase "tryT is lazy" $ generate (backstepsT $ tryT [(1 :: Int) ..]) >>= (@?= 0)
+testLazy1 = testCase "tryT is lazy" $ generate (failuresT $ tryT [(1 :: Int) ..]) >>= (@?= 0)
 
 testLazy2 :: TestTree
-testLazy2 = testCase "tryTM is lazy" $ generate (backstepsT $ tryMT $ map return [(1 :: Int) ..]) >>= (@?= 0)
+testLazy2 = testCase "tryTM is lazy" $ generate (failuresT $ tryMT $ map return [(1 :: Int) ..]) >>= (@?= 0)
 
 testLimitBacksteps :: TestTree
 testLimitBacksteps = assertFail "limitBackSteps" (
@@ -37,7 +36,7 @@ testLimitBacksteps = assertFail "limitBackSteps" (
       then
           let result = tryMT (map f [0 .. y - 1]) :: BackListT Gen Int
           in BackListT $ do
-              steps <- backstepsT result
+              steps <- failuresT result
               if steps > 3
               then error "to many backsteps"
               else run result
@@ -62,28 +61,28 @@ testGuardFail = testCase "guard fail return" $ generate (toListT guardFail) >>= 
 
 testGuardFailBacksteps :: TestTree
 testGuardFailBacksteps = testCase "fail  guard return is one backstep" $
-                     generate (backstepsT guardFail) >>= (@?= 2)
+                     generate (failuresT guardFail) >>= (@?= 10)
 
 testGuardFail' :: TestTree
 testGuardFail' = testCase "guard fail" $ generate (toListT guardFail') >>= (@?= [])
 
 testGuardFailBacksteps' :: TestTree
 testGuardFailBacksteps' = testCase "fail guard  is one backstep" $
-                     generate (backstepsT guardFail') >>= (@?= 2)
+                     generate (failuresT guardFail') >>= (@?= 10)
 
 testGuardSucces :: TestTree
 testGuardSucces = testCase "guard succes return" $ generate (toListT guardSucces) >>= (@?= [10])
 
 testGuardSuccesBacksteps :: TestTree
 testGuardSuccesBacksteps = testCase "guard succes return is no backstep" $
-                     generate (backstepsT guardSucces) >>= (@?= 0)
+                     generate (failuresT guardSucces) >>= (@?= 0)
 
 testGuardSucces' :: TestTree
 testGuardSucces' = testCase "guard succes" $ generate (toListT guardSucces') >>= (@?= [()])
 
 testGuardSuccesBacksteps' :: TestTree
 testGuardSuccesBacksteps' = testCase "guard succes is no backstep" $
-                     generate (backstepsT guardSucces') >>= (@?= 0)
+                     generate (failuresT guardSucces') >>= (@?= 0)
 
 guardFail :: BackListT Gen Int
 guardFail = do
@@ -109,12 +108,12 @@ guardSucces' = do
 
 stopMzero :: TestTree
 stopMzero = testCase "stop ad mzero" $ do
-  result <- generate $ backstepsT (do
+  result <- generate $ failuresT (do
         i <- tryT []
         tryMT [tryT [i], mzero])
   result @?= 1
 
 twoBacksteps :: TestTree
 twoBacksteps = testCase "2 backsteps " $ do
-   result <- generate $ backstepsT $ tryMT [tryT [], mzero]
+   result <- generate $ failuresT $ tryMT [tryT [], mzero]
    result @?= 2

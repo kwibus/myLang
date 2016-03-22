@@ -1,6 +1,5 @@
 module TestBackList where
 
-
 import Control.Monad
 import Test.Tasty
 import Test.Tasty.HUnit
@@ -27,7 +26,7 @@ testLimitBacksteps :: TestTree
 testLimitBacksteps = assertFail "limitBackSteps" (
    let f y = if y >= 0
        then let result = tryM (map f [0 .. y - 1]) :: BackList Int
-                steps = backsteps result
+                steps = failures result
             in if steps > 3
                then error "to many backsteps"
                else result
@@ -49,28 +48,28 @@ testGuardFail = testCase "guard fail return" $ toList guardFail @?= []
 
 testGuardFailBacksteps :: TestTree
 testGuardFailBacksteps = testCase "fail  guard return is one backstep" $
-                     backsteps guardFail @?= 2
+                     failures guardFail @?= 10
 
 testGuardFail' :: TestTree
 testGuardFail' = testCase "guard fail" $ toList guardFail' @?= []
 
 testGuardFailBacksteps' :: TestTree
 testGuardFailBacksteps' = testCase "fail guard  is one backstep" $
-                     backsteps guardFail' @?= 2
+                     failures guardFail' @?= 10
 
 testGuardSucces :: TestTree
 testGuardSucces = testCase "guard succes return" $ toList guardSucces @?= [10]
 
 testGuardSuccesBacksteps :: TestTree
 testGuardSuccesBacksteps = testCase "guard succes return is no backstep" $
-                     backsteps guardSucces @?= 0
+                     failures guardSucces @?= 0
 
 testGuardSucces' :: TestTree
 testGuardSucces' = testCase "guard succes" $ toList guardSucces' @?= [()]
 
 testGuardSuccesBacksteps' :: TestTree
 testGuardSuccesBacksteps' = testCase "guard succes is no backstep" $
-                     backsteps guardSucces' @?= 0
+                     failures guardSucces' @?= 0
 
 guardFail :: BackList Int
 guardFail = do
@@ -95,10 +94,10 @@ guardSucces' = do
   guard (x == 10)
 
 stopMzero :: TestTree
-stopMzero = testCase "stop ad mzero" ( backsteps (do
+stopMzero = testCase "stop ad mzero" ( failures(do
   i <- try []
   tryM [try [i], mzero]) @?= 1)
 
 twoBacksteps :: TestTree
-twoBacksteps = testCase "2 backsteps " ( backsteps (
+twoBacksteps = testCase "2 backsteps " ( failures(
   tryM [try [], mzero]) @?= 2)
