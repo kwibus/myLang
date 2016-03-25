@@ -7,6 +7,71 @@ import qualified Control.Exception
 
 import BackList
 
+testBackList  :: TestTree
+testBackList = testGroup "BackList" [testBacktrack , testBackSteps]
+
+testBackSteps :: TestTree
+testBackSteps = testGroup "backsteps"
+    [ testCase "1 backsteps " $
+        toList ( tryM
+          [ tryM
+            [tryM
+              [ StepBack 1
+              , return (3::Int)
+              ]
+            ,return 2
+            ]
+          , return 1
+          ])
+         @?= [2,1]
+    , testCase "2 backsteps " $
+        toList ( tryM
+          [ tryM
+            [tryM
+              [ StepBack 2
+              , return (3::Int)
+              ]
+            , return 2
+            ]
+          , return 1
+          ])
+         @?= [1]
+
+    , testCase "many backsteps " $
+        toList ( tryM
+          [ tryM
+            [tryM
+              [ StepBack 10
+              , return (3::Int)
+              ]
+            , return 2
+            ]
+          , return 1
+          ])
+         @?= []
+
+    , testCase "save [1,2,3]" $
+        ( save $ try [1..(3::Int)])
+        @?= Node [Leaf 1 Top] (Node [Leaf 2 Top,Leaf 3 Top] Top)
+    , testCase "do many backsteps" $
+        ( do
+           i <- try [1..(3::Int)]
+           j <- try [1..3]
+           (i*j*)<$> try [1..3]
+           -- if odd (i + j + k) then  StepBack 1 else return (i,j,k)
+           )
+        @?=return 1
+
+    , testCase "do many backsteps" $
+        ( do
+           i <- save $ try [1..(3::Int)]
+           j <- try [1..(3::Int)]
+           (\k->(i,j,k))<$> try [1..(3::Int)]
+           -- if odd (i + j + k) then  StepBack 1 else return (i,j,k)
+           )
+        @?=return (1,1,1)
+    ]
+
 testBacktrack :: TestTree
 testBacktrack = testGroup "backtrack"
   [ testGuardFail
@@ -18,7 +83,7 @@ testBacktrack = testGroup "backtrack"
   , testGuardSucces'
   , testGuardSuccesBacksteps'
   , testLimitBacksteps
-  , twoBacksteps
+  , nestedMzero
   , stopMzero
   ]
 
@@ -31,7 +96,7 @@ testLimitBacksteps = assertFail "limitBackSteps" (
                then error "to many backsteps"
                else result
         else mzero
-   in null $ toList $ f =<< try [(0 :: Int) .. ]) "to many backsteps"
+   in null $ toList $ f =<< try [(0 :: Int), 1,2,3,4,5,undefined ]) "to many backsteps"
 
 assertFail :: String -> a -> String -> TestTree
 assertFail nameTest a exception = testCase nameTest $
@@ -98,6 +163,6 @@ stopMzero = testCase "stop ad mzero" ( failures(do
   i <- try []
   tryM [try [i], mzero]) @?= 1)
 
-twoBacksteps :: TestTree
-twoBacksteps = testCase "2 backsteps " ( failures(
+nestedMzero :: TestTree
+nestedMzero = testCase "nested mzero " ( failures(
   tryM [try [], mzero]) @?= 2)

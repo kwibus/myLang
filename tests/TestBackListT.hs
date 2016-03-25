@@ -41,7 +41,7 @@ testLimitBacksteps = assertFail "limitBackSteps" (
               then error "to many backsteps"
               else run result
       else mzero
-  in generate ( toListT $ f =<< tryT [(0 :: Int) .. ])) "to many backsteps"
+  in generate ( toListT $ f =<< tryT [(0 :: Int), 1, 2, 3,  undefined ])) "to many backsteps"
 
 -- TODO move sepport module
 assertFail :: Show a => String -> IO a -> String -> TestTree
@@ -84,24 +84,24 @@ testGuardSuccesBacksteps' :: TestTree
 testGuardSuccesBacksteps' = testCase "guard succes is no backstep" $
                      generate (failuresT guardSucces') >>= (@?= 0)
 
-guardFail :: BackListT Gen Int
+guardFail ::Monad m => BackListT m Int
 guardFail = do
   x <- tryT [1 .. 10 :: Int]
   guard (x == 11)
   return x
 
-guardSucces :: BackListT Gen Int
+guardSucces :: Monad m => BackListT m Int
 guardSucces = do
   x <- tryT [1 .. 10 :: Int]
   guard (x == 10)
   return x
 
-guardFail' :: BackListT Gen ()
+guardFail' :: Monad m =>BackListT m ()
 guardFail' = do
   x <- tryT [1 .. 10 :: Int]
   guard (x == 11)
 
-guardSucces' :: BackListT Gen ()
+guardSucces' ::Monad m =>  BackListT m ()
 guardSucces' = do
   x <- tryT [1 .. 10 :: Int]
   guard (x == 10)
