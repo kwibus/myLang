@@ -31,6 +31,7 @@ executable interperter
 executable sample
   main-is:             Sample.hs
   build-depends:       base >=4 && < 5
+                      ,test-myLang-lib
                       ,myLang
                       ,QuickCheck
                       ,mtl
@@ -78,6 +79,7 @@ test-suite tests
 
   Build-Depends:       base >=4 && < 5
                       ,myLang
+                      ,test-myLang-lib
                       ,tasty
                       ,tasty-hunit
                       ,tasty-quickcheck
@@ -103,16 +105,6 @@ Benchmark bench
     main-is:    benchmark.hs
     Hs-Source-Dirs: tests, tests/bench
     build-depends:  base
-                    ,criterion
-                    ,QuickCheck
-                    ,myLang
-                    ,mtl
-                    ,ansi-wl-pprint
-                    ,parsec
-                    ,parsec-numbers
-                    ,either-unwrap
-                    ,transformers
-                    ,containers
-                    ,deepseq
-                    ,deepseq-generics
+                    , test-myLang-lib
+                    , myLang
     default-language:    Haskell2010
