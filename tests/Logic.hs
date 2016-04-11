@@ -8,6 +8,7 @@ import BackListT
 import qualified BackList as B
 
 type LogicGen s a = StateT s (BackListT Gen) a
+-- first state and then Backlist else the state does not backtrack
 
 oneOfLogic :: [LogicGen s a] -> LogicGen s a
 oneOfLogic list = do
@@ -25,15 +26,10 @@ chooseLogic (a, b) = elementsLogic [a .. b]
 whenBacksteps :: Monad m => (Int -> Bool ) -> StateT s (BackListT m) a ->
   StateT s (BackListT m) a -> StateT s (BackListT m) a
 whenBacksteps condition result alternative = StateT $ \ s -> BackListT $
-  let backListAS = run $ runStateT result s
-  in do
-     bs <- backListAS
-     case bs of
-        B.List l -> return $ B.List l
-        B.Steps i ->
-           if condition i
-           then return $ B.Steps i
-           else run $ runStateT alternative s
+  do bs <-run $ runStateT result s
+     if condition $ B.backsteps bs
+       then return bs
+       else run $ runStateT alternative s
 
 evalT :: Monad m => StateT s (BackListT m) a -> s -> m [a]
 evalT a s = toListT (evalStateT a s )
