@@ -27,6 +27,8 @@ eval = listToMaybe . evalSteps
 evalSteps ::Show i => BruijnTerm i -> [BruijnTerm i]
 evalSteps = fmap fst . toList . evalWithEnv bEmtyEnv
 
+--TODO use Env with Lambda
+--TODO use fix Env when free variable
 evalWithEnv :: Show i => BruijnEnv (BruijnTerm i) -> BruijnTerm i ->
   DList (BruijnTerm i, BruijnEnv (BruijnTerm i))
 evalWithEnv env (Appl i func args) = (firstFullExpr `append` nextFullExpr ) `append` final
@@ -41,7 +43,7 @@ evalWithEnv env (Appl i func args) = (firstFullExpr `append` nextFullExpr ) `app
 
     final = case valueFunc of
       (Lambda _ _ t1) ->
-            let step = substitute valueArgs (Bound 0) t1 -- reduce outer to inner redex
+            let step = substitute valueArgs 0 t1 -- reduce outer to inner redex
             in cons (step, env) $ evalWithEnv env step
       (Val i1 v1) -> return (Val i1 $ applyValue v1 $ value valueArgs, env)
       _ -> empty
@@ -57,14 +59,15 @@ evalWithEnv env (Let i defs term) = snoc firstSteps (saveLast (toList evals) (te
     evals = evalWithEnv (foldl' (\ envN (Def _ _ tn ) -> bInsert tn envN ) env defs ) term
 
 evalWithEnv env (Var i b) =
-  if isvalue valueOfB
-  then singleton (valueOfB, env)
-  else let evaluntilValue = evalWithEnv env valueOfB
-           resetResult = fmap $ first $ const (Var i b)
-           lastStep = (\ (result, newEnv) -> (result, bReplace b result newEnv )) $
-                      last $ toList evaluntilValue
-      in snoc (resetResult evaluntilValue) lastStep
-  where valueOfB = bLookup b env
+  case bMaybeLookup b env of
+    Just v | isvalue v ->singleton (v, env)
+           | otherwise ->
+            let evaluntilValue = evalWithEnv env v
+                resetResult = fmap $ first $ const (Var i b)
+                lastStep = (\ (result, newEnv) -> (result, bReplace b result newEnv )) $
+                              last $ toList evaluntilValue
+            in snoc (resetResult evaluntilValue) lastStep
+    Nothing -> empty
 evalWithEnv _ _ = empty
 
 saveLast :: [a] -> a -> a
@@ -86,12 +89,23 @@ applyValue v1@BuildIn {arrity = n, stack = s, myType = t } v2 =
 applyValue _ _ = error "apply value"
 
 -- TODO remove initial index
-substitute :: BruijnTerm i -> Bound -> BruijnTerm i -> BruijnTerm i
-substitute t1 n1 t2@(Var _ n2) = if n1 == n2 then t1 else t2
-substitute t1 (Bound i1) (Lambda i n t2) = Lambda i n $
-                    substitute t1 (Bound (i1 + 1)) t2
+substitute :: BruijnTerm i -> Int-> BruijnTerm i -> BruijnTerm i
+substitute t1 n1 t2@(Var i (Bound n2)) | n1 == n2 = inc n1 t1
+                               | n1 < n2 = Var i $ Bound (n2-1)
+                               | otherwise = t2
+substitute t1 n1 (Lambda i n2 t2) = Lambda i n2 $
+                    substitute t1 (n1 + 1) t2
 substitute t n (Appl i t1 t2) = Appl i (substitute t n t1) (substitute t n t2)
 substitute _ _ t2 = t2
+
+inc :: Int -> BruijnTerm i -> BruijnTerm i
+inc 0 term = term
+inc increase  term = go 0 term
+  where go depth (Lambda i n t) = Lambda i n $ go (depth+1) t
+        go depth (Appl i t1 t2) = Appl i (go depth t1)(go depth t2)
+        go depth (Var i (Bound n)) | n >= depth  = Var i $ Bound $ n+increase
+                                   | otherwise =Var i (Bound n)
+        go _ (Val i v) = Val i v
 
 isvalue :: LamTerm i n -> Bool
 isvalue Var {} = False --TODO check

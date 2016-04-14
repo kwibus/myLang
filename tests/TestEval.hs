@@ -37,6 +37,13 @@ testEvalBasic = testGroup "basic"
   , testCase "eval id id = Just id" $
        eval (appl B.id B.id) @?= Just B.id
 
+  , testCase "eval free" $
+       eval (bvar 0) @?= Nothing
+
+  , testCase "eval name capture" $
+        eval (appl (lambda "b"$ lambda "c" $ bvar 1)(lambda "d" $ bvar 1))
+        @?= Just (lambda "c" $ lambda "d" $ bvar 2)
+
   , testCase "call by vallu termination" $
       eval (lambda "z" (appl B.id (bvar 1))) @?= Nothing
 
