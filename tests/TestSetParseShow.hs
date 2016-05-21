@@ -28,9 +28,13 @@ letSet :: [(String, LamTerm () Name)]
 letSet =
   [ ("let a = a;" ++
    "\nin a", mkLet [("a", var "a")] (var "a"))
+
   , ("let b = 1.0;" ++
    "\n    a = b;" ++
    "\nin a", mkLet [("b", double 1.0), ("a", var "b")] (var "a"))
+
+  , ("let b = 1.0;" ++
+   "\nin + (+)", mkLet [("b", double 1.0)] $ lambda "#" $ appl (appl (val plus)(var "#"))(val plus))
   ]
 
 math :: [(String, LamTerm () Name)]
@@ -126,6 +130,10 @@ advanced =
   , ("1.0 + (*)", appl (appl (val plus) (double 1.0) ) (val multiply))
 
   , ("+ (*)", lambda "#" (appl (appl (val plus) (var "#")) (val multiply)))
+
+  , ("+ (+)", lambda "#" (appl (appl (val plus) (var "#")) (val plus)))
+
+  , ("(+) +", appl (val plus) (val plus))
 
   , ("(1.0 +) +", appl (val plus) (appl (val plus) (double 1.0)))
 

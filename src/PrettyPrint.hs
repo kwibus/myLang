@@ -61,10 +61,11 @@ pShow = show . go True lowPrec
                     dot
     in parensIf (not topLeft) $lambda <> go True lowPrec nextTerm
 
-  go topLeft p (Let _ defs term) = text "let" <+>
-                                   align (vcat $ map showDefs defs) <$$>
-                                   text "in" <+>
-                                   go topLeft p term
+  go topLeft _ (Let _ defs term) = parensIf (not topLeft ) $
+                    text "let" <+>
+                    align (vcat $ map showDefs defs) <$$>
+                    text "in" <+>
+                    go True lowPrec  term
     where showDefs (Def _ n t) = text (toString n ++ " = ") <> go True lowPrec t <> text ";"
 
   go topLeft p t@Appl {}
