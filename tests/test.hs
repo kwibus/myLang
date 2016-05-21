@@ -11,16 +11,14 @@ import TestPrettyPrintLambda
 import TestParser
 import TestType
 import TestLogic
-import TestBackList
-import TestBackListT
+import TestSearchTree
 
 main :: IO ()
 main = defaultMain tests
 
 tests :: TestTree
 tests = testGroup "tests"
-    [ testBacktrack
-    , testBackListT
+    [ testSearchTree
     , testLogic
     , testArbitrary
     , testTypeChecker
