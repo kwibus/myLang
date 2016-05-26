@@ -5,9 +5,11 @@ import Test.Tasty
 import Test.Tasty.HUnit
 import Test.Tasty.QuickCheck
 import Data.Maybe
+import Data.DList
 
 import TypeCheck
 import BruijnTerm
+import BruijnEnvironment
 import qualified ExampleBruijn as B
 import TestUtils
 import ArbitraryLambda
@@ -22,11 +24,53 @@ import ErrorCollector
 import qualified Type as T
 
 testEval :: TestTree
-testEval = testGroup "eval" [testEvalBasic, testEvalBuildin]
+testEval = testGroup "eval"
+    [ testSubstituteEnv
+    , testUpdateEnv
+    , testEvalBasic
+    , testEvalBuildin
+    , testEvalLet
+    ]
+
+testSubstituteEnv :: TestTree
+testSubstituteEnv = testGroup "substituteEnv "
+    [ testCase "[a/1.0,b/2.0,b/3.0] a = 1.0" $
+        let env = bFromList [double 1, double 2, double 3]
+        in substituteEnv env (bvar 1 ) @?= double 2
+
+    , testCase "[a/1.0] \\b.a = \\b.1.0" $
+        let env = bFromList [double 1.0]
+        in substituteEnv env (lambda "b" $ bvar 1 ) @?= lambda "b" (double 1.0)
+
+    , testCase "[a/c] \\b.a = \\b.c" $
+        let env = bFromList [bvar 1]
+        in substituteEnv env (lambda "b" $ bvar 1 ) @?= lambda "b" (bvar 2)
+    ]
+
+testUpdateEnv :: TestTree
+testUpdateEnv = testGroup "updateEnv"
+    [ testCase "update a [a/1.0] = {}"  $
+        let env = bFromList [double 1.0]
+        in updateEnv (Bound 0) env @?= empty
+
+    , testCase "update a [a/a] = {}"  $
+        let env = bFromList [bvar 0]
+        in updateEnv (Bound 0) env @?= empty
+
+    , testCase "update a [a/b ,b/1.0] = [a/1.0,b/1,0]"  $
+        let env = bFromList [bvar 0 , double 1]
+        in updateEnv (Bound 1) env @?= singleton  (bFromList [double 1, double 1])
+    ]
 
 testEvalBasic :: TestTree
 testEvalBasic = testGroup "basic"
-  [ testCase "eval id(id(\\z.id z))=id(\\z.id z)" $
+  [ testCase "eval 1.0" $
+        eval (double 1) @?= Nothing
+
+  , testCase "eval id" $
+        eval B.id @?= Nothing
+
+  , testCase "eval id(id(\\z.id z))=id(\\z.id z)" $
 
       eval (appl B.id ( appl B.id (lambda "z" (appl B.id (bvar 0))))) @?=
          Just ( appl B.id ( lambda "z" (appl B.id (bvar 0))))
@@ -35,7 +79,7 @@ testEvalBasic = testGroup "basic"
       eval (appl B.omega B.omega) @?= Just (appl B.omega B.omega)
 
   , testCase "eval id id = Just id" $
-       eval (appl B.id B.id) @?= Just B.id
+       evalSteps (appl B.id B.id) @?= return B.id
 
   , testCase "eval free" $
        eval (bvar 0) @?= Nothing
@@ -79,6 +123,10 @@ testEvalBasic = testGroup "basic"
 -- so you have to use unifys
 -- but name me overlap; so a hack solution is to add a large numer to the var one side.
 -- because is generated type's would normally have a big numbers in it; so no overlap
+
+--
+--   TODO implement (this is only true if e1,e1 terminate and no self reference in e1 )
+-- , testProperty"let a = e1 in e2 == (\\a.e2)e1"  forAllTypedBruijn \e1 -> $ forAllTypedBruijn e2
   ]
 
 errorCol2Bool :: ErrorCollector e Property -> Property
@@ -109,16 +157,34 @@ testEvalBuildin = testGroup "Buildin"
                            )
                            (double 1.0))
       @?= double 7.0
-
-  , testCase "fullEval1 let a = 1.0 in 0 " $
+  ]
+testEvalLet :: TestTree
+testEvalLet = testGroup "let"
+  [ testCase "fullEval let a = 1.0 in a " $
       fullEval (mkLet [("a", double 1.0) ] (bvar 0))
       @?= double 1.0
 
-  , testCase "fullEval2 let a = 0 ;b=1.0 in 1 " $
-      fullEval (mkLet [("a", bvar 0), ("b", double 1.0)] (bvar 1))
-      @?= double 1.0
+  , testCase "evalSteps let a = b ;b=1.0 in a " $
+      evalSteps (mkLet [("a", bvar 0), ("b", double 1.0)] (bvar 1))
+      @?= [mkLet [("a", double 1.0), ("b", double 1.0)] (bvar 1),double 1.0]
 
-  , testCase "fullEval3 let a = (let b = 1.0 in 0) ;in 0 " $
+  , testCase "fullEval let a = \\b.b in a " $
+      fullEval (mkLet [("a", B.id) ] (bvar 0))
+      @?= B.id
+
+  , testCase "fullEval let a = \\b.1.0 in \\c.a " $
+      fullEval(mkLet [("a",lambda "b" (double 1)) ] $ lambda "c" (bvar 1))
+      @?=  lambda "c" ( lambda "b"$ double 1 )
+
+  , testCase "fullEval let a = (let b = 1.0 in b) ;in a " $
       fullEval (mkLet [("a", mkLet [("b", double 1.0)] (bvar 0))] (bvar 0))
       @?= double 1.0
+
+  , testCase "fullEval let a = a; in a " $
+      fullEval (mkLet [("a", bvar 0)] (bvar 0))
+      @?= double 1.0
+
+  , testCase "instantane substituion"  $
+        take 1 ( evalSteps $ mkLet [("a",double 1)] $ appl (bvar 0) (bvar 0))
+        @?= [appl (double  1) (double 1)]
   ]
