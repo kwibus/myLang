@@ -29,7 +29,6 @@ type BruijnTerm i = LamTerm i Bound
 data UndefinedVar i n = UndefinedVar i n -- ^ i is extra information (location of variable) and n is the name
     deriving (Show, Eq)
 
-
 -- | Converts 'BruijnTerm' to a 'LambTerm'
 --
 -- This function fails with 'Left' 'UndefinedVar' if there is a free variable.
@@ -55,11 +54,12 @@ bruijn2Lam t = go t []
             in Lambda info newName <$> go e1 (newName : env)
         go (Let i defs t1) env = Let i <$> newDefs <*> go t1 newEnv
           where
-
-            defNewNames = map (\ (Def i0 name t0) -> Def i0 (mkNewName name env) t0) defs
-            newDefs = mapM (\ (Def i0 n t0) -> Def i0 n <$> go t0 newEnv ) defNewNames
-            newEnv :: [Name]
-            newEnv = foldl' (\ env' (Def _ n _) -> n : env' ) env defNewNames
+            newDefs = reverse <$> mapM
+                (\ (newN,Def i0 _ t0) -> Def i0 newN <$> go t0 newEnv)
+                (zip newNames $ reverse defs)
+            newEnv =  newNames ++ env
+            newNames :: [Name]
+            newNames = foldl'  (\ env' (Def _ n _) ->  mkNewName n (env++env'): env')  [] defs
 
 -- | Converts 'Lambda' with named variabls to 'Lambda' with Bruijn Index's
 --
