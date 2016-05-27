@@ -15,7 +15,7 @@ elementsLogic :: (MonadTrans m,MonadPlus (m Gen)) =>
     [a] -> LogicGen s m a
 elementsLogic list = do
   a <- lift $ lift $ shuffle list
-  tryM $  map return a
+  try a
 
 chooseLogic ::  (MonadTrans m,MonadPlus (m Gen)) =>
     Enum a => (a, a) -> LogicGen s m a
