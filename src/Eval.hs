@@ -25,14 +25,14 @@ eval = fmap fst . listToMaybe . toList . evalWithEnv bEmtyEnv
 
 evalWithEnv :: Show i => BruijnEnv (BruijnTerm i) -> BruijnTerm i ->
   DList (BruijnTerm i, BruijnEnv (BruijnTerm i))
-evalWithEnv env (Appl i func args) = (firstFullExpr `append` nextFullExpr ) `append` final
+evalWithEnv env (Appl func args) = (firstFullExpr `append` nextFullExpr ) `append` final
   where
     evalFunc = evalWithEnv env func
-    firstFullExpr = first (\ t -> Appl i t args) <$> evalFunc
+    firstFullExpr = first (\ t -> Appl t args) <$> evalFunc
     valueFunc = saveLast ( fst <$> toList evalFunc ) func
 
     evalArgs = evalWithEnv env args
-    nextFullExpr = first (Appl i valueFunc) <$> evalArgs
+    nextFullExpr = first (Appl valueFunc) <$> evalArgs
     valueArgs = saveLast (fst <$> toList evalArgs) args
 
     final = case valueFunc of
@@ -86,7 +86,7 @@ substitute :: BruijnTerm i -> Bound -> BruijnTerm i -> BruijnTerm i
 substitute t1 n1 t2@(Var _ n2) = if n1 == n2 then t1 else t2
 substitute t1 (Bound i1) (Lambda i n t2) = Lambda i n $
                     substitute t1 (Bound (i1 + 1)) t2
-substitute t n (Appl i t1 t2) = Appl i (substitute t n t1) (substitute t n t2)
+substitute t n (Appl t1 t2) = Appl (substitute t n t1) (substitute t n t2)
 substitute _ _ t2 = t2
 
 isvalue :: LamTerm i n -> Bool
