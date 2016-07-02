@@ -156,8 +156,8 @@ arbitraryVar t s = do
 arbitraryAppl :: ArbiRef n => Int -> Maybe Type -> [Type] ->
      GenState n -> Generater (LamTerm () n)
 arbitraryAppl size mabeytype maxlist state = do
-  sizeLeft <- chooseLogic (1, size - 1)
-  let sizeRight = size - sizeLeft
+  sizeLeft <- chooseLogic (1, size - 2)
+  let sizeRight = size - sizeLeft -1
   case mabeytype of
     Nothing -> do
       expr1 <- arbitraryTerm sizeLeft Nothing [] state
@@ -189,16 +189,16 @@ arbitraryLambda size t maxlist state = do
 
 arbitraryLet :: ArbiRef n => Int -> Maybe Type -> [Type] -> GenState n -> Generater (LamTerm () n)
 arbitraryLet size t maxlist state =
-    let minmalSize = 4
+    let minmalSize = 1
         maxDefs = 5
-        maxnumberDefs = min (size `div`minmalSize) (maxDefs+1)
+        maxnumberDefs = min ((size -1)`div`minmalSize) (maxDefs+1)
     in do
-    numberDefs <- lift$ lift $ choose (1,maxnumberDefs) -- no bactracking here?
+    numberDefs <- chooseLogic (1,maxnumberDefs)
     if numberDefs <= 1
     then mzero
     else do
-            let totallExtra = size - minmalSize * numberDefs
-            randomextra <- lift $ lift $ uniformBucket numberDefs totallExtra
+            let totallExtra = (size -1) - minmalSize * numberDefs
+            randomextra <- lift $ lift $ uniformBucket numberDefs totallExtra -- this will not backtrack
             let (resultSize :varSize)= map (minmalSize +) randomextra
             vars <- replicateM (numberDefs-1) newFreeVar
             (varNames, newState) <- lift $ lift $ makeVars state vars
