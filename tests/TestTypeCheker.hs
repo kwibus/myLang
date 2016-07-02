@@ -47,7 +47,7 @@ testApply = testGroup "apply"
 testUnify :: TestTree
 testUnify = testGroup "unify"
     [ testCase " unifys a a -> " $
-        unifys (tVar 1) ((tVar 1) ~> (tVar 2)) @?= False
+        unifys (tVar 1) (tVar 1 ~> tVar 2) @?= False
 
     , testProperty "unify self" $
         \ t -> unifys t t
@@ -95,7 +95,7 @@ testUnifySubs = testGroup " UnifySubs "
         in hasSucces (unifySubs sub1 sub2 ) @?= False
 
     , testCase " unifysSubs [a/b] [a/(b ->c)] fails" $
-        let sub2 = fromList [(1,(tVar 2) ~>(tVar 3))]
+        let sub2 = fromList [(1,tVar 2 ~> tVar 3)]
             sub1 = fromList [(1,tVar 2)]
         in hasSucces (unifySubs sub1 sub2 ) @?= False
 
@@ -110,6 +110,7 @@ testClose = testGroup "close"
     [testProperty "welformd close" $
         welFormdType . close ]
 
+-- TODO consistend names
 testSolver :: TestTree
 testSolver = testGroup "Solver"
    [ testCase "check Double" $
@@ -215,7 +216,7 @@ testSolver = testGroup "Solver"
                         (appl (bvar 0) (val plus)))))
                 (lambda "a" (bvar 0)))
 
-        @?= (throw [UnifySubs undefined  [Unify undefined undefined ] ])
+        @?= throw [UnifySubs undefined  [Unify undefined undefined ] ]
 
     , testCase "let id = \\a .a in (\\ a b .a) (id 1.0) (id +) " $
         solver (mkLet [("id",lambda "a" (bvar 0))] (appl (appl
@@ -224,6 +225,10 @@ testSolver = testGroup "Solver"
                (appl (bvar 0) (val plus))
             ))
         @?= return tDouble
+
+    , testCase "let a = a in a +" $
+        solver (mkLet [("a",bvar 0)] $ appl (val plus)(bvar 0))
+        @?= return (tDouble ~> tDouble)
 
     , testProperty "idempotence" $
         forAllTypedBruijn $ \ e -> case runInfer $ solveWith e fEmtyEnv bEmtyEnv of
