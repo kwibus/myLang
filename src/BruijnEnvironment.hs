@@ -18,77 +18,69 @@ newtype Bound = Bound Int deriving (Eq, Show)
 
 --TODO replace with list
 --TODO Fix name to BruijnEnv
-data BruijnEnv a = BruijnState
-     { bruijnDepth :: Int
-     , bruijnMap :: IM.IntMap a
-     } deriving (Show, Eq)
+type BruijnEnv a = IM.IntMap a 
 
 
 toInt :: Bound -> Int
 toInt (Bound i) = i
 
 bNull :: BruijnEnv a -> Bool
-bNull BruijnState {bruijnDepth = 0}  = True
-bNull _ = False
+bNull = IM.null
 
 bEmtyEnv :: BruijnEnv a
-bEmtyEnv = BruijnState
-    { bruijnDepth = 0
-    , bruijnMap = IM.empty
-    }
+bEmtyEnv = IM.empty
+
 bMember :: Bound -> BruijnEnv a -> Bool
-bMember b e= isJust $ bMaybeLookup b e
+bMember (Bound b) = IM.member b
 
 bLookup :: Bound -> BruijnEnv a -> a
-bLookup (Bound i) BruijnState {bruijnDepth = depth, bruijnMap = m} =
-    m IM.! (depth - i - 1)
+bLookup (Bound i) env =
+    env IM.! i
 
 bMaybeLookup :: Bound -> BruijnEnv a -> Maybe a
-bMaybeLookup (Bound i) BruijnState {bruijnDepth = depth, bruijnMap = m} =
-    IM.lookup (depth - i - 1) m
+bMaybeLookup (Bound i) = IM.lookup i
 
-bInsert :: a -> BruijnEnv a -> BruijnEnv a
-bInsert a b@BruijnState {bruijnDepth = depth, bruijnMap = m} =
-     b {bruijnDepth = depth + 1, bruijnMap = IM.insert depth a m }
+bInsert :: Bound -> a -> BruijnEnv a -> BruijnEnv a
+bInsert (Bound i) = IM.insert i
 
 bInserts :: [a] ->  BruijnEnv a -> BruijnEnv a
-bInserts list env = foldl' (flip bInsert) env list
-
--- TODO can remove duplcate code by using bInserts
+bInserts list env = undefined  -- foldl' (flip bInsert) env list
+--
+-- -- TODO can remove duplcate code by using bInserts
 bFromList :: [a] -> BruijnEnv a
-bFromList = foldl' (flip bInsert) bEmtyEnv
-
--- TODO remove this
-bToList :: BruijnEnv a -> [(Int, a)]
-bToList BruijnState {bruijnMap = m} = IM.toList m
-
-bReplace :: Bound -> a -> BruijnEnv a -> BruijnEnv a
-bReplace (Bound i) a b@BruijnState {bruijnDepth = depth, bruijnMap = m} =
-  assert (bMember (Bound i) b)
-  b {bruijnMap = IM.insert (depth - i - 1) a m}
-
--- TODO ??? could remove duplecate cate by using bSplitAt
-bDrop :: Int -> BruijnEnv a -> BruijnEnv a
-bDrop n b = b {bruijnDepth = newDepth, bruijnMap = newM}
-    where (newM,_) = IM.split newDepth(bruijnMap b )
-          newDepth = bruijnDepth b - n
-
-bExtend :: Int -> BruijnEnv a -> BruijnEnv a
-bExtend n = bDrop (-n)
-
-bFilter :: (a -> Bool) -> BruijnEnv a -> BruijnEnv a
-bFilter f env = env {bruijnMap = IM.filter f $ bruijnMap env}
-
-bSplitAt :: Int -> BruijnEnv  a -> (BruijnEnv a, [a])
-bSplitAt n b = (b{bruijnDepth = newDepth,bruijnMap = low}, maybeToList pivot ++ map snd (IM.toAscList high))
-  where (low,pivot,high) = IM.splitLookup newDepth(bruijnMap b )
-        newDepth = bruijnDepth b - n
-
-
-instance Functor BruijnEnv  where
-    fmap f b = b{bruijnMap = fmap f (bruijnMap b)}
-
-mapWithBound :: (Bound -> a -> b) -> BruijnEnv a -> BruijnEnv b
-mapWithBound f b@BruijnState{bruijnDepth = dept,bruijnMap =m} =
-    b {bruijnMap = IM.mapWithKey (\index a-> f (Bound $! dept -index -1)a  ) m}
-
+bFromList = undefined --  foldl' (flip bInsert) bEmtyEnv
+--
+-- -- TODO remove this
+-- bToList :: BruijnEnv a -> [(Int, a)]
+-- bToList BruijnState {bruijnMap = m} = IM.toList m
+--
+-- bReplace :: Bound -> a -> BruijnEnv a -> BruijnEnv a
+-- bReplace (Bound i) a b@BruijnState {bruijnDepth = depth, bruijnMap = m} =
+--   assert (bMember (Bound i) b)
+--   b {bruijnMap = IM.insert (depth - i - 1) a m}
+--
+-- -- TODO ??? could remove duplecate cate by using bSplitAt
+-- bDrop :: Int -> BruijnEnv a -> BruijnEnv a
+-- bDrop n b = b {bruijnDepth = newDepth, bruijnMap = newM}
+--     where (newM,_) = IM.split newDepth(bruijnMap b )
+--           newDepth = bruijnDepth b - n
+--
+-- bExtend :: Int -> BruijnEnv a -> BruijnEnv a
+-- bExtend n = bDrop (-n)
+--
+-- bFilter :: (a -> Bool) -> BruijnEnv a -> BruijnEnv a
+-- bFilter f env = env {bruijnMap = IM.filter f $ bruijnMap env}
+--
+-- bSplitAt :: Int -> BruijnEnv  a -> (BruijnEnv a, [a])
+-- bSplitAt n b = (b{bruijnDepth = newDepth,bruijnMap = low}, maybeToList pivot ++ map snd (IM.toAscList high))
+--   where (low,pivot,high) = IM.splitLookup newDepth(bruijnMap b )
+--         newDepth = bruijnDepth b - n
+--
+--
+-- instance Functor BruijnEnv  where
+--     fmap f b = b{bruijnMap = fmap f (bruijnMap b)}
+--
+-- mapWithBound :: (Bound -> a -> b) -> BruijnEnv a -> BruijnEnv b
+-- mapWithBound f b@BruijnState{bruijnDepth = dept,bruijnMap =m} =
+--     b {bruijnMap = IM.mapWithKey (\index a-> f (Bound $! dept -index -1)a  ) m}
+--
