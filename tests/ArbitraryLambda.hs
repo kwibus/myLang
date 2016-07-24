@@ -1,15 +1,15 @@
 module ArbitraryLambda
 where
 
-import Data.List
 import Data.Maybe
 import Control.Monad
 import Control.Monad.Trans.Class
 import Test.QuickCheck
 import Test.QuickCheck.Property
+import Data.List
 
 import Logic
-import GenState
+import Generator
 import ArbitraryValue
 import MakeTerm
 import BruijnTerm
@@ -122,10 +122,10 @@ genWithType :: ArbiRef n => Type -> Gen (Maybe (LamTerm () n ))
 genWithType t = genTerm (Just t)
 
 genTerm :: ArbiRef n => Maybe Type -> Gen ( Maybe (LamTerm () n ))
-genTerm t = sized $ \ n -> runGenerartor $ arbitraryTerm n t [] defualtGenState
+genTerm t = sized $ \ n -> runGenerartor $ arbitraryTerm n t [] emptyStore
 
-arbitraryTerm :: ArbiRef n => Int -> Maybe Type -> [Type] ->
-      GenState n -> Generater (LamTerm () n)
+arbitraryTerm :: Int -> Maybe Type -> [Type] ->
+      VariableStore n -> Generater (LamTerm () n)
 arbitraryTerm n mabeytype maxlist s
   | n <= 1 = oneOfLogic [ arbitraryValue mabeytype
                         , arbitraryVar mabeytype s
@@ -146,48 +146,48 @@ arbitraryTerm n mabeytype maxlist s
                       ]
 
 -- TODO fix also genarate var Empty
-arbitraryVar :: ArbiRef n => Maybe Type -> GenState n -> Generater (LamTerm () n)
+arbitraryVar :: Maybe Type -> VariableStore n -> Generater (LamTerm () n)
 arbitraryVar t s = do
-  (n, f) <- refFromState s
+  (n, f) <- findVariable s
   unifyGen t (TVar f)
   return $ Var () n
 
-arbitraryAppl :: ArbiRef n => Int -> Maybe Type -> [Type] ->
-     GenState n -> Generater (LamTerm () n)
-arbitraryAppl size mabeytype maxlist state = do
+arbitraryAppl :: Int -> Maybe Type -> [Type] ->
+     VariableStore n -> Generater (LamTerm () n)
+arbitraryAppl size mabeytype maxlist store = do
   sizeLeft <- chooseLogic (1, size - 2)
   let sizeRight = size - sizeLeft -1
   case mabeytype of
     Nothing -> do
-      expr1 <- arbitraryTerm sizeLeft Nothing [] state
-      expr2 <- arbitraryTerm sizeRight Nothing [] state
+      expr1 <- arbitraryTerm sizeLeft Nothing [] store
+      expr2 <- arbitraryTerm sizeRight Nothing [] store
       return $ appl expr1 expr2
     Just t -> do
       newvar <- newFreeVar
       if sizeLeft < sizeRight
       then do
-        expr1 <- arbitraryTerm sizeLeft (Just (TAppl (TVar newvar) t)) (TVar newvar : maxlist) state
-        expr2 <- arbitraryTerm sizeRight (Just (TVar newvar)) maxlist state
+        expr1 <- arbitraryTerm sizeLeft (Just (TAppl (TVar newvar) t)) (TVar newvar : maxlist) store
+        expr2 <- arbitraryTerm sizeRight (Just (TVar newvar)) maxlist store
         return $ appl expr1 expr2
       else do
-        expr2 <- arbitraryTerm sizeRight (Just (TVar newvar)) (TAppl (TVar newvar) t : maxlist) state
-        expr1 <- arbitraryTerm sizeLeft (Just (TAppl (TVar newvar) t)) maxlist state
+        expr2 <- arbitraryTerm sizeRight (Just (TVar newvar)) (TAppl (TVar newvar) t : maxlist) store
+        expr1 <- arbitraryTerm sizeLeft (Just (TAppl (TVar newvar) t)) maxlist store
         return $ appl expr1 expr2
 
-arbitraryLambda :: ArbiRef n => Int -> Maybe Type -> [Type] ->
-    GenState n -> Generater ( LamTerm () n)
-arbitraryLambda size t maxlist state = do
+arbitraryLambda :: Int -> Maybe Type -> [Type] ->
+    VariableStore n -> Generater ( LamTerm () n)
+arbitraryLambda size t maxlist store = do
   var1 <- newFreeVar
   var2 <- newFreeVar
-  (n, newState) <- lift $ lift $ newVarRef state var1
+  (n, newStore) <- lift $ lift $ newVarRef store var1 --todo check if backtracking is nessesairy
   unifyGen t $ TAppl (TVar var1) (TVar var2)
   expr <- case t of
-    Just _ -> arbitraryTerm (size - 1) (Just (TVar var2 )) maxlist newState --TODO remove reption
-    Nothing -> arbitraryTerm (size - 1) Nothing [] newState
-  return $ lambda n expr
+    Just _ -> arbitraryTerm (size - 1) (Just (TVar var2 )) maxlist newStore
+    Nothing -> arbitraryTerm (size - 1) Nothing [] newStore
+  return $ Lambda () n expr
 
-arbitraryLet :: ArbiRef n => Int -> Maybe Type -> [Type] -> GenState n -> Generater (LamTerm () n)
-arbitraryLet size t maxlist state =
+arbitraryLet :: Int -> Maybe Type -> [Type] -> VariableStore n -> Generater (LamTerm () n)
+arbitraryLet size t maxlist store =
     let minmalSize = 1
         maxDefs = 5
         maxnumberDefs = min ((size -1)`div`minmalSize) (maxDefs+1)
@@ -200,22 +200,22 @@ arbitraryLet size t maxlist state =
             randomextra <- lift $ lift $ uniformBucket numberDefs totallExtra -- this will not backtrack
             let (resultSize :varSize)= map (minmalSize +) randomextra
             vars <- replicateM (numberDefs-1) newFreeVar
-            (varNames, newState) <- lift $ lift $ makeVars state vars
+            (varNames, newStore) <- lift $ lift $ makeVars store vars
             let newmaxlist = maxlist ++ map TVar vars
-            term  <- arbitraryTerm resultSize t newmaxlist newState
+            term  <- arbitraryTerm resultSize t newmaxlist newStore
             defs  <- mapM (\( v, name,sizeTerm) -> do
 
-                        termN <- arbitraryTerm sizeTerm (fmap (const (TVar v)) t) maxlist newState -- TODO remove self from maxlist
+                        termN <- arbitraryTerm sizeTerm (fmap (const (TVar v)) t) maxlist newStore -- TODO remove self from maxlist
                         return $ Def () name termN
-                        ) $ zip3 vars (map Name varNames) varSize
+                        ) $ zip3 vars varNames varSize
             return $ Let () defs term
 
-makeVars::ArbiRef n => GenState n -> [Free] -> Gen ([String],GenState n)
-makeVars state [] = return ([],state)
-makeVars state (f:fs) = do
-    (newVar,newState) <- newVarRef state f
-    (resetVar,finalState) <- makeVars newState fs
-    return (newVar:resetVar, finalState)
+makeVars:: VariableStore n-> [Free] -> Gen ([Name],VariableStore n)
+makeVars store [] = return ([],store)
+makeVars store (f:fs) = do
+    (newVar,newStore) <- newVarRef store f
+    (resetVar,finalStore) <- makeVars newStore fs
+    return (newVar:resetVar, finalStore)
 
 uniformBucket :: Int -> Int -> Gen [Int]
 uniformBucket buckets totaal = do
@@ -226,14 +226,14 @@ uniformBucket buckets totaal = do
           diff [_]  = []
           diff [] = []
 
-newVarRef :: ArbiRef n => GenState n -> Free -> Gen (String, GenState n)
-newVarRef state free = do
-  let names = bToList $ tEnv state
+
+newVarRef :: VariableStore n -> Free -> Gen (Name, VariableStore n)
+newVarRef store free = do
+  let names = listNames store
   boolNewName <- case names of
       [] -> return True
       _ -> frequency [(4, return True), (1, return False)]
   newname <- if boolNewName
-             then (: []) <$> choose ('a', 'z')
-             else elements $ map (fst . snd) names
-  return (newname, updateState state boolNewName newname free)
-
+             then Name. (: []) <$> choose ('a', 'z')
+             else elements names
+  return (newname, insertVariable store boolNewName newname free)

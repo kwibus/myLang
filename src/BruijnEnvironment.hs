@@ -1,8 +1,7 @@
 module BruijnEnvironment where
 
-import qualified Data.IntMap as IM
-import Control.Exception.Base
 import Data.Maybe
+import Data.Bifunctor
 import Data.List
 -- TODO remove b prefix
 -- | Bound is wrapper arround Int and is used to represent BruijnIndex.
@@ -16,78 +15,102 @@ import Data.List
 -- You have to modify the Inde
 newtype Bound = Bound Int deriving (Eq, Show)
 
---TODO replace with list
---TODO Fix name to BruijnEnv
-data BruijnEnv a = BruijnState
-     { bruijnDepth :: Int
-     , bruijnMap :: IM.IntMap a
-     } deriving (Show, Eq)
-
+-- TODO embed length of scopes
+newtype BruijnEnv a = BEnv[[a]] deriving (Show, Eq)
 
 toInt :: Bound -> Int
 toInt (Bound i) = i
 
 bNull :: BruijnEnv a -> Bool
-bNull BruijnState {bruijnDepth = 0}  = True
+bNull (BEnv []) = True
+bNull (BEnv [[]]) = True
 bNull _ = False
 
 bEmtyEnv :: BruijnEnv a
-bEmtyEnv = BruijnState
-    { bruijnDepth = 0
-    , bruijnMap = IM.empty
-    }
+bEmtyEnv = BEnv []
+
 bMember :: Bound -> BruijnEnv a -> Bool
 bMember b e= isJust $ bMaybeLookup b e
 
-bLookup :: Bound -> BruijnEnv a -> a
-bLookup (Bound i) BruijnState {bruijnDepth = depth, bruijnMap = m} =
-    m IM.! (depth - i - 1)
-
 bMaybeLookup :: Bound -> BruijnEnv a -> Maybe a
-bMaybeLookup (Bound i) BruijnState {bruijnDepth = depth, bruijnMap = m} =
-    IM.lookup (depth - i - 1) m
+bMaybeLookup  (Bound i) (BEnv env)= go i env
+  where
+    go _ [] = Nothing
+    go n (list:rest)  = case eitherAtIndexorLength n list of
+       Right a -> Just a
+       Left l -> go (n-l) rest
+
+eitherAtIndexorLength :: Int -> [a] -> Either Int a
+eitherAtIndexorLength i = go 0
+  where
+    go n [] = Left n
+    go n (a:as) =
+      if n == i
+        then Right a
+        else go (i+1) as
+
+eitherReplaceAtIndexorLength :: Int -> a -> [a] -> Either Int [a]
+eitherReplaceAtIndexorLength i new = go 0
+  where
+    go n [] = Left n
+    go n (a:as) =
+      if n == i
+        then Right (new : as)
+        else (a:) <$> go (i+1) as
+
+bLookup :: Bound -> BruijnEnv a -> a
+bLookup b env = case bMaybeLookup b env of
+    Just a -> a
+    Nothing -> error "not in env "
 
 bInsert :: a -> BruijnEnv a -> BruijnEnv a
-bInsert a b@BruijnState {bruijnDepth = depth, bruijnMap = m} =
-     b {bruijnDepth = depth + 1, bruijnMap = IM.insert depth a m }
+bInsert a (BEnv env) =  BEnv ([a] : env)
 
 bInserts :: [a] ->  BruijnEnv a -> BruijnEnv a
-bInserts list env = foldl' (flip bInsert) env list
+bInserts a (BEnv env) =  BEnv (a : env)
 
--- TODO can remove duplcate code by using bInserts
-bFromList :: [a] -> BruijnEnv a
-bFromList = foldl' (flip bInsert) bEmtyEnv
+bFromList :: [[a]] -> BruijnEnv a
+bFromList = BEnv
 
 -- TODO remove this
-bToList :: BruijnEnv a -> [(Int, a)]
-bToList BruijnState {bruijnMap = m} = IM.toList m
+bToList :: BruijnEnv a -> [a]
+bToList (BEnv env) = concat env
 
 bReplace :: Bound -> a -> BruijnEnv a -> BruijnEnv a
-bReplace (Bound i) a b@BruijnState {bruijnDepth = depth, bruijnMap = m} =
-  assert (bMember (Bound i) b)
-  b {bruijnMap = IM.insert (depth - i - 1) a m}
+bReplace (Bound n) new (BEnv env) = BEnv $ go n env
+  where
+    -- go :: Int -> [[a]] -> [[a]]
+    go _ [] = error "replace no exisiting variable"
+    go i (a:as) = case eitherReplaceAtIndexorLength i new a of
+        Left l-> (a:) $ go (i - l) as
+        Right newa -> newa: as
 
 -- TODO ??? could remove duplecate cate by using bSplitAt
 bDrop :: Int -> BruijnEnv a -> BruijnEnv a
-bDrop n b = b {bruijnDepth = newDepth, bruijnMap = newM}
-    where (newM,_) = IM.split newDepth(bruijnMap b )
-          newDepth = bruijnDepth b - n
+bDrop n b = fst $ bSplitAt n b
 
 bExtend :: Int -> BruijnEnv a -> BruijnEnv a
-bExtend n = bDrop (-n)
+bExtend n = undefined --bDrop (-n)
 
 bFilter :: (a -> Bool) -> BruijnEnv a -> BruijnEnv a
-bFilter f env = env {bruijnMap = IM.filter f $ bruijnMap env}
+bFilter f (BEnv env) = undefined -- BEnv $ map (filter f) env
 
-bSplitAt :: Int -> BruijnEnv  a -> (BruijnEnv a, [a])
-bSplitAt n b = (b{bruijnDepth = newDepth,bruijnMap = low}, maybeToList pivot ++ map snd (IM.toAscList high))
-  where (low,pivot,high) = IM.splitLookup newDepth(bruijnMap b )
-        newDepth = bruijnDepth b - n
-
+-- TODO rename this name is misleading
+bSplitAt :: Int -> BruijnEnv  a -> (BruijnEnv a, BruijnEnv a)
+bSplitAt n (BEnv env) = (BEnv finalLeft,BEnv finalRight)
+  where
+    (finalLeft,finalRight) = first reverse $ go [] n env
+    go left _ [] = (left,[])
+    go left i (current: right) =
+        let l= length current
+        in if l> i
+           then  (current:left,right)
+           else go (current:left) (i - l) right
 
 instance Functor BruijnEnv  where
-    fmap f b = b{bruijnMap = fmap f (bruijnMap b)}
+    fmap f (BEnv env) = BEnv $ map (map f) env
 
 mapWithBound :: (Bound -> a -> b) -> BruijnEnv a -> BruijnEnv b
 mapWithBound f b@BruijnState{bruijnDepth = dept,bruijnMap =m} =
     b {bruijnMap = IM.mapWithKey (\index a-> f (Bound $! dept -index -1)a  ) m}
+

@@ -77,7 +77,7 @@ executable sample
   other-modules:      ArbiRef
                       ,ArbitraryLambda
                       ,ArbitraryValue
-                      ,GenState
+                      ,Generator
                       ,Logic
                       ,MakeTerm
                       ,SearchTree
@@ -105,7 +105,7 @@ test-suite tests
                       ,ArbitraryValue
                       ,ExampleBruijn
                       ,ExampleLambda
-                      ,GenState
+                      ,Generator
                       ,Logic
                       ,MakeTerm
                       ,TestUtils

@@ -6,7 +6,7 @@ import Test.Tasty.QuickCheck
 import Test.Tasty.Providers
 import Control.Monad
 
-import GenState
+import Generator
 import Logic
 
 testLogic :: TestTree

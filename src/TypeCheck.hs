@@ -127,7 +127,7 @@ instantiate = fmap snd . toTVar fEmtyEnv
 generalize :: TEnv -> Type -> Type
 generalize env = toPoly
   where
-    freeInEnv = Set.unions $ map (freeVars . snd) $ bToList env
+    freeInEnv = Set.unions $ map freeVars $ bToList env
     toPoly (TAppl t1 t2 ) = TAppl (toPoly t1) (toPoly t2)
     toPoly (TVar i) | not (Set.member i freeInEnv) = TPoly i
     toPoly t = t
