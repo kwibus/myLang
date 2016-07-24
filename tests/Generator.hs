@@ -1,4 +1,4 @@
-module GenState where
+module Generator where
 
 import Data.Maybe
 import Test.QuickCheck.Gen
@@ -6,24 +6,11 @@ import Control.Monad.State.Class
 import Control.Monad
 
 import Logic
-import Name
 import FreeEnvironment
-import BruijnEnvironment
 import Type
 import TypeCheck
 import ErrorCollector
 
-data GenState n = State
-  { freeNames :: [String]
-  , tEnv :: BruijnEnv (String, Free)
-  } deriving Show
-
--- TODO rename defualtgenstate
-defualtGenState :: GenState n
-defualtGenState = State
-  { tEnv = bEmtyEnv
-  , freeNames = letters
-  }
 
 type Generater a = LogicGen (Env, Int) a
 type Env = FreeEnv Type

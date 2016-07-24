@@ -8,7 +8,7 @@ import Test.QuickCheck
 import Test.QuickCheck.Property
 
 import Logic
-import GenState
+import Generator
 import ArbitraryValue
 import MakeTerm
 import BruijnTerm
@@ -100,10 +100,10 @@ genWithType :: ArbiRef n => Type -> Gen (Maybe (LamTerm () n ))
 genWithType t = genTerm (Just t)
 
 genTerm :: ArbiRef n => Maybe Type -> Gen ( Maybe (LamTerm () n ))
-genTerm t = sized $ \ n -> runGenerartor $ arbitraryTerm n t [] defualtGenState
+genTerm t = sized $ \ n -> runGenerartor $ arbitraryTerm n t [] emptyStore
 
-arbitraryTerm :: ArbiRef n => Int -> Maybe Type -> [Type] ->
-      GenState n -> Generater (LamTerm () n)
+arbitraryTerm :: Int -> Maybe Type -> [Type] ->
+      VariableStore n -> Generater (LamTerm () n)
 arbitraryTerm n mabeytype maxlist s
   | n <= 1 = oneOfLogic [ arbitraryValue mabeytype
                         , arbitraryVar mabeytype s
@@ -124,54 +124,53 @@ arbitraryTerm n mabeytype maxlist s
                    ] ) $ error $ show mabeytype ++ "\n" ++ show n
 
 -- TODO fix also genarate var Empty
-arbitraryVar :: ArbiRef n => Maybe Type -> GenState n -> Generater (LamTerm () n)
+arbitraryVar :: Maybe Type -> VariableStore n -> Generater (LamTerm () n)
 arbitraryVar t s = do
-  (n, f) <- refFromState s
+  (n, f) <- findVariable s
   unifyGen t (TVar f)
   return $ Var () n
 
-arbitraryAppl :: ArbiRef n => Int -> Maybe Type -> [Type] ->
-     GenState n -> Generater (LamTerm () n)
-arbitraryAppl size mabeytype maxlist state = do
+arbitraryAppl :: Int -> Maybe Type -> [Type] ->
+     VariableStore n -> Generater (LamTerm () n)
+arbitraryAppl size mabeytype maxlist store = do
   sizeLeft <- chooseLogic (1, size - 1)
   let sizeRight = size - sizeLeft
   case mabeytype of
     Nothing -> do
-      expr1 <- arbitraryTerm sizeLeft Nothing [] state
-      expr2 <- arbitraryTerm sizeRight Nothing [] state
+      expr1 <- arbitraryTerm sizeLeft Nothing [] store
+      expr2 <- arbitraryTerm sizeRight Nothing [] store
       return $ appl expr1 expr2
     Just t -> do
       newvar <- newFreeVar
       if sizeLeft < sizeRight
       then do
-        expr1 <- arbitraryTerm sizeLeft (Just (TAppl (TVar newvar) t)) (TVar newvar : maxlist) state
-        expr2 <- arbitraryTerm sizeRight (Just (TVar newvar)) maxlist state
+        expr1 <- arbitraryTerm sizeLeft (Just (TAppl (TVar newvar) t)) (TVar newvar : maxlist) store
+        expr2 <- arbitraryTerm sizeRight (Just (TVar newvar)) maxlist store
         return $ appl expr1 expr2
       else do
-        expr2 <- arbitraryTerm sizeRight (Just (TVar newvar)) (TAppl (TVar newvar) t : maxlist) state
-        expr1 <- arbitraryTerm sizeLeft (Just (TAppl (TVar newvar) t)) maxlist state
+        expr2 <- arbitraryTerm sizeRight (Just (TVar newvar)) (TAppl (TVar newvar) t : maxlist) store
+        expr1 <- arbitraryTerm sizeLeft (Just (TAppl (TVar newvar) t)) maxlist store
         return $ appl expr1 expr2
 
-arbitraryLambda :: ArbiRef n => Int -> Maybe Type -> [Type] ->
-    GenState n -> Generater ( LamTerm () n)
-arbitraryLambda size t maxlist state = do
+arbitraryLambda :: Int -> Maybe Type -> [Type] ->
+    VariableStore n -> Generater ( LamTerm () n)
+arbitraryLambda size t maxlist store = do
   var1 <- newFreeVar
   var2 <- newFreeVar
-  (n, newState) <- lift $ lift $ newVarRef state var1
+  (n, newStore) <- lift $ lift $ newVarRef store var1
   unifyGen t $ TAppl (TVar var1) (TVar var2)
   expr <- case t of
-    Just _ -> arbitraryTerm (size - 1) (Just (TVar var2 )) maxlist newState
-    Nothing -> arbitraryTerm (size - 1) Nothing [] newState
-  return $ lambda n expr
+    Just _ -> arbitraryTerm (size - 1) (Just (TVar var2 )) maxlist newStore
+    Nothing -> arbitraryTerm (size - 1) Nothing [] newStore
+  return $ Lambda () n expr
 
-newVarRef :: ArbiRef n => GenState n -> Free -> Gen (String, GenState n)
-newVarRef state free = do
-  let names = bToList $ tEnv state
+newVarRef :: VariableStore n -> Free -> Gen (Name, VariableStore n)
+newVarRef store free = do
+  let names = listNames store
   boolNewName <- case names of
       [] -> return True
       _ -> frequency [(4, return True), (1, return False)]
   newname <- if boolNewName
-             then (: []) <$> choose ('a', 'z')
-             else elements $ map (fst . snd) names
-  return (newname, updateState state boolNewName newname free)
-
+             then Name. (: []) <$> choose ('a', 'z')
+             else elements names
+  return (newname, insertVariable store boolNewName newname free)

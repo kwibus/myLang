@@ -5,31 +5,29 @@ import Test.QuickCheck
 
 import MakeTerm
 import Logic
-import ArbiRef
-import GenState
+import Generator
 
 import Value
 import Operator
 import Type (Type)
-import MakeType
 import Lambda
 
 shrinkValue :: Value -> [Value]
 shrinkValue (Prim (MyDouble n)) = if n == 1.0 then [] else [Prim $ MyDouble 1.0]
 shrinkValue _ = []
 
-arbitraryValue :: ArbiRef n => Maybe Type -> Generater ( LamTerm () n)
+arbitraryValue :: Maybe Type -> Generater ( LamTerm () n)
 arbitraryValue t = oneOfLogic [ arbitraryPrimatives t
                               , arbitraryBuildIn t
                               ]
 
-arbitraryBuildIn :: ArbiRef n => Maybe Type -> Generater ( LamTerm () n)
+arbitraryBuildIn :: Maybe Type -> Generater ( LamTerm () n)
 arbitraryBuildIn t = do
     operator <- elementsLogic operators
     unifyGen t (getType operator )
     return $ val operator
 
-arbitraryPrimatives :: ArbiRef n => Maybe Type -> Generater (LamTerm () n)
+arbitraryPrimatives :: Maybe Type -> Generater (LamTerm () n)
 arbitraryPrimatives t = oneOfLogic $ map ($ t)
   [ mkArbitraryPrimative MyDouble
   , mkArbitraryPrimative MyBool

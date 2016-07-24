@@ -1,48 +1,70 @@
+ {-# LANGUAGE MultiParamTypeClasses, ExistentialQuantification, FlexibleInstances #-}
 module ArbiRef where
 
-import qualified Data.IntMap as IM
-
 import Logic
-import GenState
+import Generator
 
 import BruijnEnvironment
 import FreeEnvironment
 import Name
 
 class ArbiRef n where
-    updateState :: GenState n -> Bool -> String -> Free -> GenState n
-    refFromState :: GenState n -> Generater (n, Free)
+    emptyStore :: VariableStore n
 
 instance ArbiRef Bound where
-    updateState = updateStateBound
-    refFromState = boundFromState
+    emptyStore =VS $ BS bEmtyEnv
 
 instance ArbiRef Name where
-    updateState = updateStateName
-    refFromState = nameFromState
+    emptyStore =VS $ NS []
+
+class Store f a where
+    listNames :: f a -> [Name]
+    insertVariable :: f a -> Bool -> Name -> Free -> f a
+    findVariable :: f a -> Generater (a, Free)
+
+data VariableStore a = forall f . Store f a => VS (f a)
+
+instance Store VariableStore a where
+    listNames (VS s) = listNames s
+    insertVariable (VS s) b str f  = VS $ insertVariable s b str f
+    findVariable (VS s) = findVariable s
+
+newtype BoundStore a = BS { bStore:: BruijnEnv (Name, Free)}
+
+instance Store BoundStore Bound where
+    listNames s = map (fst . snd) $ bToList $ bStore s
+    insertVariable = insertBound
+    findVariable = findBound
 
 -- TODO decouple bruijnMap
-boundFromState :: GenState Bound -> Generater (Bound, Free )
-boundFromState s = do
-   (i, (_, f)) <- elementsLogic $ bToList $ tEnv s
-   return (Bound (bruijnDepth (tEnv s ) - i - 1), f)
+findBound :: BoundStore Bound -> Generater (Bound, Free )
+findBound s = do
+   (i, (_, f)) <- elementsLogic $ bToList $ bStore s
+   return (Bound (bruijnDepth (bStore s ) - i - 1), f)
 
-updateStateBound :: GenState n -> Bool -> String -> Free -> GenState n
-updateStateBound state _ name free = state {tEnv = newTEnv}
-    where newTEnv= bInsert (name, free) (tEnv state)
+insertBound :: BoundStore n -> Bool -> Name-> Free -> BoundStore n
+insertBound store _ name free =BS newStore
+    where newStore = bInsert (name, free) (bStore store)
 
-nameFromState :: GenState Name -> Generater (Name, Free )
-nameFromState s = do
-   (_, (name, f)) <- elementsLogic $ bToList $ tEnv s
-   return (Name name, f)
+newtype NameStore a = NS{nStore::[(Name ,Free)] }
 
-updateStateName :: GenState n -> Bool -> String -> Free -> GenState n
-updateStateName state@State {tEnv=env } newVar name free = state {tEnv = newTEnv}
-    where newTEnv :: BruijnEnv (String, Free)
-          newTEnv = bInsert (name, free) (if newVar
-            then removeVar name env
-            else env)
+instance Store NameStore Name where
+    listNames s = map fst $ nStore s
+    insertVariable = insertName
+    findVariable = findName
 
--- TODO decouple bruijnMap
-removeVar :: String -> BruijnEnv (String, b) -> BruijnEnv (String, b)
-removeVar varname env = env {bruijnMap = fst $ IM.partition (\ var -> fst var == varname) (bruijnMap env)}
+findName :: NameStore Name -> Generater (Name, Free )
+findName s = elementsLogic $ nStore s
+
+insertName :: NameStore Name -> Bool -> Name -> Free -> NameStore Name
+insertName (NS store ) newVar name free = NS newStore
+    where newStore:: [(Name , Free)]
+          newStore= (name, free) : (if newVar
+            then removeVar name store
+            else store)
+
+-- removes the first occurrence of string with name (not all)
+removeVar :: Name -> [(Name, b)] -> [(Name, b)]
+removeVar varname env =
+    let (left, right ) = span (\a -> fst a == varname) env
+    in left ++ right
