@@ -3,6 +3,7 @@ module BruijnTerm
   , UndefinedVar (UndefinedVar)
   , bruijn2Lam
   , lam2Bruijn
+  , defsBounds
   ) where
 
 import Control.Monad.Except
@@ -94,3 +95,11 @@ getAt :: [a] -> Int -> Maybe a
 getAt [] _ = Nothing
 getAt (x : _) 0 = Just x
 getAt (_ : xs) n = getAt xs (n - 1)
+
+
+fromToZero :: Int -> [Int]
+fromToZero n | n < 0 = []
+             | otherwise = n : fromToZero (pred  n)
+
+defsBounds :: [Def i Bound] -> [Bound]
+defsBounds defs =Bound <$> fromToZero (length defs - 1)
