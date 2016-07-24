@@ -15,6 +15,12 @@ var = Var () . fromString
 double :: Double -> LamTerm () n
 double = Val () . Prim . MyDouble
 
+true :: LamTerm () n
+true = Val () $ Prim $ MyBool True
+
+false :: LamTerm () n
+false = Val () $ Prim $ MyBool False
+
 bvar :: Int -> BruijnTerm ()
 bvar = Var () . Bound
 

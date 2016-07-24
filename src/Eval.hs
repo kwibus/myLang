@@ -22,7 +22,7 @@ import BruijnEnvironment
 import Type
 
 type Scope i = BruijnEnv (BruijnTerm i)
---
+
 -- TODO write Test  for correct order
 -- |eval term in accordance with call by value.
 -- If a term can't be further be evaluated it will return 'Nothing'
@@ -38,64 +38,83 @@ evalWithEnv :: Scope () -> BruijnTerm () -> DList (BruijnTerm (),Scope ())
 evalWithEnv env (Appl func args) = (firstFullExpr `append` nextFullExpr ) `append` final
   where
     evalFunc = evalWithEnv env func
-    firstFullExpr = (\(t,envN) -> (Appl t (substituteEnv envN args),env)) <$> evalFunc
-    (valueFunc,envfunction) = saveLastD  evalFunc (func,env)
-    newerEnv = dropNew env envfunction
+    applyEnv (t,e) = (substituteEnv e t,e)
+    firstFullExpr = (\(t,envN) -> (Appl t (substituteEnv envN args),envN)) <$> evalFunc
+    (valueFunc,newerEnv) = saveLastD  evalFunc $ applyEnv (func,env)
 
     evalArgs = evalWithEnv newerEnv args
     nextFullExpr = first (Appl valueFunc) <$> evalArgs
-    (valueArgs,envArg) = saveLastD evalArgs (args,newerEnv)
+    (valueArgs,envArg) = saveLastD evalArgs $ applyEnv (args,newerEnv)
 
     final = case valueFunc of
       (Lambda _ _ t1) -> let newestEnv = bInsert valueArgs envArg
-                         in cons (substituteEnv newestEnv t1,newestEnv) (evalWithEnv newestEnv  t1)
-      (Val i1 v1) ->  return (Val i1 $ applyValue v1 $ value $substituteEnv envArg valueArgs, envArg)
+                             fixEnv (Bound b) term = if isValue term
+                                                     then term
+                                                     else Var () $ Bound (b - 1)
+                         in cons (substituteEnv (mapWithBound fixEnv newestEnv) t1,envArg ) $
+                            second (bDrop 1) <$> evalWithEnv (fmap (incFree 1) newestEnv) t1
+      (Val i1 v1) ->  return (Val i1 $ applyValue v1 $ value $ substituteEnv envArg valueArgs, envArg)
       _ -> empty
 
--- TODO
-evalWithEnv env (Let info defs term) =  firstSteps `append` final
+evalWithEnv env (Let info defs term) = second (bDrop (length defs)) <$> firstSteps `append` final  (saveLastD evals (substituteEnv dumyEnv term,newEnv))
   where
     firstSteps = fmap (uncurry prependLet) evals
-    prependLet _term _env = (Let info (updateDefs _env) _term, env)
+    prependLet _term _env = (Let info (updateDefs _env) _term, _env)
     updateDefs _env = zipWith
-      (\ (Def _info n _) index -> Def _info n ( bLookup index _env ))
+      (\ (Def _info n _) index -> Def _info n $ bLookup index _env)
       defs
-      (Bound <$> reverse  [0..(length defs - 1) ]) --TODO can in constant space (without reverse)
-    newEnv =foldl' (\ envN (Def _ _ tn ) -> bInsert tn envN ) env defs
+      (defsBounds defs)
+    newEnv = foldl' (\ envN (Def _ _ tn ) -> bInsert (substituteEnv dumyEnv tn) envN ) env defs
+    dumyEnv = bExtend (length defs) env
     evals = evalWithEnv newEnv term
-    final = case (\(t,envN) -> (substituteEnv envN t,envN)) $saveLastD evals (term,newEnv) of
-        result@(Val {},_) -> singleton result
-        (Var {},_)-> empty
-        (Lambda _info n t,_env) -> singleton $ first (Lambda _info n) (uncurry prependLet (substitute (Var () (Bound (length defs))) 0 t, _env))
-        result ->  singleton (uncurry prependLet result)
+    final result = case result of
+        (v@Val {},_env) -> singleton (v, _env)
+        (Lambda _info n t,_env) -> singleton $ first (Lambda _info n) (uncurry prependLet (swap (length defs) t, _env))
+        (Var _ b,_env)-> case bMaybeLookup b _env of
+               Nothing -> empty
+               Just Var {}  -> empty
+               Just v -> final (v,_env)
+        _ ->  empty
 
 evalWithEnv env t@(Var _ b) =
     let newEnvs = updateEnv b env
-        (updatedEnv,newestEnv) = splitLast newEnvs
     in if nullD newEnvs
             then empty
-            else case bMaybeLookup b newestEnv of
-                Nothing -> empty
-                Just v -> append ((t,) <$> snoc updatedEnv newestEnv) $ evalWithEnv newestEnv v
+            else let newestEnv = last $ toList  newEnvs
+                 in  ((t,) <$> fromList (init $ toList newEnvs ))`append` (
+                    case bMaybeLookup b newestEnv of
+                        Nothing -> empty
+                        Just v -> singleton(v,newestEnv))
 evalWithEnv _ _ = empty
 
 -- variable to update
 updateEnv ::Bound -> Scope () -> DList (Scope ())
 updateEnv b env = case bMaybeLookup b env of
     Just term -> case term of
-            (Var _ b2)  | b == b2 -> empty -- TODO remove without creating infinit loop
-                        | otherwise ->
-                            let newEnvs = updateEnv b2 env
-                                newestEnv = saveLastD newEnvs env
-                            in  snoc newEnvs (bReplace b (bLookup b2 newestEnv) newestEnv)
-            _ -> uncurry (bReplace b)<$> evalWithEnv env term
+            (Var _ b2)  -> case bMaybeLookup b2 env of
+                Nothing -> empty
+                Just v -> case v of
+                    -- (Var _ _) -> let newEnv = bReplace b v env -- TODO check
+                                 --     nextEnv = updateEnv   b newEnv
+                                 --     -- lastEnv = saveLastD nextEnv newEnv
+                                 -- in -- snoc
+                                 --       (cons newEnv  nextEnv)
+                                 --    -- (bReplace b (bLookup b2 lastEnv)lastEnv)
+                    _ ->let newEnvs = updateEnv b2 env
+                            newestEnv = saveLastD newEnvs env
+                        in  snoc newEnvs (bReplace b (bLookup b2 newestEnv) newestEnv)
+            _ -> uncurry (bReplace b) <$> evalWithEnv env term
     Nothing -> empty
 
+
+--TODO remove depth , replace in env?
+-- wont substitute if term in env is not value
 substituteEnv :: Scope () -> BruijnTerm () -> BruijnTerm ()
 substituteEnv env term
-    | bNull env = term
-    | otherwise = go 0 env term
-  where go :: Int -> BruijnEnv (BruijnTerm ()) -> BruijnTerm () -> BruijnTerm ()
+    | bNull newEnv = term
+    | otherwise = go 0 newEnv term
+  where newEnv  = bFilter isValue env
+        go :: Int -> BruijnEnv (BruijnTerm ()) -> BruijnTerm () -> BruijnTerm ()
         go depth e (Lambda i n t) = Lambda i n $ go (depth + 1) e t
         go _     _ t@Val {} = t
         go depth e (Appl left right) = Appl (go depth e left) (go depth e right)
@@ -103,30 +122,27 @@ substituteEnv env term
         go depth e t@(Var _ (Bound n))
             | n >= depth = case bMaybeLookup (Bound (n-depth)) e of
                                Nothing -> t
-                               Just v -> inc depth v
+                               Just v -> incFree depth v
             | otherwise = t
-        go depth e (Let i defs t)  = Let i defs $ go (depth + length defs) e t
+        go depth e (Let i defs t) = Let i (fmap goDefs defs) $ go' t
+            where go' = go (depth + length defs) e
+                  goDefs ( Def i' n' t') = Def i' n' $ go' t'
 
--- TODO remove initial index
-substitute :: BruijnTerm i -> Int-> BruijnTerm i -> BruijnTerm i
-substitute t1 n1 t2@(Var i (Bound n2)) | n1 == n2 = inc n1 t1
-                               | n1 < n2 = Var i $ Bound (n2-1)
-                               | otherwise = t2
-substitute t1 n1 (Lambda i n2 t2) = Lambda i n2 $
-                    substitute t1 (n1 + 1) t2
-substitute t n (Appl t1 t2) = Appl (substitute t n t1) (substitute t n t2)
-substitute _ _ t2 = t2
+swap :: Int -> BruijnTerm () -> BruijnTerm ()
+swap n = go 0
+  where go depth (Lambda _ name t) = Lambda () name $ go (depth + 1) t
+        go depth (Appl t1 t2) = Appl (go depth t1) (go depth t2)
+        go  _    t@Val {} = t
+        go depth (Var _ (Bound n2))
+            | n2 == depth = Var () (Bound $! depth + n)
+            | depth < n2 && depth + n >= n2 = Var () (Bound (n2 -1))
+            | otherwise  = Var ()  (Bound n2)
+        go depth (Let _ defs term) = Let () (fmap goDefs defs) $ go' term
+            where go' = go (depth  + length defs)
+                  goDefs (Def i name t) = Def i name $ go' t
 
-dropNew :: Scope i -> Scope i -> Scope i
-dropNew  BruijnState {bruijnDepth = olddepth} newscope = newscope {bruijnDepth=olddepth}
-
-splitLast :: DList a -> (DList a , a)
-splitLast dList
-    | null dList =  error "splitLast cant cplit empty list"
-    | otherwise = go empty $ toList dList
-  where go _ [] = error "this should never happen, internal error splitLast"
-        go begining [a] = (begining ,a)
-        go beginning (x:end) = go (snoc beginning x)  end
+-- substitute :: BruijnTerm () ->  BruijnTerm () -> BruijnTerm ()
+-- substitute t1 = substituteEnv (bInsert t1 bEmtyEnv)
 
 nullD :: DList a -> Bool
 nullD = null. toList
@@ -152,19 +168,25 @@ applyValue v1@BuildIn {arrity = n, stack = s, myType = t } v2 =
     v1 {arrity = n - 1 , stack = v2 : s, myType = dropTypeArg t}
 applyValue _ _ = error "apply value"
 
+isValue :: BruijnTerm i -> Bool
+isValue Var {} = True-- False --TODO check
+isValue Val {} = True
+isValue Lambda {} = True
+isValue Appl {} = False
+isValue Let {} = False
+
 -- increase every variale name in term that not bound in that therm with increase
-inc :: Int -> BruijnTerm i -> BruijnTerm i
-inc 0 term = term
-inc increase  term = go 0 term
+incFree :: Int -> BruijnTerm i -> BruijnTerm i
+incFree 0 term = term
+incFree increase  term = go 0 term
   where go depth (Lambda i n t) = Lambda i n $ go (depth+1) t
         go depth (Appl t1 t2) = Appl (go depth t1)(go depth t2)
         go depth (Var i (Bound n)) | n >= depth  = Var i $ Bound $ n+increase
-                                   | otherwise =Var i (Bound n)
+                                   | otherwise = Var i (Bound n)
         go depth (Let i defs t) = Let i (fmap incDefs defs) $ go newDepth t
           where
             newDepth = depth +length defs
             incDefs (Def is ns ts) = Def is ns $ go newDepth ts
-
         go _ (Val i v) = Val i v
 
 fullEval :: BruijnTerm () -> BruijnTerm ()

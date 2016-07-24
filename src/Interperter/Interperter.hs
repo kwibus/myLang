@@ -1,5 +1,4 @@
-module Main
-where
+module Main where
 
 import System.Console.Haskeline
 import Data.Either.Unwrap
@@ -7,7 +6,7 @@ import Text.PrettyPrint.ANSI.Leijen
 import Control.Monad.IO.Class
 
 import Parser
-import TypeCheck 
+import TypeCheck
 import BruijnTerm
 import Eval
 import Type

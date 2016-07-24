@@ -131,7 +131,7 @@ instance (Arbitrary a) => Arbitrary (Tree a) where
 
 -- TODO consider more fair disrobution
 split :: Int -> Gen [Int]
-split 0 = return[]
+split 0 = return []
 split 1 = return [1]
 split n = do
     i <- choose (1, n`div`2)
