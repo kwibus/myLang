@@ -2,7 +2,7 @@ module Main (main
     ) where
 
 import Test.Tasty
-
+import TestBruijnEnv
 import TestTypeCheker
 import TestBruijn
 import TestArbitrary
@@ -21,6 +21,7 @@ tests = testGroup "tests"
     [ testSearchTree
     , testLogic
     , testArbitrary
+    , testBruijnEnv
     , testTypeChecker
     , testType
     , testPrettyPrintLambda

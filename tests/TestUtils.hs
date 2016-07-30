@@ -1,5 +1,5 @@
 module TestUtils where
-import Data.List (foldl')
+
 import Control.Monad
 import Data.Maybe
 
@@ -122,7 +122,7 @@ isCirculairLet = isNothing . checkDefs bEmtyEnv
     -- checkDefs :: BruijnEnv (TermState i ) -> [Def i Bound] ->Maybe (BruijnEnv (TermState i))
     checkDefs env defs =
         let bounds = defsBounds defs
-            newEnv = foldl' (\ envN (Def _ _ tn ) -> bInsert (Unknow tn) envN ) env defs
+            newEnv = bInserts (reverse (fmap ( Unknow .implementation )defs ))  env
         in foldM checkDef newEnv bounds
 
     -- checkDef :: BruijnEnv (TermState i ) -> (Def i Bound,Bound) ->Maybe (BruijnEnv (TermState i))
@@ -145,11 +145,11 @@ isCirculairLet = isNothing . checkDefs bEmtyEnv
                 (Just Forbidden) ->  Nothing
                 (Just Correct) -> Just env
                 (Just Unknow {}) | b < depth -> Just env
-                                 | otherwise -> let (initialEnv,dropOff) = bSplitAt depth env
-                                               in bInserts dropOff <$> checkDef initialEnv (Bound $! b - depth)
+                                 | otherwise -> let (dropOff,initialEnv) = bSplitAt (Bound depth) env --TODO replace Bound depth with b ??
+                                               in bAppend dropOff <$> checkDef initialEnv (Bound $! b - depth)
                 Nothing -> Just env
-            Lambda _ _ t -> bDrop 1 <$> checkTerm  (depth+1) (bInsert Correct env) t
-            Let _ defs' term' ->  bDrop (length defs') <$> do
+            Lambda _ _ t -> bDropLevel  <$> checkTerm  (depth+1) (bInsert Correct env) t
+            Let _ defs' term' ->  bDropLevel <$> do
                 stat1 <- checkDefs env defs'
                 checkTerm (depth + length defs') stat1 term'
             Val {} -> Just env

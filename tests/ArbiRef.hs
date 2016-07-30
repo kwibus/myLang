@@ -40,7 +40,7 @@ instance Store BoundStore Bound where
 findBound :: BoundStore Bound -> Generater (Bound, Free )
 findBound s = do
    (i, (_, f)) <- elementsLogic $ bToList $ bStore s
-   return (Bound (bruijnDepth (bStore s ) - i - 1), f)
+   return (Bound i, f)
 
 insertBound :: BoundStore n -> Bool -> Name-> Free -> BoundStore n
 insertBound store _ name free =BS newStore

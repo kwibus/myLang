@@ -4,7 +4,7 @@ import Test.Tasty
 import Test.Tasty.HUnit
 import Test.Tasty.QuickCheck
 import Data.Maybe
-import Data.DList (empty,singleton,toList)
+import Data.DList (empty,singleton)
 import Data.List
 
 import TypeCheck
@@ -36,11 +36,11 @@ testEval = testGroup "eval"
 testSubstituteEnv :: TestTree
 testSubstituteEnv = testGroup "substituteEnv "
     [ testCase "[a/1.0,b/2.0,b/3.0] a = 1.0" $
-        let env = bFromList [double 1, double 2, double 3]
+        let env = bFromList [[double 1, double 2, double 3]]
         in substituteEnv env (bvar 1 ) @?= double 2
 
     , testCase "[a/1.0] \\b.a = \\b.1.0" $
-        let env = bFromList [double 1.0]
+        let env = bFromList [[double 1.0]]
         in substituteEnv env (lambda "b" $ bvar 1 ) @?= lambda "b" (double 1.0)
 
     -- , testCase "[a/\\c.b,b/1,0] a = \\c.1.0" $
@@ -52,14 +52,14 @@ testSubstituteEnv = testGroup "substituteEnv "
     --     in substituteEnv env  (bvar 1)  @?= bvar 2
 
     , testCase "[a/c] \\b.a = \\b.c" $
-        let env = bFromList [bvar 1]
+        let env = bFromList [[bvar 1]]
         in substituteEnv env (lambda "b" $ bvar 1 ) @?= lambda "b" (bvar 2)
     ]
 
 testUpdateEnv :: TestTree
 testUpdateEnv = testGroup "updateEnv"
     [ testCase "update a [a/1.0] = {}"  $
-        let env = bFromList [double 1.0]
+        let env = bFromList [[double 1.0]]
         in updateEnv (Bound 0) env @?= empty
 
     -- , testCase "update a [a/a] = {}"  $
@@ -67,8 +67,8 @@ testUpdateEnv = testGroup "updateEnv"
     --     in take 5 ( toList (updateEnv (Bound 0) env )) @?= replicate 5 env
 
     , testCase "update a [a/b ,b/1.0] = [a/1.0,b/1,0]"  $
-        let env = bFromList [bvar 0 , double 1]
-        in updateEnv (Bound 1) env @?= singleton  (bFromList [double 1, double 1])
+        let env = bFromList [[bvar 1 , double 1]]
+        in updateEnv (Bound 0) env @?= singleton  (bFromList [[double 1, double 1]])
 
     -- , testCase "update a [a/1.0+a] = {[a/1.0,],}"  $
     --     let env = bFromList [appl (appl (val plus) (double 1))(bvar 0)]
@@ -171,12 +171,12 @@ testEvalLet = testGroup "let"
   --     @?= []
 
   , testCase "evalWithEnv [a/b,b/1.0] a = ([a/1.0,b/1.0],a)" $
-        evalWithEnv (bFromList [bvar 0,double 1] )( bvar 1)
-        @?= singleton (double 1,bFromList [double 1, double 1] )
+        evalWithEnv (bFromList [[bvar 1,double 1]] )( bvar 0)
+        @?= singleton (double 1,bFromList [[double 1, double 1]] )
 
   , testCase "evalWithEnv [5] let a = 1 in a == (1,[5])" $
-        evalWithEnv (bFromList [double 5]) (mkLet [("a",double 1)] $bvar 0)
-        @?= singleton (double 1,bFromList [ double 5] )
+        evalWithEnv (bFromList [[double 5]]) (mkLet [("a",double 1)] $bvar 0)
+        @?= singleton (double 1,bFromList [[ double 5]] )
 
   , testCase "evalSteps let a = b ;b=1.0 in a " $
       evalSteps (mkLet [("a", bvar 0), ("b", double 1.0)] (bvar 1))
@@ -205,8 +205,9 @@ testEvalLet = testGroup "let"
 
   , testCase "eval let a = 1 + in let b = 2 in a" $
         eval (mkLet [("a",appl (val plus) (double 1))] $ mkLet [("b",double 2)] $ bvar 1)
-        @?= Just (mkLet [("a",val $ applyValue plus (Prim $MyDouble 1))] $mkLet [("b",double 2)]
-        $ val $ applyValue plus (Prim $MyDouble 1))
+        @?= Just (mkLet
+                 [("a",val $ applyValue plus (Prim $MyDouble 1))] $mkLet [("b",double 2)]
+                 $ val $ applyValue plus (Prim $MyDouble 1))
 
   , testCase "fullEval (let a = 1.0) ;in \\b.a+b) 2.0 " $
       fullEval (appl (mkLet [("a", double 1)]
@@ -262,6 +263,10 @@ testEvalLet = testGroup "let"
        @?= [ mkLet [("x",appl (val plus) (double 1))] $  bvar 0
            , mkLet [("x",val (applyValue plus $ Prim $ MyDouble 1))] $ val $ applyValue plus (Prim $ MyDouble 1)
            , val (applyValue plus (Prim $ MyDouble 1)) ]
+
+  , testCase "let x = y;y=1  in (\\a.x)true" $
+        eval (mkLet [("x",bvar 0),("y",double 1)] $ appl (lambda "a" $ bvar 2) true)
+        @?= Just (mkLet [("x",bvar 0),("y",double 1)] $ bvar 1 )
 
   , testCase "let f = \\a.f 1 in f 2 " $
         take 4 (evalSteps (mkLet [("f",lambda "a" $ appl (bvar 1)(double 1))] $  appl (bvar 0) (double 2)))
