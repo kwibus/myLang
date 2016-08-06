@@ -19,13 +19,12 @@ import Type
 import Name
 import ArbiRef
 import PrettyPrint
-import Info
 
 forAllTypedBruijn :: Testable prop => (BruijnTerm () -> prop) -> Property
 forAllTypedBruijn = forAllShowShrink genTyped printBrujin shrinkTyped
 
-printBrujin :: BruijnTerm i -> String
-printBrujin = either show PrettyPrint.pShow . bruijn2Lam . removeInfo
+printBrujin :: BruijnTerm () -> String
+printBrujin = either show PrettyPrint.pShow . bruijn2Lam
 
 forAllUnTypedLambda :: Testable prop => (LamTerm () Name -> prop) -> Property
 forAllUnTypedLambda = forAllShrink genUnTyped shrinkUntypedLamba
@@ -54,9 +53,9 @@ shrinkTerm :: Bool -> (Name -> LamTerm () n -> Maybe (LamTerm () n )) -> LamTerm
 shrinkTerm untyped elimanate = fastShrink True
     where fastShrink _ (Lit _ v) = val <$> shrinkValue v
           fastShrink b t = whenTrue b [double 2.0] ++ shrinkT b t
-          shrinkT b (Appl _ t1 t2) = whenTrue b [t1, t2] ++
-                [Appl () t1' t2 | t1' <- fastShrink untyped t1 ] ++
-                [Appl () t1 t2' | t2' <- fastShrink untyped t2 ]
+          shrinkT b (Appl t1 t2) = whenTrue b [t1, t2] ++
+                [Appl t1' t2 | t1' <- fastShrink untyped t1 ] ++
+                [Appl t1 t2' | t2' <- fastShrink untyped t2 ]
           shrinkT b (Lambda _ name t) =
                     whenTrue b (maybeToList (elimanate name t))
                  ++ (lambda (toString name) <$> fastShrink untyped t)
@@ -76,7 +75,7 @@ elimanateBruijn _ = go 0
       | otherwise = Just $ Var () $ Bound i2
     go _ (v@Lit {}) = Just v
     go i (Lambda _ n t) = Lambda () n <$> go (i + 1) t
-    go i (Appl _ t1 t2) = Appl () <$> go i t1 <*> go i t2
+    go i (Appl t1 t2) = Appl <$> go i t1 <*> go i t2
 
 elimanateLambda :: Name -> LamTerm () Name -> Maybe ( LamTerm () Name )
 elimanateLambda name = go
@@ -88,7 +87,7 @@ elimanateLambda name = go
     go t1@(Lambda _ n t2)
       | n == name = Just t1
       | otherwise = Lambda () n <$> go t2
-    go (Appl _ t1 t2) = Appl () <$> go t1 <*> go t2
+    go (Appl t1 t2) = Appl <$> go t1 <*> go t2
 
 genTyped :: ArbiRef n => Gen (LamTerm () n )
 genTyped = fromJust <$> genTerm (Just (TVar (Free (-1))))

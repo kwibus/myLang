@@ -5,7 +5,7 @@ import Name
 import Value
 
 data LamTerm i n = Lambda i Name (LamTerm i n)
-            | Appl i (LamTerm i n) (LamTerm i n)
+            | Appl (LamTerm i n) (LamTerm i n)
             | Var i n
             | Lit i Value
             | Let i [Def i n] (LamTerm i n)
@@ -28,5 +28,5 @@ accumulateVars = go []
 
 accumulateArgs :: LamTerm i n -> [LamTerm i n]
 accumulateArgs = go []
-  where go accuList (Appl _ t1 t2 ) = go (t2 : accuList) t1
+  where go accuList (Appl t1 t2 ) = go (t2 : accuList) t1
         go accuList t = t : accuList

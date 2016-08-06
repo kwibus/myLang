@@ -22,7 +22,7 @@ lambda :: String -> LamTerm () n -> LamTerm () n
 lambda = Lambda () . fromString
 
 appl :: LamTerm () n -> LamTerm () n -> LamTerm () n
-appl = Appl ()
+appl = Appl
 
 mkLet :: [(String, LamTerm () n)] -> LamTerm () n -> LamTerm () n
 mkLet tupleDef = Let () (map (uncurry (Def (). Name )) tupleDef)
