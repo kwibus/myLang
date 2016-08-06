@@ -82,7 +82,7 @@ solveWith e@Appl{} sub tenv = do
     let newTyp = apply newSub (TVar var)
     return (newTyp,newSub)
 
-solveWith (Val _ v) _ _ = return (getType v, fEmtyEnv)
+solveWith (Lit _ v) _ _ = return (getType v, fEmtyEnv)
 
 solveWith (Var i n) sub tEnv = case  bMaybeLookup n tEnv of
         Just pt -> do

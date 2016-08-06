@@ -26,13 +26,13 @@ getInfo (Var i _ ) = i
 getInfo (Appl i _ _) = i
 getInfo (Lambda i _ _) = i
 getInfo (Let i _ _ ) = i
-getInfo (Val i _) = i
+getInfo (Lit i _) = i
 
 setInfo :: i -> LamTerm i n -> LamTerm i n
 setInfo loc (Var _ n ) = Var loc n
 setInfo loc (Appl _ e1 e2) = Appl loc e1 e2
 setInfo loc (Lambda _ n e) = Lambda loc n e
-setInfo loc (Val _ v) = Val loc v
+setInfo loc (Lit _ v) = Lit loc v
 
 getLocation :: LamTerm Loc n -> Loc
 getLocation = getInfo
@@ -42,7 +42,7 @@ removeInfo (Lambda _ n e) = Lambda () n $ removeInfo e
 removeInfo (Appl _ e1 e2) = Appl () (removeInfo e1 ) $ removeInfo e2
 removeInfo (Let _ def term) = Let () (map removeInfoDef def) (removeInfo term)
   where removeInfoDef (Def _ n t) = Def () n $ removeInfo t
-removeInfo (Val _ v) = Val () v
+removeInfo (Lit _ v) = Lit () v
 removeInfo (Var _ n) = Var () n
 
 mergLoc :: LamTerm Loc n -> LamTerm Loc n -> Loc

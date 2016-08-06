@@ -7,13 +7,13 @@ import BruijnEnvironment
 import Name
 
 val :: Value -> LamTerm () n
-val = Val ()
+val = Lit ()
 
 var :: String -> LamTerm () Name
 var = Var () . fromString
 
 double :: Double -> LamTerm () n
-double = Val () . Prim . MyDouble
+double = val . Prim . MyDouble
 
 bvar :: Int -> BruijnTerm ()
 bvar = Var () . Bound

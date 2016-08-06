@@ -39,7 +39,7 @@ evalWithEnv env (Appl i func args) = (firstFullExpr `append` nextFullExpr ) `app
       (Lambda _ _ t1) ->
             let step = substitute valueArgs (Bound 0) t1 -- reduce outer to inner redex
             in cons (step, env) $ evalWithEnv env step
-      (Val i1 v1) -> return (Val i1 $ applyValue v1 $ value valueArgs, env)
+      (Lit i1 v1) -> return (Lit i1 $ applyValue v1 $ value valueArgs, env)
       _ -> empty
 
 evalWithEnv env (Let i defs term) = snoc firstSteps (saveLast (toList evals) (term, env))
@@ -68,7 +68,7 @@ saveLast [] a = a
 saveLast xs _ = last xs
 
 value :: Show i => BruijnTerm i -> Value
-value (Val _ v ) = v
+value (Lit _ v ) = v
 value t = error $ show t ++ " is not a value"
 
 -- | applys a build in function to one argument
@@ -91,7 +91,7 @@ substitute _ _ t2 = t2
 
 isvalue :: LamTerm i n -> Bool
 isvalue Var {} = False --TODO check
-isvalue Val {} = True
+isvalue Lit {} = True
 isvalue Appl {} = False
 isvalue Lambda {} = True
 isvalue Let {} = False

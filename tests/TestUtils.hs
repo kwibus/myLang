@@ -14,7 +14,7 @@ welFormd t0 = go t0 0
     where go (Lambda _ _ t) dept = go t (dept + 1)
           go (Appl _ t1 t2) dept = go t1 dept && go t2 dept
           go (Var _ (Bound i) ) dept = i < dept && i >= 0
-          go Val {} _ = True
+          go Lit {} _ = True
 
 -- TODO uneeded check
 welFormdType :: Type -> Bool

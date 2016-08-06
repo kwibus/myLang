@@ -46,7 +46,7 @@ fixInfix expresions = case expresions of
 -- |Modifyd ShuntingYard is a algoritme to convert infix to revers polish notation
 shuntingYard ::
     [(Expresion, Bool)] -- ^ input stream annotated with Bool that is True for infix/operators
-  -- (you need a bool because all Val + are not Infix because ic can be from this input (+)
+  -- (you need a bool because all literals + are not Infix because ic can be from this input (+)
   -> [Expresion] -- ^ value end normal functions stack
   -> [Expresion] -- ^ operator stack
   -> Either InfixError [Expresion] -- ^ either error od reverse polish notation

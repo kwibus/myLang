@@ -39,7 +39,7 @@ import Info
 -- >>> pShow $Lambda ()(DummyBegin)(Var () (Name"a")   )
 -- "a"
 --
--- >>> pShow $Lambda ()(DummyBegin) (Appl () (Appl () (Val () plus)(Var ()DummyBegin))(Val () (Prim $ MyDouble 1)))
+-- >>> pShow $Lambda ()(DummyBegin) (Appl () (Appl () (Lit () plus)(Var ()DummyBegin))(Lit () (Prim $ MyDouble 1)))
 -- "+ 1.0"
 
 pShow :: LamTerm i Name -> String
@@ -52,7 +52,7 @@ pShow = show . go True lowPrec . removeInfo
       -> Doc                         -- ^ result
   go _ _ (Var _ name ) = text $ prettyPrint name -- ignore Empty
 
-  go _ _ (Val _ v) = text $ pShowVal v
+  go _ _ (Lit _ v) = text $ pShowVal v
 
   go topLeft _ e@Lambda {} =
     let (vars, nextTerm) = accumulateVars e

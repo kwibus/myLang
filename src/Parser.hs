@@ -92,17 +92,17 @@ pApplication = do
         Left erro -> lift $ Left erro
         Right exps -> return exps
 
-pValue :: Parser Expresion
-pValue = do
+pLiteral:: Parser Expresion
+pLiteral = do
     pos <- getPosition
     v <- choice [ fmap (Prim . MyDouble) pDouble
                 , fmap (Prim . MyBool ) pBool]
     loc <- pLoc pos
-    return $ Val loc v
+    return $ Lit loc v
 
 pLambdaTerm' :: Parser (Expresion, Bool)
 pLambdaTerm' = choice parsers
-    where parsers = pOperator : fmap (fmap (\ p -> (p, False))) [pLet, pLambda, pVar, pParentheses, pValue]
+    where parsers = pOperator : fmap (fmap (\ p -> (p, False))) [pLet, pLambda, pVar, pParentheses, pLiteral]
 
 -- TODO renoame Expresion
 pLambdaTerm :: Parser Expresion
@@ -146,7 +146,7 @@ pOperator = do
     pos <- getPosition
     o <- choice [pPlus, pMultiply ]
     loc <- pLoc pos
-    return (Val loc o, True)
+    return (Lit loc o, True)
 
 
 -- TODO make a LOcation parser with :: Parser a -> Parser Loc

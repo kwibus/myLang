@@ -52,7 +52,7 @@ shrinkUntypedBruijn = shrinkTerm True elimanateBruijn
 
 shrinkTerm :: Bool -> (Name -> LamTerm () n -> Maybe (LamTerm () n )) -> LamTerm () n -> [ LamTerm () n ]
 shrinkTerm untyped elimanate = fastShrink True
-    where fastShrink _ (Val _ v) = val <$> shrinkValue v
+    where fastShrink _ (Lit _ v) = val <$> shrinkValue v
           fastShrink b t = whenTrue b [double 2.0] ++ shrinkT b t
           shrinkT b (Appl _ t1 t2) = whenTrue b [t1, t2] ++
                 [Appl () t1' t2 | t1' <- fastShrink untyped t1 ] ++
@@ -60,7 +60,7 @@ shrinkTerm untyped elimanate = fastShrink True
           shrinkT b (Lambda _ name t) =
                     whenTrue b (maybeToList (elimanate name t))
                  ++ (lambda (toString name) <$> fastShrink untyped t)
-          shrinkT _ (Val _ v) = val <$> shrinkValue v
+          shrinkT _ (Lit _ v) = val <$> shrinkValue v
           shrinkT _ _ = []
 
 whenTrue :: Monoid a => Bool -> a -> a
@@ -74,7 +74,7 @@ elimanateBruijn _ = go 0
       | i1 == i2 = Nothing
       | i1 < i2 = Just $ Var () $ Bound (i2 - 1)
       | otherwise = Just $ Var () $ Bound i2
-    go _ (v@Val {}) = Just v
+    go _ (v@Lit {}) = Just v
     go i (Lambda _ n t) = Lambda () n <$> go (i + 1) t
     go i (Appl _ t1 t2) = Appl () <$> go i t1 <*> go i t2
 
@@ -84,7 +84,7 @@ elimanateLambda name = go
     go t@(Var () n)
       | n == name = Nothing
       | otherwise = Just t
-    go v@Val {} = Just v
+    go v@Lit {} = Just v
     go t1@(Lambda _ n t2)
       | n == name = Just t1
       | otherwise = Lambda () n <$> go t2
