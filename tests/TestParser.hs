@@ -61,7 +61,7 @@ testParserProperties = testGroup "properties"
                 Left _ -> False
    ]
 
-testSet :: String -> [(String, LamTerm () Name)] -> TestTree
+testSet :: String -> [(String, LamTerm Name () Name)] -> TestTree
 testSet name set = testGroup name $ map (uncurry testCaseParser) set
 
 testParserBasic :: TestTree
@@ -82,7 +82,7 @@ testParserLetEdge = testGroup "let Edge case"
   , testCaseParser "let a = 1.0 in a" (mkLet [("a", double 1.0)] (var "a"))
   ]
 
-testCaseParser :: String -> LamTerm () Name -> TestTree
+testCaseParser :: String -> LamTerm Name () Name -> TestTree
 testCaseParser string expect = testCase string $
     let result = fmap removeInfo (parseString string)
         expectM = return expect

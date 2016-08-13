@@ -1,17 +1,20 @@
 module ExampleBruijn where
 
 import MakeTerm
+import Lambda
+import Name
+import BruijnEnvironment
 
-import BruijnTerm
+type SimpleBruijn  = LamTerm Name () Bound
 
-omega :: BruijnTerm ()
+omega :: SimpleBruijn
 omega = lambda "a" $ appl (bvar 0) (bvar 0)
 
-id :: BruijnTerm ()
+id :: SimpleBruijn
 id = lambda "a" $ bvar 0
 
-pair :: BruijnTerm ()
+pair :: SimpleBruijn
 pair = lambda "f" $ lambda "s" $ lambda "b" $ appl (appl (bvar 0)(bvar 2)) (bvar 1)
 
-k :: BruijnTerm ()
+k :: SimpleBruijn
 k = lambda "x" (lambda "y" (bvar 1))

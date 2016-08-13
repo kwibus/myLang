@@ -1,28 +1,27 @@
 module MakeTerm where
 
-import BruijnTerm
 import Lambda
 import Value
 import BruijnEnvironment
 import Name
 
-val :: Value -> LamTerm () n
+val :: Value -> LamTerm Name () n
 val = Lit ()
 
-var :: String -> LamTerm () Name
+var :: String -> LamTerm Name () Name
 var = Var () . fromString
 
-double :: Double -> LamTerm () n
+double :: Double -> LamTerm Name () n
 double = val . Prim . MyDouble
 
-bvar :: Int -> BruijnTerm ()
+bvar :: Int -> LamTerm Name () Bound
 bvar = Var () . Bound
 
-lambda :: String -> LamTerm () n -> LamTerm () n
-lambda = Lambda () . fromString
+lambda :: String -> LamTerm Name () n -> LamTerm Name () n
+lambda = Lambda  . fromString
 
-appl :: LamTerm () n -> LamTerm () n -> LamTerm () n
+appl :: LamTerm Name () n -> LamTerm Name () n -> LamTerm Name () n
 appl = Appl
 
-mkLet :: [(String, LamTerm () n)] -> LamTerm () n -> LamTerm () n
+mkLet :: [(String, LamTerm Name () n)] -> LamTerm Name () n -> LamTerm Name () n
 mkLet tupleDef = Let () (map (uncurry (Def (). Name )) tupleDef)

@@ -5,14 +5,14 @@ import Text.PrettyPrint.ANSI.Leijen
 import FreeEnvironment
 import BruijnEnvironment
 import Type
-import BruijnTerm
 import Lambda
 import Info
 import Lexer (toChar,reservedSymbols)
+import Error
 
-data TypeError i =
-      UnifyAp (BruijnTerm i) Type Type [UnificationError]
-    | UnifySubs (BruijnTerm i) [UnificationError]
+data TypeError lam i =
+      UnifyAp (LamTerm lam i Bound) Type Type [UnificationError]
+    | UnifySubs (LamTerm lam i Bound) [UnificationError]
     | ICE (UndefinedVar Bound i)
     deriving Show
 
@@ -22,7 +22,7 @@ data UnificationError =
     deriving Show
 
 -- TODO better EqalitieA / remove and make seperate for unittest
-instance Eq (TypeError i) where
+instance Eq (TypeError lam i) where
   (==) (UnifyAp _ _ _ err1) (UnifyAp _ _ _ err2) = err1 == err2
   (==) (UnifySubs _ _) (UnifySubs _ _ ) = True
   (==) (ICE _) (ICE _) = True
@@ -33,15 +33,15 @@ instance Eq UnificationError where
    Unify {} == Unify {} = True
    (==) _ _ = False
 
-showErrors :: String -> [TypeError SourcePos] -> Doc
+showErrors :: HasPostion lam =>String -> [TypeError lam SourcePos] -> Doc
 showErrors str = vcat . map (showError str)
 
-showError :: String -> TypeError SourcePos-> Doc
+showError :: HasPostion lam =>  String -> TypeError lam SourcePos-> Doc
 showError str (UnifyAp expr t1 t2 err ) = text (showPosition (getPosition expr)) <+> text "TypeError " <$>
         indent 4 ( showUnifyApError str expr t1 t2 err)
 showError _ _ = text "No error messages implemented"
 
-showUnifyApError :: String -> BruijnTerm SourcePos-> Type -> Type -> [UnificationError] -> Doc
+showUnifyApError :: HasPostion lam => String -> LamTerm lam SourcePos Bound -> Type -> Type -> [UnificationError] -> Doc
 showUnifyApError str e@(Appl e1 e2) t1 t2 _ =
   let compleetDictonarie = mkDictonarie [t1, t2]
       localShow t = text $ pShowWithDic t compleetDictonarie
@@ -61,7 +61,7 @@ showUnifyApError _ _ _ _ _ = text "No error messages implemented"
 showLine :: Int -> Int -> String -> [String]
 showLine start n str = take n $ drop (start - 1 )$ lines str
 
-getsource :: BruijnTerm SourcePos -> String -> Doc
+getsource :: HasPostion lam =>LamTerm lam SourcePos Bound-> String -> Doc
 getsource term str =
     if sourceLine start /= sourceLine end
     then  vsep $ map text  srcLines

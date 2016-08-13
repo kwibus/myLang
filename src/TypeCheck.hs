@@ -11,10 +11,10 @@ import ErrorCollector
 import Value
 import Lambda
 import Type
-import BruijnTerm
 import BruijnEnvironment
 import FreeEnvironment
 import TypeError
+import Error
 
 -- $setup
 -- >>> import MakeType
@@ -36,23 +36,23 @@ close t = fst $ go t fEmtyEnv 0
 fst3 :: (a, b, c) -> a
 fst3 (a, _, _) = a
 
-solver :: BruijnTerm i -> ErrorCollector [TypeError i] Type
+solver :: LamTerm lam i Bound -> ErrorCollector [TypeError lam i] Type
 solver e = fmap ( close . uncurry (flip apply) ) $ runInfer $ solveWith e fEmtyEnv bEmtyEnv
 
-type Infer i a = ErrorCollectorT [TypeError i] ( State Int ) a
+type Infer lam i a = ErrorCollectorT [TypeError lam i] ( State Int ) a
 type TSubst = FreeEnv Type
 type TEnv = BruijnEnv Type
 
-runInfer :: Infer i a -> ErrorCollector [TypeError i] a
+runInfer :: Infer lam i a -> ErrorCollector [TypeError lam i] a
 runInfer infer = evalState ( runErrorT infer) 0
 
-newFreeVar :: Infer i Free
+newFreeVar :: Infer lam i Free
 newFreeVar = do
     i <- get
     put (i + 1)
     return $ Free i
 
-solveWith :: BruijnTerm i -> TSubst -> TEnv -> Infer i (Type, TSubst)
+solveWith :: LamTerm lam i Bound -> TSubst -> TEnv -> Infer lam i (Type, TSubst)
 solveWith e@(Let _ defs e2) sub tenv = do
   newVars <- replicateM (length defs) newFreeVar
   let tempTEnv= foldl ( flip ( bInsert. TVar)) tenv newVars
@@ -65,7 +65,7 @@ solveWith e@(Let _ defs e2) sub tenv = do
             let poly = generalize dic t2
             return (poly,newsub)
 
-solveWith (Lambda _ _ e2) sub tenv = do
+solveWith (Lambda _ e2) sub tenv = do
     k <- newFreeVar
     let newTEnv = bInsert (TVar k) tenv
     (t, newSub) <- solveWith e2 sub newTEnv
@@ -100,10 +100,10 @@ foldM1 f (x : xs) = foldM f x xs
 -- >>> runInfer $ instantiate ((tVar (-1)) ~> (TPoly $ Free (-1)))
 -- Result (TAppl (TVar (Free (-1))) (TVar (Free 0)))
 
-instantiate :: Type -> Infer a Type
+instantiate :: Type -> Infer lam a Type
 instantiate = fmap snd . toTVar fEmtyEnv
   where
-    toTVar :: FreeEnv Free -> Type -> Infer a (FreeEnv Free, Type)
+    toTVar :: FreeEnv Free -> Type -> Infer lam a (FreeEnv Free, Type)
     toTVar conversion  (TPoly (Free i)) = case IM.lookup i conversion  of
              Just j -> return (conversion, TVar j)
              Nothing -> newFreeVar >>= ( \j -> return (IM.insert i j conversion, TVar $ j))

@@ -10,6 +10,14 @@ data Name = Name String
           | DummyEnd
           deriving (Eq, Show, Ord)
 
+class HasName a where
+    getName :: a ->  Name
+    setName :: a -> Name -> a
+
+instance HasName Name where
+    getName = id
+    setName _ n = n
+
 toString :: Name -> String
 toString (Name str) = str
 toString DummyBegin= "#"

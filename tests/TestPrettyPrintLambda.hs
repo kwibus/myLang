@@ -35,7 +35,7 @@ testPShowLet = testGroup "Let" $ map testPShowExample letSet
 testPShowAdvanced :: TestTree
 testPShowAdvanced = testGroup "Advanced" $ map testPShowExample advanced
 
-testPShowExample :: (String, LamTerm () Name) -> TestTree
+testPShowExample :: (String, LamTerm Name () Name) -> TestTree
 testPShowExample (expected, inputTerm) = testCase expected $ pShow inputTerm @?= expected
 
 testNoRedundantParens :: TestTree

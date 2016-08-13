@@ -12,6 +12,7 @@ import Associativity
 -- $setup
 -- >>> import Operator
 
+-- TODO maybe use MakeTerm
 -- | pretty Print Lambda`s
 --
 -- * all printed terms can be parsed by 'Parser.parseString'.
@@ -19,35 +20,35 @@ import Associativity
 --
 --  examples:
 --
--- >>>pShow $ Appl (Var() (Name "a"))(Var ()(Name "b") )
+-- >>>pShow ( Appl (Var() (Name "a"))(Var ()(Name "b") ) :: LamTerm Name () Name )
 -- "a b"
 --
--- >>>pShow $ Lambda () (Name "a")(Var ()(Name "a") )
+-- >>>pShow $ Lambda (Name "a")(Var ()(Name "a") )
 -- "\\a.a"
 --
 -- shorthand multiple lambda's
 --
--- >>>pShow $ Lambda () (Name "b") (Lambda () (Name "a")(Var ()(Name "a")))
+-- >>>pShow $ Lambda (Name "b") (Lambda (Name "a")(Var ()(Name "a")))
 -- "\\b a.a"
 --
 -- 'pShow' ignores DummyBegin to support infix terms that arre only apply from the left
 -- 'pShow' ignores DummyEnd to support infix terms that arre only apply from the Right
--- >>> pShow $ Var () DummyBegin
+-- >>> pShow ( Var () DummyBegin :: LamTerm Name () Name )
 -- ""
 --
--- >>> pShow $Lambda ()(DummyBegin)(Var () (Name"a")   )
+-- >>> pShow $Lambda (DummyBegin)(Var () (Name"a")   )
 -- "a"
 --
--- >>> pShow $Lambda ()(DummyBegin) (Appl  (Appl (Lit() plus)(Var ()DummyBegin))(Lit() (Prim $ MyDouble 1)))
+-- >>> pShow $Lambda (DummyBegin) (Appl  (Appl (Lit() plus)(Var ()DummyBegin))(Lit() (Prim $ MyDouble 1)))
 -- "+ 1.0"
 
-pShow :: LamTerm i Name -> String
+pShow ::HasName lam => LamTerm lam i Name -> String
 pShow = show . go True lowPrec
  where
-  go :: Bool                         -- ^ indicate if prented term is top leftmost of a expresion
+  go :: HasName lam => Bool                         -- ^ indicate if prented term is top leftmost of a expresion
                                      -- ^ to indicate of Lambda Terms  Should be enclosed in parenthese
       -> (Precedence, Associativity) -- ^ precedence of previous Infix  (if there is no infix then its lowPrec)
-      -> LamTerm i Name             -- ^ term that should be printed
+      -> LamTerm lam i Name             -- ^ term that should be printed
       -> Doc                         -- ^ result
   go _ _ (Var _ name ) = text $ prettyPrint name -- ignore Empty
 
@@ -111,7 +112,7 @@ myAppend d1 d2
 myConcat :: [Doc] -> Doc
 myConcat = foldl1 myAppend
 
-isNotFullAplliedInfix :: LamTerm i Name -> Bool
+isNotFullAplliedInfix :: LamTerm lam i Name -> Bool
 isNotFullAplliedInfix (Appl t1 _) = isInfix t1
 isNotFullAplliedInfix t = isInfix t
 

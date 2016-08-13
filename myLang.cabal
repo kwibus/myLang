@@ -66,8 +66,10 @@ library
                       ,InfixFix
                       ,Info
                       ,TypeError
+                      ,Error
                       ,ErrorCollector
                       ,Name
+                      ,Lam1
                       ,Associativity
   default-language:    Haskell2010
 

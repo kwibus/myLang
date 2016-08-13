@@ -12,7 +12,6 @@ import Data.Bifunctor
 import Data.List (foldl')
 
 import Lambda
-import BruijnTerm
 import Value
 import BruijnEnvironment
 import Type
@@ -20,11 +19,11 @@ import Type
 -- TODO write Test  for correct order
 -- |eval term in accordance with call by value.
 -- If a term can't be further be evaluated it will return 'Nothing'
-eval :: Show i => BruijnTerm i -> Maybe (BruijnTerm i)
+eval :: (Show lam, Show i) => LamTerm lam i Bound -> Maybe (LamTerm lam i Bound)
 eval = fmap fst . listToMaybe . toList . evalWithEnv bEmtyEnv
 
-evalWithEnv :: Show i => BruijnEnv (BruijnTerm i) -> BruijnTerm i ->
-  DList (BruijnTerm i, BruijnEnv (BruijnTerm i))
+evalWithEnv :: (Show lam, Show i) => BruijnEnv (LamTerm lam i Bound) -> LamTerm lam i Bound ->
+  DList (LamTerm lam i Bound , BruijnEnv (LamTerm lam i Bound))
 evalWithEnv env (Appl func args) = (firstFullExpr `append` nextFullExpr ) `append` final
   where
     evalFunc = evalWithEnv env func
@@ -36,7 +35,7 @@ evalWithEnv env (Appl func args) = (firstFullExpr `append` nextFullExpr ) `appen
     valueArgs = saveLast (fst <$> toList evalArgs) args
 
     final = case valueFunc of
-      (Lambda _ _ t1) ->
+      (Lambda _ t1) ->
             let step = substitute valueArgs (Bound 0) t1 -- reduce outer to inner redex
             in cons (step, env) $ evalWithEnv env step
       (Lit i1 v1) -> return (Lit i1 $ applyValue v1 $ value valueArgs, env)
@@ -67,7 +66,7 @@ saveLast :: [a] -> a -> a
 saveLast [] a = a
 saveLast xs _ = last xs
 
-value :: Show i => BruijnTerm i -> Value
+value :: (Show lam,Show i) => LamTerm lam i Bound -> Value
 value (Lit _ v ) = v
 value t = error $ show t ++ " is not a value"
 
@@ -82,19 +81,19 @@ applyValue v1@BuildIn {arrity = n, stack = s, myType = t } v2 =
 applyValue _ _ = error "apply value"
 
 -- TODO remove initial index
-substitute :: BruijnTerm i -> Bound -> BruijnTerm i -> BruijnTerm i
+substitute :: LamTerm lam i Bound -> Bound -> LamTerm lam i Bound -> LamTerm lam i Bound
 substitute t1 n1 t2@(Var _ n2) = if n1 == n2 then t1 else t2
-substitute t1 (Bound i1) (Lambda i n t2) = Lambda i n $
+substitute t1 (Bound i1) (Lambda n t2) = Lambda n $
                     substitute t1 (Bound (i1 + 1)) t2
 substitute t n (Appl t1 t2) = Appl (substitute t n t1) (substitute t n t2)
 substitute _ _ t2 = t2
 
-isvalue :: LamTerm i n -> Bool
+isvalue :: LamTerm lam i n -> Bool
 isvalue Var {} = False --TODO check
 isvalue Lit {} = True
 isvalue Appl {} = False
 isvalue Lambda {} = True
 isvalue Let {} = False
 
-fullEval :: Show i => BruijnTerm i -> BruijnTerm i
+fullEval :: (Show lam, Show i) => LamTerm lam i Bound -> LamTerm lam i Bound
 fullEval t = saveLast (fst <$> toList ( evalWithEnv bEmtyEnv t )) t

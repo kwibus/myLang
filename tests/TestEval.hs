@@ -5,7 +5,6 @@ import Test.Tasty
 import Test.Tasty.HUnit
 import Test.Tasty.QuickCheck
 import Data.Maybe
-
 import TypeCheck
 import BruijnTerm
 import qualified ExampleBruijn as B
@@ -21,6 +20,9 @@ import PrettyPrint
 import ErrorCollector
 import qualified Type as T
 
+import Name
+import Lambda
+import BruijnEnvironment
 testEval :: TestTree
 testEval = testGroup "eval" [testEvalBasic, testEvalBuildin]
 
@@ -41,7 +43,7 @@ testEvalBasic = testGroup "basic"
       eval (lambda "z" (appl B.id (bvar 1))) @?= Nothing
 
   , testProperty "welformd presevation eval" $
-      forAllTypedBruijn $ \ t -> let result = welFormd <$> eval (t :: BruijnTerm ())
+      forAllTypedBruijn $ \ t -> let result = welFormd <$> eval (t :: LamTerm Name () Bound)
             in isNothing result || fromJust result
 
   , testProperty "keep normalisation under eval" $
@@ -50,7 +52,7 @@ testEvalBasic = testGroup "basic"
             in isJust result ==> normalised $ fromJust result
 
   , testProperty "keep type under eval" $
-      forAllTypedBruijn $ \ e -> let result = eval (e :: BruijnTerm ())
+      forAllTypedBruijn $ \ e -> let result = eval (e :: LamTerm Name () Bound)
             in isJust result ==>
                 let expr2 = fromJust result
                 in errorCol2Bool $ do

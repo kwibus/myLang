@@ -13,12 +13,12 @@ import qualified Text.Parsec.Prim as PS
 import Text.Parsec.Combinator
 import qualified Text.Parsec.Error as PS
 
+import Lam1
 import InfixFix
 import Value
 import Lambda
 import Lexer
 import Operator
-import Info
 import Name
 
 -- TODO Remove p
@@ -29,7 +29,7 @@ data ParseError = Infix InfixError
                 | Lexer PS.ParseError
                 deriving (Show, Eq)
 
-parseString :: String -> Either ParseError Expresion
+parseString :: String -> Either ParseError Lam1
 parseString str = case lexer str of
       Right tokenStream -> parse pLine "" tokenStream
       Left e -> Left $ Lexer e
@@ -52,12 +52,12 @@ pSymbol s = void $ pSatisfy (== ReservedS s)
 pKeyWord :: ReservedWord -> Parser ()
 pKeyWord w = void $ pSatisfy (== ReservedW w)
 
-pIdentifier :: Parser String
+pIdentifier :: Parser Name
 pIdentifier = do
   Identifier str <- pSatisfy (\ x -> case x of
     Identifier _ -> True
     _ -> False)
-  return str
+  return $ Name str
 
 pBool :: Parser Bool
 pBool = do
@@ -76,44 +76,44 @@ pDouble = do
     _ -> False)
   return n
 
-pLambda :: Parser Expresion
+pLambda :: Parser Lam1
 pLambda = do
-    pos <- PS.getPosition
     pSymbol BackSlash
-    ns <- PS.many pIdentifier -- TODO 1) fix location 2) give warning Shadowin variable names (\a a b.t)
+    pat <- PS.many pPattern -- TODO 1) error message no pattern
+                            --      2) give warning Shadowin variable names (\a a b.t)
     pSymbol Dot
     term <- pLambdaTerm
-    return $ foldr (Lambda pos) term (Name <$> ns)
+    return $ foldr Lambda term pat
 
-pApplication :: Parser Expresion
+pPattern :: Parser Pattern
+pPattern = Pattern <$> PS.getPosition <*> pIdentifier
+
+pApplication :: Parser Lam1
 pApplication = do
     terms <- PS.many pLambdaTerm'
     case fixInfix terms of
         Left erro -> lift $ Left erro
         Right exps -> return exps
 
-pLiteral :: Parser Expresion
+pLiteral :: Parser Lam1
 pLiteral = do
     pos <- PS.getPosition
     v <- choice [ fmap (Prim . MyDouble) pDouble
                 , fmap (Prim . MyBool ) pBool]
     return $ Lit pos v
 
-pLambdaTerm' :: Parser (Expresion, Bool)
+pLambdaTerm' :: Parser (Lam1, Bool)
 pLambdaTerm' = choice parsers
     where parsers = pOperator : fmap (fmap (\ p -> (p, False))) [pLet, pLambda, pVar, pParentheses, pLiteral]
 
--- TODO renoame Expresion
-pLambdaTerm :: Parser Expresion
+-- TODO rename
+pLambdaTerm :: Parser Lam1
 pLambdaTerm = pApplication
 
-pVar :: Parser Expresion
-pVar = do
-    pos <- PS.getPosition
-    n <- pIdentifier
-    return $ Var pos (Name n)
+pVar :: Parser Lam1
+pVar = Var <$> PS.getPosition <*> pIdentifier
 
-pLet :: Parser Expresion
+pLet :: Parser Lam1
 pLet = do
   pos <- PS.getPosition
   defs <- between
@@ -123,21 +123,21 @@ pLet = do
   term <- pLambdaTerm
   return $ Lambda.Let pos defs term
 
-pDefinition :: Parser (Def SourcePos Name)
+pDefinition :: Parser (Def Pattern SourcePos Name)
 pDefinition = do
   pos <- PS.getPosition
   str <- pIdentifier
   pSymbol Equal
   term <- pLambdaTerm
-  return $ Def pos (Name str) term
+  return $ Def pos str term
 
-pLine :: Parser Expresion
+pLine :: Parser Lam1
 pLine = do
     term <- pLambdaTerm
     eof
     return term
 
-pOperator :: Parser (Expresion, Bool)
+pOperator :: Parser (Lam1, Bool)
 pOperator = do
     pos <- PS.getPosition
     o <- choice [pPlus, pMultiply ]
@@ -149,7 +149,7 @@ pPlus = pSymbol Plus >> return plus
 pMultiply :: Parser Value
 pMultiply = pSymbol Multiply >> return multiply
 
-pParentheses :: Parser Expresion
+pParentheses :: Parser Lam1
 pParentheses = do
     pSymbol LeftParenthesis
     term <- pLambdaTerm

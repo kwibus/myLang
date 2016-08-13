@@ -5,13 +5,14 @@ import BruijnTerm
 import BruijnEnvironment
 import FreeEnvironment
 import Type
+import Name
 
-normalised :: Eq i => BruijnTerm i -> Bool
+normalised :: (HasName lam, Eq i, Eq lam) => LamTerm lam i Bound -> Bool
 normalised t = fmap lam2Bruijn (bruijn2Lam t) == return ( return t)
 
-welFormd :: BruijnTerm i -> Bool
+welFormd :: LamTerm lam i Bound -> Bool
 welFormd t0 = go t0 0
-    where go (Lambda _ _ t) dept = go t (dept + 1)
+    where go (Lambda _ t) dept = go t (dept + 1)
           go (Appl t1 t2) dept = go t1 dept && go t2 dept
           go (Var _ (Bound i) ) dept = i < dept && i >= 0
           go Lit {} _ = True
@@ -24,7 +25,7 @@ welFormdType = go
           go (TPoly(Free i) ) = i >= 0
           go TVal {} = True
 
-size :: LamTerm a i -> Int
-size (Lambda _ _ e ) = size e + 1
+size :: LamTerm lam a i -> Int
+size (Lambda _ e ) = size e + 1
 size (Appl e1 e2) = size e1 + size e2
 size _ = 1

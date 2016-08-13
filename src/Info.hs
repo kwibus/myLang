@@ -10,25 +10,30 @@ import Lambda
 import Name
 import Text.Parsec.Pos
 
-type Expresion = LamTerm SourcePos Name
+class HasPostion a where
+    getPosition :: a -> SourcePos
 
-getPosition :: LamTerm SourcePos n -> SourcePos
-getPosition (Var i _ ) = i
-getPosition (Appl e _) = getPosition e
-getPosition (Lambda i _ _) = i
-getPosition (Let i _ _ ) = i
-getPosition (Lit i _) = i
+instance HasPostion SourcePos where
+    getPosition = id
 
-getLastWordPos :: LamTerm SourcePos n -> SourcePos
+instance (HasPostion i , HasPostion lam) => HasPostion (LamTerm lam i n) where
+    getPosition (Var i _ ) = getPosition i
+    getPosition (Appl e _) = getPosition e
+    getPosition (Lambda i _) = getPosition i
+    getPosition (Let i _ _ ) = getPosition i
+    getPosition (Lit i _) = getPosition i
+
+getLastWordPos :: HasPostion i => LamTerm loc i n -> SourcePos
 getLastWordPos (Appl _ e) = getLastWordPos e
-getLastWordPos (Lambda _ _ e) = getLastWordPos e
+getLastWordPos (Lambda _ e) = getLastWordPos e
 getLastWordPos (Let _ _ e) = getLastWordPos e
-getLastWordPos e = getPosition e
+getLastWordPos (Var i _) = getPosition i
+getLastWordPos (Lit i _) = getPosition i
 
-removeInfo :: LamTerm i n -> LamTerm () n
+removeInfo :: HasName lam => LamTerm lam i n -> LamTerm Name () n
 removeInfo (Appl e1 e2) = Appl (removeInfo e1) (removeInfo e2)
 removeInfo (Lit _ v) = Lit () v
-removeInfo (Lambda _ n e) = Lambda () n $ removeInfo e
+removeInfo (Lambda v e) = Lambda  (getName v)$ removeInfo e
 removeInfo (Var _ n) = Var () n
 removeInfo (Let _ defs e) = Let () (map removeInfoDef defs) $ removeInfo e
   where removeInfoDef (Def _ n e1) = Def () n $ removeInfo e1
