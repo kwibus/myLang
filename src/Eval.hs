@@ -19,11 +19,11 @@ import Type
 -- TODO write Test  for correct order
 -- |eval term in accordance with call by value.
 -- If a term can't be further be evaluated it will return 'Nothing'
-eval :: (Show lam, Show i) => LamTerm lam i Bound -> Maybe (LamTerm lam i Bound)
+eval :: (Show v, Show i) => LamTerm v i Bound -> Maybe (LamTerm v i Bound)
 eval = fmap fst . listToMaybe . toList . evalWithEnv bEmtyEnv
 
-evalWithEnv :: (Show lam, Show i) => BruijnEnv (LamTerm lam i Bound) -> LamTerm lam i Bound ->
-  DList (LamTerm lam i Bound , BruijnEnv (LamTerm lam i Bound))
+evalWithEnv :: (Show v, Show i) => BruijnEnv (LamTerm v i Bound) -> LamTerm v i Bound ->
+  DList (LamTerm v i Bound , BruijnEnv (LamTerm v i Bound))
 evalWithEnv env (Appl func args) = (firstFullExpr `append` nextFullExpr ) `append` final
   where
     evalFunc = evalWithEnv env func
@@ -46,10 +46,10 @@ evalWithEnv env (Let i defs term) = snoc firstSteps (saveLast (toList evals) (te
     firstSteps = fmap (\ (newTerm, newEnv) -> (Let i (updateDefs newEnv) newTerm, newEnv)) evals
     resetDepth newEnv = newEnv -- newEnv {bruijnDepth = bruijnDepth env}
     updateDefs newEnv = zipWith
-      (\ (Def info n _) index -> Def info n ( bLookup index (resetDepth newEnv) ))
+      (\ (Def v _) index -> Def v ( bLookup index (resetDepth newEnv) ))
       defs
       (Bound <$> [length defs - 1 .. 0])
-    evals = evalWithEnv (foldl' (\ envN (Def _ _ tn ) -> bInsert tn envN ) env defs ) term
+    evals = evalWithEnv (foldl' (\ envN (Def _ tn ) -> bInsert tn envN ) env defs ) term
 
 evalWithEnv env (Var i b) =
   if isvalue valueOfB
@@ -66,7 +66,7 @@ saveLast :: [a] -> a -> a
 saveLast [] a = a
 saveLast xs _ = last xs
 
-value :: (Show lam,Show i) => LamTerm lam i Bound -> Value
+value :: (Show v ,Show i) => LamTerm v i Bound -> Value
 value (Lit _ v ) = v
 value t = error $ show t ++ " is not a value"
 
@@ -81,19 +81,19 @@ applyValue v1@BuildIn {arrity = n, stack = s, myType = t } v2 =
 applyValue _ _ = error "apply value"
 
 -- TODO remove initial index
-substitute :: LamTerm lam i Bound -> Bound -> LamTerm lam i Bound -> LamTerm lam i Bound
+substitute :: LamTerm v i Bound -> Bound -> LamTerm v i Bound -> LamTerm v i Bound
 substitute t1 n1 t2@(Var _ n2) = if n1 == n2 then t1 else t2
 substitute t1 (Bound i1) (Lambda n t2) = Lambda n $
                     substitute t1 (Bound (i1 + 1)) t2
 substitute t n (Appl t1 t2) = Appl (substitute t n t1) (substitute t n t2)
 substitute _ _ t2 = t2
 
-isvalue :: LamTerm lam i n -> Bool
+isvalue :: LamTerm v i n -> Bool
 isvalue Var {} = False --TODO check
 isvalue Lit {} = True
 isvalue Appl {} = False
 isvalue Lambda {} = True
 isvalue Let {} = False
 
-fullEval :: (Show lam, Show i) => LamTerm lam i Bound -> LamTerm lam i Bound
+fullEval :: (Show v, Show i) => LamTerm v i Bound -> LamTerm v i Bound
 fullEval t = saveLast (fst <$> toList ( evalWithEnv bEmtyEnv t )) t

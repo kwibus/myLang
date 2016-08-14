@@ -7,10 +7,10 @@ import FreeEnvironment
 import Type
 import Name
 
-normalised :: (HasName lam, Eq i, Eq lam) => LamTerm lam i Bound -> Bool
+normalised :: (HasName v, Eq i, Eq v) => LamTerm v i Bound -> Bool
 normalised t = fmap lam2Bruijn (bruijn2Lam t) == return ( return t)
 
-welFormd :: LamTerm lam i Bound -> Bool
+welFormd :: LamTerm v i Bound -> Bool
 welFormd t0 = go t0 0
     where go (Lambda _ t) dept = go t (dept + 1)
           go (Appl t1 t2) dept = go t1 dept && go t2 dept
@@ -25,7 +25,7 @@ welFormdType = go
           go (TPoly(Free i) ) = i >= 0
           go TVal {} = True
 
-size :: LamTerm lam a i -> Int
+size :: LamTerm v a i -> Int
 size (Lambda _ e ) = size e + 1
 size (Appl e1 e2) = size e1 + size e2
 size _ = 1

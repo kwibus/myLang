@@ -10,9 +10,9 @@ import Info
 import Lexer (toChar,reservedSymbols)
 import Error
 
-data TypeError lam i =
-      UnifyAp (LamTerm lam i Bound) Type Type [UnificationError]
-    | UnifySubs (LamTerm lam i Bound) [UnificationError]
+data TypeError v i =
+      UnifyAp (LamTerm v i Bound) Type Type [UnificationError]
+    | UnifySubs (LamTerm v i Bound) [UnificationError]
     | ICE (UndefinedVar Bound i)
     deriving Show
 
@@ -22,7 +22,7 @@ data UnificationError =
     deriving Show
 
 -- TODO better EqalitieA / remove and make seperate for unittest
-instance Eq (TypeError lam i) where
+instance Eq (TypeError v i) where
   (==) (UnifyAp _ _ _ err1) (UnifyAp _ _ _ err2) = err1 == err2
   (==) (UnifySubs _ _) (UnifySubs _ _ ) = True
   (==) (ICE _) (ICE _) = True
@@ -33,15 +33,15 @@ instance Eq UnificationError where
    Unify {} == Unify {} = True
    (==) _ _ = False
 
-showErrors :: HasPostion lam =>String -> [TypeError lam SourcePos] -> Doc
+showErrors :: HasPostion v =>String -> [TypeError v SourcePos] -> Doc
 showErrors str = vcat . map (showError str)
 
-showError :: HasPostion lam =>  String -> TypeError lam SourcePos-> Doc
+showError :: HasPostion v =>  String -> TypeError v SourcePos-> Doc
 showError str (UnifyAp expr t1 t2 err ) = text (showPosition (getPosition expr)) <+> text "TypeError " <$>
         indent 4 ( showUnifyApError str expr t1 t2 err)
 showError _ _ = text "No error messages implemented"
 
-showUnifyApError :: HasPostion lam => String -> LamTerm lam SourcePos Bound -> Type -> Type -> [UnificationError] -> Doc
+showUnifyApError :: HasPostion v => String -> LamTerm v SourcePos Bound -> Type -> Type -> [UnificationError] -> Doc
 showUnifyApError str e@(Appl e1 e2) t1 t2 _ =
   let compleetDictonarie = mkDictonarie [t1, t2]
       localShow t = text $ pShowWithDic t compleetDictonarie
@@ -61,7 +61,7 @@ showUnifyApError _ _ _ _ _ = text "No error messages implemented"
 showLine :: Int -> Int -> String -> [String]
 showLine start n str = take n $ drop (start - 1 )$ lines str
 
-getsource :: HasPostion lam =>LamTerm lam SourcePos Bound-> String -> Doc
+getsource :: HasPostion v =>LamTerm v SourcePos Bound-> String -> Doc
 getsource term str =
     if sourceLine start /= sourceLine end
     then  vsep $ map text  srcLines

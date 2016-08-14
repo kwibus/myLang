@@ -129,7 +129,7 @@ pDefinition = do
   str <- pIdentifier
   pSymbol Equal
   term <- pLambdaTerm
-  return $ Def pos str term
+  return $ Def (Pattern pos str) term
 
 pLine :: Parser Lam1
 pLine = do
@@ -154,4 +154,4 @@ pParentheses = do
     pSymbol LeftParenthesis
     term <- pLambdaTerm
     pSymbol RightParenthesis
-    return $ term
+    return term

@@ -16,7 +16,7 @@ class HasPostion a where
 instance HasPostion SourcePos where
     getPosition = id
 
-instance (HasPostion i , HasPostion lam) => HasPostion (LamTerm lam i n) where
+instance (HasPostion i , HasPostion v) => HasPostion (LamTerm v i n) where
     getPosition (Var i _ ) = getPosition i
     getPosition (Appl e _) = getPosition e
     getPosition (Lambda i _) = getPosition i
@@ -30,13 +30,13 @@ getLastWordPos (Let _ _ e) = getLastWordPos e
 getLastWordPos (Var i _) = getPosition i
 getLastWordPos (Lit i _) = getPosition i
 
-removeInfo :: HasName lam => LamTerm lam i n -> LamTerm Name () n
+removeInfo :: HasName v => LamTerm v i n -> LamTerm Name () n
 removeInfo (Appl e1 e2) = Appl (removeInfo e1) (removeInfo e2)
 removeInfo (Lit _ v) = Lit () v
 removeInfo (Lambda v e) = Lambda  (getName v)$ removeInfo e
 removeInfo (Var _ n) = Var () n
 removeInfo (Let _ defs e) = Let () (map removeInfoDef defs) $ removeInfo e
-  where removeInfoDef (Def _ n e1) = Def () n $ removeInfo e1
+  where removeInfoDef (Def n e1) = Def (getName n) $ removeInfo e1
 
 showPosition :: SourcePos -> String
 showPosition pos = showfile ++

@@ -24,4 +24,4 @@ appl :: LamTerm Name () n -> LamTerm Name () n -> LamTerm Name () n
 appl = Appl
 
 mkLet :: [(String, LamTerm Name () n)] -> LamTerm Name () n -> LamTerm Name () n
-mkLet tupleDef = Let () (map (uncurry (Def (). Name )) tupleDef)
+mkLet tupleDef = Let () (map (uncurry (Def . Name )) tupleDef)

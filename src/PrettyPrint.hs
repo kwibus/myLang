@@ -42,7 +42,7 @@ import Associativity
 -- >>> pShow $Lambda (DummyBegin) (Appl  (Appl (Lit() plus)(Var ()DummyBegin))(Lit() (Prim $ MyDouble 1)))
 -- "+ 1.0"
 
-pShow ::HasName lam => LamTerm lam i Name -> String
+pShow ::HasName v => LamTerm v i Name -> String
 pShow = show . go True lowPrec
  where
   go :: HasName lam => Bool                         -- ^ indicate if prented term is top leftmost of a expresion
@@ -66,7 +66,7 @@ pShow = show . go True lowPrec
                                    align (vcat $ map showDefs defs) <$$>
                                    text "in" <+>
                                    go topLeft p term
-    where showDefs (Def _ n t) = text (toString n ++ " = ") <> go True lowPrec t <> text ";"
+    where showDefs (Def v t) = text (toString (getName v) ++ " = ") <> go True lowPrec t <> text ";"
 
   go topLeft p t@Appl {}
     | isInfix function = case arguments of

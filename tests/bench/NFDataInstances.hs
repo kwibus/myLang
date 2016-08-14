@@ -32,8 +32,8 @@ deriving instance  Generic (TypeA i)
 instance NFData i => NFData (TypeA i) where
     rnf = genericRnf
 
-deriving instance  Generic (Def lam i n)
-instance (NFData lam, NFData i, NFData n) => NFData (Def lam i n) where
+deriving instance  Generic (Def v i n)
+instance (NFData v, NFData i, NFData n) => NFData (Def v i n) where
     rnf = genericRnf
 
 deriving instance  Generic Free
@@ -100,6 +100,6 @@ deriving instance  Generic Pattern
 instance  NFData Pattern where
     rnf = genericRnf
 
-deriving instance  Generic (LamTerm lam i n )
-instance  (NFData lam, NFData i, NFData n) => NFData (LamTerm lam i n) where
+deriving instance  Generic (LamTerm v i n )
+instance  (NFData v, NFData i, NFData n) => NFData (LamTerm v i n) where
     rnf = genericRnf

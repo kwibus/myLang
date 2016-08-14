@@ -34,13 +34,13 @@ type BruijnTerm i = LamTerm Pattern i Bound
 --
 -- "\\\\1" becomes: "\\a.\\a1.a"  not: "\a.\a.a"
 -- TODO used names list is inefficient maybe Map Name int??
-bruijn2Lam :: HasName lam => LamTerm lam i Bound -> Either (UndefinedVar i Bound) (LamTerm lam i Name)
+bruijn2Lam :: HasName v => LamTerm v i Bound -> Either (UndefinedVar i Bound) (LamTerm v i Name)
 bruijn2Lam t = go t []
     where
         -- first name in [name,name1,name2,..] that is not allready used
         mkNewName name env = head $ dropWhile (`elem` env)
                 (map (\ i -> fromString (toString name ++ i)) ("" : map show [(0 :: Int) ..] ))
-        go :: HasName lam =>LamTerm lam i Bound -> [Name] -> Either (UndefinedVar i Bound) (LamTerm lam i Name)
+        go :: HasName v =>LamTerm v i Bound -> [Name] -> Either (UndefinedVar i Bound) (LamTerm v i Name)
         go (Var info n) env = case getAt env (toInt n ) of
             Nothing -> throwError $ UndefinedVar info n
             Just name -> return $ Var info name
@@ -51,10 +51,10 @@ bruijn2Lam t = go t []
             in Lambda (setName n newName) <$> go e1 (newName : env)
         go (Let i defs t1) env = Let i <$> newDefs <*> go t1 newEnv
           where
-            defNewNames = map (\ (Def i0 name t0) -> Def i0 (mkNewName name env) t0) defs
-            newDefs = mapM (\ (Def i0 n t0) -> Def i0 n <$> go t0 newEnv ) defNewNames
+            defNewNames = map (\ (Def v t0) -> Def (setName v $ mkNewName (getName v)env) t0) defs
+            newDefs = mapM (\ (Def v t0) -> Def v <$> go t0 newEnv ) defNewNames
             newEnv :: [Name]
-            newEnv = foldl' (\ env' (Def _ n _) -> n : env' ) env defNewNames
+            newEnv = foldl' (\ env' (Def n _) -> getName n : env' ) env defNewNames
 
 -- | Converts 'Lambda' with named variabls to 'Lambda' with Bruijn Index's
 --
@@ -65,10 +65,10 @@ bruijn2Lam t = go t []
 -- the remove of index only works if there are no digits in userdevined names
 -- TODO fix this maybe by rename name1 in name#1 and disallow #
 
-lam2Bruijn :: HasName lam => LamTerm lam i Name -> Either (UndefinedVar i Name ) (LamTerm lam i Bound)
+lam2Bruijn :: HasName v => LamTerm v i Name -> Either (UndefinedVar i Name ) (LamTerm v i Bound)
 lam2Bruijn t = go t 0 M.empty
   where removeIndex n = fromString $ takeWhile (not . isDigit) n
-        go :: HasName lam => LamTerm lam i Name -> Int -> M.Map Name Int -> Either (UndefinedVar i Name ) (LamTerm lam i Bound)
+        go :: HasName v => LamTerm v i Name -> Int -> M.Map Name Int -> Either (UndefinedVar i Name ) (LamTerm v i Bound)
         go (Var i n) depth env = case M.lookup n env of
         -- (depth - deptDefined ) is how many lamba's  back variable is defiend. -1 so first index is 0
             Just deptDefined -> return $ Var i $ Bound (depth - deptDefined - 1)
@@ -82,9 +82,9 @@ lam2Bruijn t = go t 0 M.empty
         go (Let i defs t1) depth env = Let i <$> newDefs <*> go t1 newDepth newEnv
           where
             newDepth = depth + length defs
-            newDefs = mapM (\ (Def i0 (Name n) t0) -> Def i0 (removeIndex n) <$> go t0 newDepth newEnv) defs
+            newDefs = mapM (\ (Def v t0) -> Def (setName v $ removeIndex $ toString $getName v )  <$> go t0 newDepth newEnv) defs
             newEnv :: M.Map Name Int
-            newEnv = foldl' (\ env' (Def _ n _, index) -> M.insert n index env' ) env $ zip defs [depth ..]
+            newEnv = foldl' (\ env' (Def v _, index) -> M.insert (getName v) index env' ) env $ zip defs [depth ..]
 
 -- TODO move to a utility module, or replace with libary function
 getAt :: [a] -> Int -> Maybe a
