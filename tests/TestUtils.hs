@@ -1,25 +1,27 @@
 module TestUtils where
-import Data.List (foldl')
-import Control.Monad
-import Data.Maybe
 
 import Lambda
 import BruijnTerm
 import BruijnEnvironment
 import FreeEnvironment
 import Type
+import Name
 
-normalised :: Eq i => BruijnTerm i -> Bool
+import Data.Maybe
+import Data.List
+import Control.Monad
+
+normalised :: (HasName v, Eq i, Eq v) => LamTerm v i Bound -> Bool
 normalised t = fmap lam2Bruijn (bruijn2Lam t) == return ( return t)
 
-welFormd :: BruijnTerm i -> Bool
+welFormd :: LamTerm v i Bound -> Bool
 welFormd t0 = go t0 0
-    where go (Lambda _ _ t) dept = go t (dept + 1)
+    where go (Lambda _ t) dept = go t (dept + 1)
           go (Appl t1 t2) dept = go t1 dept && go t2 dept
           go (Var _ (Bound i) ) dept = i < dept && i >= 0
-          go Val {} _ = True
+          go Lit {} _ = True
           go (Let _ defs term) dept = all (welFormdDef (dept + length defs)) defs  && go term (dept +length defs)
-          welFormdDef i (Def _ _ t)  = go t i
+          welFormdDef i (Def _ t)  = go t i
 
 -- TODO uneeded check
 welFormdType :: Type -> Bool
@@ -29,12 +31,13 @@ welFormdType = go
           go (TPoly(Free i) ) = i >= 0
           go TVal {} = True
 
-size :: LamTerm a i -> Int
-size (Lambda _ _ e ) = size e + 1
-size (Appl e1 e2) = size e1 + size e2 + 1
+size :: LamTerm v a i -> Int
+size (Lambda _ e ) = size e + 1
+size (Appl e1 e2) = size e1 + size e2 +1
 size (Let _ defs term) =sum (map sizeDefs  defs) + size term + 1
-    where sizeDefs (Def _ _ t) = size t
-size _ = 1
+    where sizeDefs (Def _ t) = size t
+size Lit {} = 1
+size Var {} = 1
 
 -- $setup
 -- >>> import MakeTerm
@@ -101,28 +104,28 @@ size _ = 1
 -- >>> isCirculair $ mkLet [("x",lambda "j" $ appl (bvar 1) true),("y",bvar 1)] $ bvar 1
 -- False
 
-isCirculair :: Show i => BruijnTerm i -> Bool
+isCirculair :: Show i => LamTerm v i Bound -> Bool
 isCirculair = go
   where
-    go Val {} =  False
+    go Lit {} =  False
     go Var {} = False
-    go (Lambda _ _ term) = go term
+    go (Lambda _ term) = go term
     go (Appl t1 t2) = go t1 || go t2
     go (Let _ defs term) = isCirculairLet defs  || go term
 
-data TermState i = Unknow (BruijnTerm i)
+data TermState v i = Unknow (LamTerm v i Bound)
                  | Forbidden
                  | Correct
                  deriving Show
 
 -- TODO overcomplicated ?, premature optimalisation passing correct ?
-isCirculairLet ::Show i => [Def i Bound] -> Bool
+isCirculairLet ::Show i => [Def v i Bound] -> Bool
 isCirculairLet = isNothing . checkDefs bEmtyEnv
   where
-    -- checkDefs :: BruijnEnv (TermState i ) -> [Def i Bound] ->Maybe (BruijnEnv (TermState i))
+    checkDefs :: BruijnEnv (TermState v i ) -> [Def v i Bound] ->Maybe (BruijnEnv (TermState v i))
     checkDefs env defs =
         let bounds = defsBounds defs
-            newEnv = foldl' (\ envN (Def _ _ tn ) -> bInsert (Unknow tn) envN ) env defs
+            newEnv = foldl' (\ envN (Def _ tn ) -> bInsert (Unknow tn) envN ) env defs
         in foldM checkDef newEnv bounds
 
     -- checkDef :: BruijnEnv (TermState i ) -> (Def i Bound,Bound) ->Maybe (BruijnEnv (TermState i))
@@ -148,8 +151,8 @@ isCirculairLet = isNothing . checkDefs bEmtyEnv
                                  | otherwise -> let (initialEnv,dropOff) = bSplitAt depth env
                                                in bInserts dropOff <$> checkDef initialEnv (Bound $! b - depth)
                 Nothing -> Just env
-            Lambda _ _ t -> bDrop 1 <$> checkTerm  (depth+1) (bInsert Correct env) t
+            Lambda _ t -> bDrop 1 <$> checkTerm  (depth+1) (bInsert Correct env) t
             Let _ defs' term' ->  bDrop (length defs') <$> do
                 stat1 <- checkDefs env defs'
                 checkTerm (depth + length defs') stat1 term'
-            Val {} -> Just env
+            Lit {} -> Just env

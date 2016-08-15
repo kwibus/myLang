@@ -47,8 +47,10 @@ library
                       ,InfixFix
                       ,Info
                       ,TypeError
+                      ,Error
                       ,ErrorCollector
                       ,Name
+                      ,Lam1
                       ,Associativity
   Ghc-Options:          -Wall -fno-ignore-asserts  -fprof-auto
   default-language:    Haskell2010

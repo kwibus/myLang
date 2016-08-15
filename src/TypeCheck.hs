@@ -11,10 +11,10 @@ import ErrorCollector
 import Value
 import Lambda
 import Type
-import BruijnTerm
 import BruijnEnvironment
 import FreeEnvironment
 import TypeError
+import Error
 
 -- $setup
 -- >>> import MakeType
@@ -36,23 +36,23 @@ close t = fst $ go t fEmtyEnv 0
 fst3 :: (a, b, c) -> a
 fst3 (a, _, _) = a
 
-solver :: BruijnTerm i -> ErrorCollector [TypeError i] Type
+solver :: LamTerm v i Bound -> ErrorCollector [TypeError v i] Type
 solver e = fmap ( close . uncurry (flip apply) ) $ runInfer $ solveWith e fEmtyEnv bEmtyEnv
 
-type Infer i a = ErrorCollectorT [TypeError i] ( State Int ) a
+type Infer v i a = ErrorCollectorT [TypeError v i] ( State Int ) a
 type TSubst = FreeEnv Type
 type TEnv = BruijnEnv Type
 
-runInfer :: Infer i a -> ErrorCollector [TypeError i] a
+runInfer :: Infer v i a -> ErrorCollector [TypeError v i] a
 runInfer infer = evalState ( runErrorT infer) 0
 
-newFreeVar :: Infer i Free
+newFreeVar :: Infer v i Free
 newFreeVar = do
     i <- get
     put (i + 1)
     return $ Free i
 
-solveWith :: BruijnTerm i -> TSubst -> TEnv -> Infer i (Type, TSubst)
+solveWith :: LamTerm v i Bound -> TSubst -> TEnv -> Infer v i (Type, TSubst)
 solveWith e@(Let _ defs e2) sub tenv = do -- TODO vorbid type some type of self refrence
   newVars <- replicateM (length defs) newFreeVar
   let tempTEnv= foldl ( flip ( bInsert. TVar)) tenv newVars
@@ -60,12 +60,12 @@ solveWith e@(Let _ defs e2) sub tenv = do -- TODO vorbid type some type of self 
   newSubs <- toExcept $ mapError (\erros -> [UnifySubs e erros]) $foldM1 unifySubs  subs
   let newTEnv = foldl ( flip  bInsert) tenv polys
   solveWith e2 newSubs newTEnv
-  where solveDefs dic ( Def _ _ en) = do
+  where solveDefs dic ( Def _ en) = do
             (t2, newsub) <- solveWith en sub dic
             let poly = generalize dic t2
             return (poly,newsub)
 
-solveWith (Lambda _ _ e2) sub tenv = do
+solveWith (Lambda _ e2) sub tenv = do
     k <- newFreeVar
     let newTEnv = bInsert (TVar k) tenv
     (t, newSub) <- solveWith e2 sub newTEnv
@@ -82,7 +82,7 @@ solveWith e@Appl{} sub tenv = do
     let newTyp = apply newSub (TVar var)
     return (newTyp,newSub)
 
-solveWith (Val _ v) _ _ = return (getType v, fEmtyEnv)
+solveWith (Lit _ v) _ _ = return (getType v, fEmtyEnv)
 
 solveWith (Var i n) sub tEnv = case  bMaybeLookup n tEnv of
         Just pt -> do
@@ -100,10 +100,9 @@ foldM1 f (x : xs) = foldM f x xs
 -- >>> runInfer $ instantiate ((tVar (-1)) ~> (TPoly $ Free (-1)))
 -- Result (TAppl (TVar (Free (-1))) (TVar (Free 0)))
 
-instantiate :: Type -> Infer a Type
+instantiate :: Type -> Infer v a Type
 instantiate = fmap snd . toTVar fEmtyEnv
   where
-    toTVar :: FreeEnv Free -> Type -> Infer a (FreeEnv Free, Type)
     toTVar conversion  (TPoly (Free i)) = case IM.lookup i conversion  of
              Just j -> return (conversion, TVar j)
              Nothing -> newFreeVar >>= ( \j -> return (IM.insert i j conversion, TVar $ j))

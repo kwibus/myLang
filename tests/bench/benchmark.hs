@@ -8,10 +8,12 @@ import Test.QuickCheck.Random
 import NFDataInstances()
 import PrettyPrint
 import Parser
-import BruijnTerm
+import Lambda
+import Name
 import TypeCheck
 import MakeTerm
 import ExampleBruijn (pair)
+import BruijnEnvironment
 
 fixandsized  :: Int -> Gen a -> IO a
 fixandsized size (MkGen g) = return (g fixedseed size)
@@ -20,7 +22,7 @@ fixandsized size (MkGen g) = return (g fixedseed size)
 untypeString:: Int -> IO String
 untypeString size = fmap PrettyPrint.pShow (fixandsized size genUnTyped)
 
-typedAST :: Int -> IO (BruijnTerm ())
+typedAST :: Int -> IO (LamTerm Name () Bound)
 typedAST size =  fixandsized size genTyped
 
 main :: IO()

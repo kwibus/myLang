@@ -1,34 +1,33 @@
 module MakeTerm where
 
-import BruijnTerm
 import Lambda
 import Value
 import BruijnEnvironment
 import Name
 
-val :: Value -> LamTerm () n
-val = Val ()
+val :: Value -> LamTerm Name () n
+val = Lit ()
 
-var :: String -> LamTerm () Name
+var :: String -> LamTerm Name () Name
 var = Var () . fromString
 
-double :: Double -> LamTerm () n
-double = Val () . Prim . MyDouble
+double :: Double -> LamTerm Name () n
+double = val . Prim . MyDouble
 
-true :: LamTerm () n
-true = Val () $ Prim $ MyBool True
+true :: LamTerm Name () n
+true = val $ Prim $ MyBool True
 
-false :: LamTerm () n
-false = Val () $ Prim $ MyBool False
+false :: LamTerm Name () n
+false = val $ Prim $ MyBool False
 
-bvar :: Int -> BruijnTerm ()
+bvar :: Int -> LamTerm Name () Bound
 bvar = Var () . Bound
 
-lambda :: String -> LamTerm () n -> LamTerm () n
-lambda = Lambda () . fromString
+lambda :: String -> LamTerm Name () n -> LamTerm Name () n
+lambda = Lambda . fromString
 
-appl :: LamTerm () n -> LamTerm () n -> LamTerm () n
+appl :: LamTerm Name () n -> LamTerm Name () n -> LamTerm Name () n
 appl = Appl
 
-mkLet :: [(String, LamTerm () n)] -> LamTerm () n -> LamTerm () n
-mkLet tupleDef = Let () (map (uncurry (Def (). Name )) tupleDef)
+mkLet :: [(String, LamTerm Name () n)] -> LamTerm Name () n -> LamTerm Name () n
+mkLet tupleDef = Let () (map (uncurry (Def . Name )) tupleDef)

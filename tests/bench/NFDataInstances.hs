@@ -10,6 +10,7 @@ import Data.Functor.Identity
 import Text.Parsec.Error
 
 import Lambda
+import Lam1
 import Parser
 import Name
 import Value
@@ -18,9 +19,9 @@ import FreeEnvironment
 import Associativity
 import InfixFix
 import Info
-import BruijnTerm
 import BruijnEnvironment
 import TypeError
+import Error
 import ErrorCollector
 
 deriving instance  Generic Name
@@ -31,8 +32,8 @@ deriving instance  Generic (TypeA i)
 instance NFData i => NFData (TypeA i) where
     rnf = genericRnf
 
-deriving instance  Generic (Def i n)
-instance (NFData i, NFData n) => NFData (Def i n) where
+deriving instance  Generic (Def v i n)
+instance (NFData v, NFData i, NFData n) => NFData (Def v i n) where
     rnf = genericRnf
 
 deriving instance  Generic Free
@@ -43,8 +44,8 @@ deriving instance  Generic Bound
 instance NFData Bound where
     rnf = genericRnf
 
-deriving instance  Generic (TypeError i)
-instance NFData i => NFData (TypeError i)where
+deriving instance  Generic (TypeError i b)
+instance (NFData b,NFData i) => NFData (TypeError i b)where
     rnf = genericRnf
 
 deriving instance  Generic (UndefinedVar i b)
@@ -95,7 +96,10 @@ deriving instance  Generic Value
 instance NFData Value where
     rnf v = seq v ()
 
+deriving instance  Generic Pattern
+instance  NFData Pattern where
+    rnf = genericRnf
 
-deriving instance  Generic (LamTerm i n )
-instance  (NFData i, NFData n) => NFData (LamTerm i n) where
+deriving instance  Generic (LamTerm v i n )
+instance  (NFData v, NFData i, NFData n) => NFData (LamTerm v i n) where
     rnf = genericRnf

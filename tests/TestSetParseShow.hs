@@ -7,7 +7,7 @@ import Lambda
 import Name
 import Operator
 
-basic :: [(String, LamTerm () Name)]
+basic :: [(String, LamTerm Name () Name)]
 basic =
   [ ("a b", appl (var "a") (var "b"))
 
@@ -24,7 +24,7 @@ basic =
   , ("(\\a.a) (\\b.b) \\c.c", appl (appl (L.id "a") (L.id "b")) (L.id "c"))
 
   ]
-letSet :: [(String, LamTerm () Name)]
+letSet :: [(String, LamTerm Name () Name)]
 letSet =
   [ ("let a = a;" ++
    "\nin a", mkLet [("a", var "a")] (var "a"))
@@ -37,7 +37,7 @@ letSet =
    "\nin + (+)", mkLet [("b", double 1.0)] $ lambda "#" $ appl (appl (val plus)(var "#"))(val plus))
   ]
 
-math :: [(String, LamTerm () Name)]
+math :: [(String, LamTerm Name () Name)]
 math =
   [ ( "+", val plus)
   , ( "1.0 +", appl (val plus) (double 1))
@@ -98,7 +98,7 @@ math =
   ]
 
 
-advanced :: [(String, LamTerm () Name)]
+advanced :: [(String, LamTerm Name () Name)]
 advanced =
   [ ("(\\a.a) (1.0 2.0)", appl (L.id "a") (appl (double 1.0) (double 2.0)))
 

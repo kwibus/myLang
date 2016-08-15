@@ -1,10 +1,11 @@
 module TestEval (testEval
 ) where
+
 import Test.Tasty
 import Test.Tasty.HUnit
 import Test.Tasty.QuickCheck
 import Data.Maybe
-import Data.DList (empty,singleton,toList)
+import Data.DList (empty,singleton)
 import Data.List
 
 import TypeCheck

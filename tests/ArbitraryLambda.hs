@@ -22,16 +22,16 @@ import ArbiRef
 import PrettyPrint
 import Eval
 
-forAllTypedBruijn :: Testable prop => (BruijnTerm () -> prop) -> Property
+forAllTypedBruijn :: Testable prop => (LamTerm Name () Bound -> prop) -> Property
 forAllTypedBruijn = forAllShowShrink genTyped printBrujin shrinkTypedBruijn
 
-printBrujin :: BruijnTerm () -> String
+printBrujin :: LamTerm Name () Bound -> String
 printBrujin = either show PrettyPrint.pShow . bruijn2Lam
 
-forAllUnTypedLambda :: Testable prop => (LamTerm () Name -> prop) -> Property
+forAllUnTypedLambda :: Testable prop => (LamTerm Name () Name -> prop) -> Property
 forAllUnTypedLambda = forAllShrink genUnTyped shrinkUntypedLambda
 
-forAllUnTypedBruijn :: Testable prop => (BruijnTerm () -> prop) -> Property
+forAllUnTypedBruijn :: Testable prop => (LamTerm Name () Bound -> prop) -> Property
 forAllUnTypedBruijn = forAllShrink genUnTyped shrinkUntypedBruijn
 
 forAllShowShrink :: Testable prop => Gen a -> ( a -> String) -> (a -> [a]) -> (a -> prop) -> Property
@@ -41,91 +41,91 @@ forAllShowShrink gen myShow shrinker pf = MkProperty $
     shrinking shrinker x $ \x' ->
       counterexample (myShow x') (pf x')
 
-shrinkTypedBruijn :: LamTerm () Bound -> [LamTerm () Bound]
+shrinkTypedBruijn :: LamTerm Name () Bound-> [LamTerm Name () Bound]
 shrinkTypedBruijn = lambdaDeepShrink (flatShrink `composeShrink` elimanateBruijn) `composeShrink`
                     deepShrink (shrinkVal) --FIXME`composeShrink` (maybeToList . eval))
 
-shrinkUntypedBruijn :: LamTerm () Bound -> [LamTerm () Bound]
+shrinkUntypedBruijn :: LamTerm Name () Bound -> [LamTerm Name () Bound]
 shrinkUntypedBruijn = deepShrink (const [double 2] `composeShrink`
                                   flatShrink `composeShrink`
                                   shrinkVal `composeShrink`
                                   elimanateBruijn)
-shrinkUntypedLambda :: LamTerm () Name -> [LamTerm () Name]
+shrinkUntypedLambda :: LamTerm Name () Name -> [LamTerm Name () Name]
 shrinkUntypedLambda  = deepShrink (const [double 2] `composeShrink`
                                    flatShrink `composeShrink`
                                    shrinkVal `composeShrink`
                                    elimanateLambda)
 
-shrinkVal :: LamTerm () n -> [LamTerm () n]
-shrinkVal (Val _ v) = val <$> shrinkValue v
+shrinkVal :: LamTerm Name () n -> [LamTerm Name () n]
+shrinkVal (Lit _ v) = val <$> shrinkValue v
 shrinkVal _= []
 
-flatShrink :: LamTerm () n -> [LamTerm () n]
+flatShrink :: LamTerm Name () n -> [LamTerm Name () n]
 flatShrink (Appl t1 t2) = [t1, t2]
 flatShrink _ = []
 
-lambdaDeepShrink :: (LamTerm () n -> [LamTerm () n]) -> LamTerm () n -> [LamTerm () n]
+lambdaDeepShrink :: (LamTerm Name () n -> [LamTerm Name () n]) -> LamTerm Name () n -> [LamTerm Name () n]
 lambdaDeepShrink shrinker term = shrinker term ++ lambdaDeepShrink' term
-    where lambdaDeepShrink' (Lambda () n t) = Lambda () n <$> lambdaDeepShrink shrinker t
+    where lambdaDeepShrink' (Lambda v t) = Lambda v <$> lambdaDeepShrink shrinker t
           lambdaDeepShrink' _ = []
 
-deepShrink :: (LamTerm () n -> [LamTerm () n]) -> LamTerm () n -> [LamTerm () n]
+deepShrink :: (LamTerm Name () n -> [LamTerm Name () n]) -> LamTerm Name () n -> [LamTerm Name() n]
 deepShrink shrinker term = shrinker  term ++ deepShrink' term
   where
     deepShrink' (Appl t1 t2) =
                 [Appl t1' t2 | t1' <- deepShrink shrinker t1 ] ++
                 [Appl t1 t2' | t2' <- deepShrink shrinker t2 ]
-    deepShrink' (Lambda () n t ) = Lambda () n <$> deepShrink shrinker t
+    deepShrink' (Lambda v t ) = Lambda v <$> deepShrink shrinker t
     deepShrink' _ = []
 
 composeShrink :: (a -> [a]) -> (a->[a]) -> a -> [a]
 composeShrink f g a =  f a ++ g a
 
 --TODO add remove let def
-elimanateBruijn ::  BruijnTerm () -> [BruijnTerm ()]
-elimanateBruijn (Lambda () _ term) =  go 0 term
+elimanateBruijn ::  LamTerm Name () Bound -> [LamTerm Name () Bound]
+elimanateBruijn (Lambda _ term) =  go 0 term
   where
     go i1 (Var () (Bound i2))
       | i1 == i2 = mzero
       | i1 < i2 = return $ Var () $ Bound (i2 - 1)
       | otherwise = return $ Var () $ Bound i2
-    go _ (v@Val {}) = return v
-    go i (Lambda _ n t) = Lambda () n <$> go (i + 1) t
+    go _ (v@Lit {}) = return v
+    go i (Lambda n t) = Lambda n <$> go (i + 1) t
     go i (Appl t1 t2) = Appl <$> go i t1 <*> go i t2
     go i (Let _ defs t) = Let () <$> (mapM (elimanateDef (i + length defs)) defs ) <*> go (i + length defs) t
-    elimanateDef i (Def _ n t) = Def () n <$> go i t
+    elimanateDef i (Def v t) = Def v <$> go i t
 elimanateBruijn _ = []
 
 --TODO add remove let def
-elimanateLambda ::  LamTerm () Name -> [LamTerm () Name]
-elimanateLambda (Lambda () name term) = if go term then [term] else []
+elimanateLambda ::  LamTerm Name() Name -> [LamTerm Name () Name]
+elimanateLambda (Lambda name term) = if go term then [term] else []
   where
     go (Var () n)
       | n == name =False
       | otherwise =True
-    go Val {} = True
-    go (Lambda _ n t2)
-      | n == name = True
+    go Lit {} = True
+    go (Lambda v t2)
+      | getName v == name = True
       | otherwise = go t2
     go (Appl t1 t2) = go t1 || go t2
-    go (Let _ defs t) = not ( any (\(Def _ n _)-> n == name)defs) || (all elimanatedDef defs && go t)
-    elimanatedDef (Def _ _ t) = go t
+    go (Let _ defs t) = not ( any (\(Def v _)-> getName v == name)defs) || (all elimanatedDef defs && go t)
+    elimanatedDef (Def _ t) = go t
 elimanateLambda _ = []
 
-genTyped :: ArbiRef n => Gen (LamTerm () n )
+genTyped :: ArbiRef n => Gen (LamTerm Name () n )
 genTyped = fromJust <$> genTerm (Just (TVar (Free (-1))))
 
-genUnTyped :: ArbiRef n => Gen (LamTerm () n )
+genUnTyped :: ArbiRef n => Gen (LamTerm Name () n )
 genUnTyped = fromJust <$> genTerm Nothing
 
-genWithType :: ArbiRef n => Type -> Gen (Maybe (LamTerm () n ))
+genWithType :: ArbiRef n => Type -> Gen (Maybe (LamTerm Name () n ))
 genWithType t = genTerm (Just t)
 
-genTerm :: ArbiRef n => Maybe Type -> Gen ( Maybe (LamTerm () n ))
+genTerm :: ArbiRef n => Maybe Type -> Gen ( Maybe (LamTerm Name () n ))
 genTerm t = sized $ \ n -> runGenerartor $ arbitraryTerm n t [] defualtGenState
 
 arbitraryTerm :: ArbiRef n => Int -> Maybe Type -> [Type] ->
-      GenState n -> Generater (LamTerm () n)
+      GenState n -> Generater (LamTerm Name () n)
 arbitraryTerm n mabeytype maxlist s
   | n <= 1 = oneOfLogic [ arbitraryValue mabeytype
                         , arbitraryVar mabeytype s
@@ -146,14 +146,14 @@ arbitraryTerm n mabeytype maxlist s
                       ]
 
 -- TODO fix also genarate var Empty
-arbitraryVar :: ArbiRef n => Maybe Type -> GenState n -> Generater (LamTerm () n)
+arbitraryVar :: ArbiRef n => Maybe Type -> GenState n -> Generater (LamTerm Name () n)
 arbitraryVar t s = do
   (n, f) <- refFromState s
   unifyGen t (TVar f)
   return $ Var () n
 
 arbitraryAppl :: ArbiRef n => Int -> Maybe Type -> [Type] ->
-     GenState n -> Generater (LamTerm () n)
+     GenState n -> Generater (LamTerm Name () n)
 arbitraryAppl size mabeytype maxlist state = do
   sizeLeft <- chooseLogic (1, size - 2)
   let sizeRight = size - sizeLeft -1
@@ -175,7 +175,7 @@ arbitraryAppl size mabeytype maxlist state = do
         return $ appl expr1 expr2
 
 arbitraryLambda :: ArbiRef n => Int -> Maybe Type -> [Type] ->
-    GenState n -> Generater ( LamTerm () n)
+    GenState n -> Generater ( LamTerm Name () n)
 arbitraryLambda size t maxlist state = do
   var1 <- newFreeVar
   var2 <- newFreeVar
@@ -186,7 +186,7 @@ arbitraryLambda size t maxlist state = do
     Nothing -> arbitraryTerm (size - 1) Nothing [] newState
   return $ lambda n expr
 
-arbitraryLet :: ArbiRef n => Int -> Maybe Type -> [Type] -> GenState n -> Generater (LamTerm () n)
+arbitraryLet :: ArbiRef n => Int -> Maybe Type -> [Type] -> GenState n -> Generater (LamTerm Name () n)
 arbitraryLet size t maxlist state =
     let minmalSize = 1
         maxDefs = 5
@@ -206,7 +206,7 @@ arbitraryLet size t maxlist state =
             defs  <- mapM (\( v, name,sizeTerm) -> do
 
                         termN <- arbitraryTerm sizeTerm (fmap (const (TVar v)) t) maxlist newState -- TODO remove self from maxlist
-                        return $ Def () name termN
+                        return $ Def name termN
                         ) $ zip3 vars (map Name varNames) varSize
             return $ Let () defs term
 
