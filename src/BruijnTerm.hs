@@ -25,8 +25,8 @@ import Lambda
 -- * \\a.a == \\0
 -- * \\a\\b.a == \\\\1
 
-type BruijnTerm i = LamTerm Pattern i Bound
-
+type BruijnTerm i = LamTerm UName i Bound
+data UName = UName {bname::Name, bound::Bound}
 -- | Converts 'BruijnTerm' to a 'LambTerm'
 --
 -- This function fails with 'Left' 'UndefinedVar' if there is a free variable.
