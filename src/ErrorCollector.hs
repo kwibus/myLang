@@ -2,7 +2,6 @@
 module ErrorCollector where
 
 import Data.Monoid
--- import Control.Monad.Error.Class
 import Control.Monad.State.Class
 import Control.Monad.Trans.Class
 import Control.Monad
@@ -50,31 +49,13 @@ toExcept errorCol = case errorCol of
     Error e -> ErrorT $ return $ Error e 
     Result a -> return a
 
--- instance Monoid e => MonadError e (ErrorCollector e ) where
---   throwError = Error
---   catchError ma f = case ma of
---     Error e -> f e
---     a -> a
+throw :: e ->  ErrorCollector e a
+throw = Error
 
--- instance (Monad m, Monoid e) => MonadError e (ErrorCollectorT e m) where
---   throwError = ErrorT . return . Error
---   catchError ema f = ErrorT $ do
---     ma <- runErrorT ema
---     case ma of
---        Error e -> runErrorT $ f e
---        a -> return a
-
-class (Monad  (m e), Bifunctor m ) => BiMonad m e where
-    throw :: e -> m e a
-    catch :: m e1 a -> (e1 -> m e2 a ) -> m e2 a
-
-instance  Monoid e => BiMonad ErrorCollector e where
-    throw = Error
-    catch ma f = case ma of
+catch :: ErrorCollector e1 a -> (e1 -> ErrorCollector e2 a ) -> ErrorCollector e2 a
+catch ma f = case ma of
         Error e -> f e
         Result a -> Result a
-
--- instance (Monad m, Monoid e) => BiMonad ErrorCollectorT e m where
 
 throwT :: Monad m => e -> ErrorCollectorT e m a
 throwT = ErrorT . return . Error
@@ -85,10 +66,6 @@ catchT ema f = ErrorT $ do
     case ma of
        Error e -> runErrorT $ f e
        Result a -> return $ Result a
-
--- instance (BiMonad f e a) => MonadError e (f e)  where
---     throwError = throw 
---     catchError = catch
 
 instance MonadTrans (ErrorCollectorT e) where
   lift m = ErrorT $ do
