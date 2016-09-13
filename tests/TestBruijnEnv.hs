@@ -38,9 +38,11 @@ testReplace = testGroup "replace"
 
 testSplitAt :: TestTree
 testSplitAt = testGroup "bSplitAt"
-    [ testCase "splitAt 1 [[1,2],[3,4]] == ([],[[1,2],[3,4]])" $
+    [ testCase "splitAt 0 [[1,2] [3,4]] = [[1,2] [3,4]]" $
+        bSplitAt (Bound 0) (bFromList [[1,2],[3,4::Int]]) @?= (bFromList [], bFromList [[1,2],[3,4]])
+    
+    , testCase "splitAt 1 [[1,2],[3,4]] == ([],[[1,2],[3,4]])" $
         bSplitAt (Bound 1) ( bFromList [[1,2],[3,4::Int]] ) @?= (bFromList [],bFromList [[1,2],[3,4]])
-
 
     , testCase "splitAt 2 [[1,2],[3,4]] == ([[1,2]],[[3,4]])" $
         bSplitAt (Bound 2) ( bFromList [[1,2],[3,4::Int]] ) @?= (bFromList [[1,2]],bFromList [[3,4]])

@@ -62,7 +62,7 @@ size _ = 1
 -- True
 --
 -- let f =\\a. g;  g =\\b.f in  g
--- >>> isCirculair $ mkLet [("f",lambda "a" $ bvar 0),("g",lambda "a" $ bvar 1)] $ bvar 0
+-- >>> isCirculair $ mkLet [("f",lambda "a" $ bvar 1),("g",lambda "b" $ bvar 2)] $ bvar 0
 -- False
 --
 -- let f = g true ;  g = \\a.f in  g
@@ -95,12 +95,24 @@ size _ = 1
 -- >>> isCirculair $ lambda "a" $ mkLet [("b", bvar 0),("c", true),("d", mkLet [("e", false)] (bvar 2))] (bvar 2)
 -- False
 --
+-- let x = f True
+--     f = \a.x
+-- in x
+-- >>> isCirculair $ mkLet [("x",appl (bvar 1) true ),("f",lambda "a" $ bvar 1)] $ bvar 0
+-- True
+--
+-- let f = \a.x
+--     x = f True
+-- in x
+-- >>> isCirculair $ mkLet [("f",lambda "a" $ bvar 1),("x",appl (bvar 1) true )] $ bvar 0
+-- True
+--
 -- let f = \\x.y +
 --     y = f
 -- in f
--- >>> isCirculair $ mkLet [("x",lambda "j" $ appl (bvar 1) true),("y",bvar 1)] $ bvar 1
+-- >>> isCirculair $ mkLet [("f",lambda "x" $ appl (bvar 1) true),("y",bvar 1)] $ bvar 1
 -- False
-
+--
 isCirculair :: Show i => BruijnTerm i -> Bool
 isCirculair = go
   where
@@ -126,16 +138,17 @@ isCirculairLet = isNothing . checkDefs bEmtyEnv
         in foldM checkDef newEnv bounds
 
     -- checkDef :: BruijnEnv (TermState i ) -> (Def i Bound,Bound) ->Maybe (BruijnEnv (TermState i))
-    -- checkDef env b | traceShow (b,env)  False = undefined
-    checkDef env b = case bMaybeLookup b env of
-        (Just Correct) -> Just env
-        (Just Forbidden) -> error "this cant happen"
-        (Just (Unknow term@Lambda{})) ->
-            checkTerm 0 (bReplace b Correct env) term
-        (Just (Unknow term)) -> do
+    checkDef env b = case bLookup b env of
+        Correct -> Just env
+        Forbidden -> error "this cant happen"
+        (Unknow term@Lambda{}) -> do
+            let env' = bReplace b Correct env
+            checkTerm 0 env' term
+            Just env
+
+        (Unknow term) -> do
             env' <- checkTerm 0 (bReplace b Forbidden env) term
             return (bReplace b Correct env' )
-        Nothing -> error "cant happen"
     -- checkTerm:: BruijnEnv (TermState i ) -> BruijnEnv i ->Maybe (BruijnEnv (TermState i))
     checkTerm depth env term = case term of
             Appl t1 t2 -> do
@@ -144,9 +157,11 @@ isCirculairLet = isNothing . checkDefs bEmtyEnv
             (Var _ (Bound b)) -> case  bMaybeLookup (Bound b) env of
                 (Just Forbidden) ->  Nothing
                 (Just Correct) -> Just env
-                (Just Unknow {}) | b < depth -> Just env
-                                 | otherwise -> let (dropOff,initialEnv) = bSplitAt (Bound depth) env --TODO replace Bound depth with b ??
-                                               in bAppend dropOff <$> checkDef initialEnv (Bound $! b - depth)
+                (Just Unknow {})
+                    | b < depth -> Just env
+                    | otherwise ->
+                        let (dropOff,initialEnv) = bSplitAt (Bound depth) env --TODO replace Bound depth with b ??
+                         in bAppend dropOff <$> checkDef initialEnv (Bound $! b - depth)
                 Nothing -> Just env
             Lambda _ _ t -> bDropLevel  <$> checkTerm  (depth+1) (bInsert Correct env) t
             Let _ defs' term' ->  bDropLevel <$> do

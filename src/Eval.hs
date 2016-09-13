@@ -1,13 +1,7 @@
-{-# LANGUAGE TupleSections #-}
-module Eval (
-  substituteEnv
-  , updateEnv
-  , eval
-  , evalSteps
-  , fullEval
-  , applyValue
-  , evalWithEnv)
+{-# LANGUAGE TupleSections, LambdaCase #-}
+module Eval 
 where
+import Debug.Trace
 import Control.Monad.State.Strict
 import Data.DList
 import Data.Maybe
@@ -19,8 +13,23 @@ import Value
 import BruijnEnvironment
 import Type
 
-type Scope i = BruijnEnv (BruijnTerm i)
+data Ref a = Subst a | Keep  a deriving (Show, Eq)
+type Scope i = BruijnEnv (Ref (BruijnTerm i))
 
+unwrap :: Ref a -> a
+unwrap (Subst a) = a
+unwrap (Keep a ) = a
+
+extract :: Bound  ->  Scope i -> BruijnTerm i
+extract b env = unwrap $ bLookup b env
+
+tryExtract :: Bound -> Scope i -> Maybe (BruijnTerm i)
+tryExtract b env = unwrap <$> bMaybeLookup b env
+
+ref :: BruijnTerm i -> Ref (BruijnTerm i)
+ref term | isValue term = Subst term
+         | otherwise = Keep term
+--
 -- TODO write Test  for correct order
 -- |eval term in accordance with call by value.
 -- If a term can't be further be evaluated it will return 'Nothing'
@@ -33,25 +42,30 @@ evalSteps = fmap fst . toList . evalWithEnv bEmtyEnv
 -- TODO make result  (DList,end ) ore other thrick to nut use last
 --TODO fix names
 evalWithEnv :: Scope () -> BruijnTerm () -> DList (BruijnTerm (),Scope ())
-evalWithEnv env (Appl func args) = (firstFullExpr `append` nextFullExpr ) `append` final
+evalWithEnv env  term | traceShow (term,env)  False = undefined
+evalWithEnv env (Appl func args) = (firstFullExpr `append` nextFullExpr ) `append` final valueFunc envArg
   where
+
+    -- applyEnv (t,e) = (substituteEnv e t,e)
+
     evalFunc = evalWithEnv env func
-    applyEnv (t,e) = (substituteEnv e t,e)
     firstFullExpr = (\(t,envN) -> (Appl t (substituteEnv envN args),envN)) <$> evalFunc
-    (valueFunc,newerEnv) = saveLastD  evalFunc $ applyEnv (func,env)
+    (valueFunc,newerEnv) = saveLastD  evalFunc (func,env)
 
     evalArgs = evalWithEnv newerEnv args
-    nextFullExpr = first (Appl valueFunc) <$> evalArgs
-    (valueArgs,envArg) = saveLastD evalArgs $ applyEnv (args,newerEnv)
+    nextFullExpr = first (Appl (substituteEnv newerEnv valueFunc )) <$> evalArgs
+    (valueArgs,envArg) = saveLastD evalArgs (args,newerEnv)
 
-    final = case valueFunc of
-      (Lambda _ _ t1) -> let newestEnv = bInsert valueArgs envArg
-                             fixEnv (Bound b) term = if isValue term
+    final func env = traceShow (func,valueArgs) $ case func of
+      (Lambda _ _ t1) -> let newestEnv = bInsert (Subst $ substituteEnv env valueArgs) env
+                             fixEnv (Bound b) term = if isValue $ unwrap term --FIXME
                                                      then term
-                                                     else Var () $ Bound (b - 1)
-                         in cons (substituteEnv (mapWithBound fixEnv newestEnv) t1,envArg ) $
+                                                     else Subst $ Var () $ Bound (b - 1)
+                         in cons (substituteEnv (mapWithBound fixEnv newestEnv) t1,env ) $
                             second bDropLevel  <$> evalWithEnv newestEnv t1
-      (Val i1 v1) ->  return (Val i1 $ applyValue v1 $ value $ substituteEnv envArg valueArgs, envArg)
+      (Val i1 v1) -> return (Val i1 $ applyValue v1 $ value $ substituteEnv env valueArgs, env)
+      (Var _ b)  -> let (outscope,inscope) = bSplitAt b env
+                    in second (bAppend outscope) <$> final (extract b env) inscope
       _ -> empty
 
 evalWithEnv env (Let info defs term) = second bDropLevel <$> firstSteps `append` final  (saveLastD evals (substituteEnv dumyEnv term,newEnv))
@@ -59,19 +73,22 @@ evalWithEnv env (Let info defs term) = second bDropLevel <$> firstSteps `append`
     firstSteps = fmap (uncurry prependLet) evals
     prependLet _term _env = (Let info (updateDefs _env) _term, _env)
     updateDefs _env = zipWith
-      (\ (Def _info n _) index -> Def _info n $ bLookup index _env)
+      (\ (Def _info n _) index -> Def _info n $ extract index _env)
       defs
       (defsBounds defs)
-    newEnv =  bInserts (reverse $fmap (substituteEnv dumyEnv.implementation)defs ) env
+    newEnv =  bInserts (reverse $ fmap (Keep . substituteEnv dumyEnv . implementation) defs ) env
     dumyEnv :: Scope  ()
-    dumyEnv = bInserts ( Var () <$> reverse (defsBounds  defs )) env --TODO find clean solution
+    dumyEnv = bInserts ( Keep . Var () <$> reverse (defsBounds  defs )) env --TODO find clean solution
     evals = evalWithEnv newEnv term
     final result = case result of
         (v@Val {},_env) -> singleton (v, _env)
-        (Lambda _info n t,_env) -> singleton $ first (Lambda _info n) (uncurry prependLet (swap (length defs) t, _env))
-        (Var _ b,_env)-> case bMaybeLookup b _env of
+        (Lambda _info n t,_env) ->
+                let newt = swap (length defs) $ substituteEnv env1 t
+                    env1 = bInsert  (Keep $ Var undefined (Bound 0)) _env
+                in singleton $ first (Lambda _info n) (uncurry prependLet ( newt, _env))
+        (Var _ b,_env)-> case tryExtract b _env of
                Nothing -> empty
-               Just Var {}  -> empty
+               Just Var {}->error "not in scope" 
                Just v -> final (v,_env)
         _ ->  empty
 
@@ -81,23 +98,29 @@ evalWithEnv env t@(Var _ b) =
             then empty
             else let newestEnv = last $ toList  newEnvs
                  in  ((t,) <$> fromList (init $ toList newEnvs ))`append` (
-                    case bMaybeLookup b newestEnv of
-                        Nothing -> empty
+                    case tryExtract b newestEnv of
+                        Nothing -> error "cant happen"
                         Just v -> singleton(v,newestEnv))
 evalWithEnv _ _ = empty
 
 -- variable to update
 updateEnv ::Bound -> Scope () -> DList (Scope ())
-updateEnv b env = case bMaybeLookup b env of
+updateEnv (Bound b)  env | traceShow  (b, env) False = undefined
+updateEnv b env = case tryExtract b env of
     Just term -> case term of
-            (Var _ b2)  -> case bMaybeLookup b2 env of
-                Nothing -> empty
-                Just _ ->let newEnvs = updateEnv b2 env
-                             newestEnv = saveLastD newEnvs env
-                         in  snoc newEnvs (bReplace b (bLookup b2 newestEnv) newestEnv)
+            (Var _ b2)  ->
+            -- case bMaybeLookup b2 env of
+                -- Nothing -> empty
+                -- Just term2 ->
+                    let (outScoop, inScope)  = bSplitAt b env
+                        newInScope = updateEnv b2 inScope
+                        newEnvs = bAppend outScoop  <$> newInScope
+                        newestInScope = saveLastD newInScope inScope
+                        newestEnv = saveLastD newEnvs env
+                    in  snoc newEnvs (bReplace b (bLookup b2 newestInScope ) newestEnv)
             _ -> let (outScoop, inScope)  = bSplitAt b env
                      result =  evalWithEnv inScope term
-                 in uncurry (bReplace b) . second (bAppend outScoop)<$> result
+                 in uncurry (bReplace b) . bimap Subst (bAppend outScoop)<$> result
     Nothing -> empty
 
 
@@ -105,18 +128,21 @@ updateEnv b env = case bMaybeLookup b env of
 -- wont substitute if term in env is not value
 substituteEnv :: Scope () -> BruijnTerm () -> BruijnTerm ()
 substituteEnv env term
-    | bNull newEnv = term
-    | otherwise = go 0 newEnv term
-  where newEnv = mapWithBound  (\ b a -> if isValue a then a else Var () b) env
-        go :: Int -> BruijnEnv (BruijnTerm ()) -> BruijnTerm () -> BruijnTerm ()
+    | not $ any
+            (\case
+                Subst {} -> True
+                _ -> False)
+            (bList env) = term
+    | otherwise = go 0 env term
+  where newEnv = env -- mapWithBound  (\ b a -> if isValue a then a else Var () b) env go :: Int -> BruijnEnv (BruijnTerm ()) -> BruijnTerm () -> BruijnTerm ()
         go depth e (Lambda i n t) = Lambda i n $ go (depth + 1) e t
         go _     _ t@Val {} = t
         go depth e (Appl left right) = Appl (go depth e left) (go depth e right)
 
         go depth e t@(Var _ (Bound n))
             | n >= depth = case bMaybeLookup (Bound (n-depth)) e of
-                               Nothing -> t
-                               Just v -> incFree depth v
+                               Just (Subst v) -> incFree depth v
+                               _ -> t
             | otherwise = t
         go depth e (Let i defs t) = Let i (fmap goDefs defs) $ go' t
             where go' = go (depth + length defs) e
@@ -163,7 +189,7 @@ applyValue v1@BuildIn {arrity = n, stack = s, myType = t } v2 =
 applyValue _ _ = error "apply value"
 
 isValue :: BruijnTerm i -> Bool
-isValue Var {} = True-- False --TODO check
+isValue Var {} = False --TODO check
 isValue Val {} = True
 isValue Lambda {} = True
 isValue Appl {} = False

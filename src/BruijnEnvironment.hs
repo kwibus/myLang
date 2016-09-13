@@ -61,7 +61,7 @@ eitherReplaceAtIndexorLength i new = go 0
 bLookup :: Bound -> BruijnEnv a -> a
 bLookup b env = case bMaybeLookup b env of
     Just a -> a
-    Nothing -> error "not in env "
+    Nothing -> error $ show b ++ " not in env"
 
 bInsert :: a -> BruijnEnv a -> BruijnEnv a
 bInsert a (BEnv env) =  BEnv ([a] : env)

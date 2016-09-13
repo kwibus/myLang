@@ -35,7 +35,7 @@ forAllUnTypedBruijn :: Testable prop => (BruijnTerm () -> prop) -> Property
 forAllUnTypedBruijn = forAllShrink genUnTyped shrinkUntypedBruijn
 
 forAllShowShrink :: Testable prop => Gen a -> ( a -> String) -> (a -> [a]) -> (a -> prop) -> Property
-forAllShowShrink gen myShow shrinker pf = MkProperty $
+forAllShowShrink gen myShow shrinker pf = again $ MkProperty $
   gen >>= \x ->
     unProperty $
     shrinking shrinker x $ \x' ->

@@ -17,7 +17,7 @@ type Generater a = LogicGen (Env, Int) SearchTree a
 type Env = FreeEnv Type
 
 runGenerartor ::Generater a -> Gen (Maybe a)
-runGenerartor g = fmap listToMaybe $ pruneT 100 3 $ evalStateT g (fEmtyEnv, 0)
+runGenerartor g = fmap listToMaybe $ pruneT 100 5 $ evalStateT g (fEmtyEnv, 0)
 
 unifyGen :: Maybe Type -> Type -> Generater ()
 unifyGen Nothing _ = return ()
