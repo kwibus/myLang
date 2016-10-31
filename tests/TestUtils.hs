@@ -143,7 +143,7 @@ isCirculairLet = isNothing . checkDefs bEmtyEnv
         Forbidden -> error "this cant happen"
         (Unknow term@Lambda{}) -> do
             let env' = bReplace b Correct env
-            checkTerm 0 env' term
+            void $ checkTerm 0 env' term
             Just env
 
         (Unknow term) -> do

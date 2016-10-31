@@ -2,11 +2,18 @@ module TestBruijnEnv where
 
 import Test.Tasty.HUnit
 import Test.Tasty
-
+import TestFail
 import BruijnEnvironment
 
 testBruijnEnv :: TestTree
-testBruijnEnv = testGroup "BruijnEnvironment" [testMaybeLookup,testReplace, testSplitAt]
+testBruijnEnv = testGroup "BruijnEnvironment" [testbAppend,testMaybeLookup,testReplace, testLevel ,testSplitAt,testAux]
+
+testbAppend :: TestTree
+testbAppend = testGroup "bAppend"
+    [ testCase "bAppend [[1],[2]] [[3],[4]]"$ bAppend (bFromList [[1::Int],[2]]) (bFromList [[3],[4]]) @?= bFromList [[1],[2],[3],[4]]
+    -- , testCase "bAppend [[1],[2]] [[]]"$ bAppend (bFromList [[1],[2]]) (bFromList [[]]) @?= bFromList [[1],[2]]
+    , testCase "bAppend [[1],[2]] []"$ bAppend (bFromList [[1::Int],[2]]) (bFromList []) @?= bFromList [[1],[2]]
+    ]
 
 testMaybeLookup :: TestTree
 testMaybeLookup = testGroup "bMaybeLookup"
@@ -40,10 +47,24 @@ testSplitAt :: TestTree
 testSplitAt = testGroup "bSplitAt"
     [ testCase "splitAt 0 [[1,2] [3,4]] = [[1,2] [3,4]]" $
         bSplitAt (Bound 0) (bFromList [[1,2],[3,4::Int]]) @?= (bFromList [], bFromList [[1,2],[3,4]])
-    
+
     , testCase "splitAt 1 [[1,2],[3,4]] == ([],[[1,2],[3,4]])" $
         bSplitAt (Bound 1) ( bFromList [[1,2],[3,4::Int]] ) @?= (bFromList [],bFromList [[1,2],[3,4]])
 
     , testCase "splitAt 2 [[1,2],[3,4]] == ([[1,2]],[[3,4]])" $
         bSplitAt (Bound 2) ( bFromList [[1,2],[3,4::Int]] ) @?= (bFromList [[1,2]],bFromList [[3,4]])
+    ]
+
+testLevel :: TestTree
+testLevel = testGroup "level"
+    [ assertFailWith "level 1  [a] = fail" ( getDepth (Bound 1) (bFromList [[1::Int]] )) "not in scope"
+    , testCase "level 2 [[1],[2,3]] = 1"  $ getDepth (Bound 2) (bFromList [[1],[2,3::Int]]) @?= 1
+    , testCase "matchLevels [1] [[2][3]]" $ matchLevels (bFromList [[1]] ) (bFromList [[2],[3::Int]]) @?= bFromList [[3]]
+    ]
+
+testAux :: TestTree
+testAux= testGroup "aux"
+    [ testCase "bfoldl + 0 [1,2][3,4]=10" $ bfoldl (+) 0 (BEnv [[1,2],[3,4::Int]])  @?= 10
+    , testCase "transforml b+a 0 [[1,2][3,4]]" $ transforml (\b a -> (b+1,b+a)) 0 (BEnv [[1,2],[3,4::Int]])
+        @?= (4,BEnv [[1,3],[5,7]])
     ]

@@ -63,16 +63,6 @@ testLimitBacksteps = testCase "limitBackSteps" $
         then tryM (map f [0 .. y - 1]):: SearchTree Identity Int else mzero
    in pruneI 3 4 ( f =<< try [0 :: Int, 1,2,3,4,5,undefined ] ) @?= []
 
--- assertFail :: String -> a -> String -> TestTree
--- assertFail nameTest a exception = testCase nameTest $
---  do
---     result <- Control.Exception.try (Control.Exception.evaluate a)
---     case result of
---      Right _ -> assertFailure ("test should fail with: " ++ exception)
---      Left e -> unless (show (e :: Control.Exception.ErrorCall) == exception) $
---             assertFailure ("test faild with: " ++ show e ++
---                       "\nexpect fail with: " ++ exception)
-
 testSetSearchTree :: TestTree
 testSetSearchTree = testGroup "from Set" $ map tester setSearchTree
   where tester (monadConstructed,expected, list, failN) = testGroup (show expected) [test1,test2,test3]
@@ -155,8 +145,7 @@ checkRules :: TestTree
 checkRules = testGroup "test TypeClass Rules"
     [
     checkBatch $ monad (undefined :: SearchTree Identity (Int,Bool,Double))
-    ,
-    checkBatch $ monadFunctor (undefined :: SearchTree Identity (Int,Bool))
+    , checkBatch $ monadFunctor (undefined :: SearchTree Identity (Int,Bool))
     , checkBatch $ monadApplicative (undefined :: SearchTree Identity (Int,Bool))
     , checkBatch $ monadPlus (undefined :: SearchTree Identity (Int,Bool))
     , checkBatch $ alternative (undefined :: SearchTree Identity Int)

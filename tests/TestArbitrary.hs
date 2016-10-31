@@ -11,6 +11,7 @@ import BruijnTerm
 import MakeType
 import TypeCheck
 import ErrorCollector
+import Debug
 
 testArbitrary :: TestTree
 testArbitrary = testGroup "arbitrary" [testGeneration, testshrink]
