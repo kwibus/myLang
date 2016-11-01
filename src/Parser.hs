@@ -9,7 +9,7 @@ import Data.Bifunctor
 import Control.Monad.Identity
 import Control.Monad.Trans.Class
 import Text.Parsec.Pos
-import Text.Parsec.Prim hiding (parse)
+import qualified Text.Parsec.Prim as PS
 import Text.Parsec.Combinator
 import qualified Text.Parsec.Error as PS
 
@@ -23,7 +23,7 @@ import Name
 
 -- TODO Remove p
 
-type Parser a = ParsecT [TokenPos] () (Either InfixError) a
+type Parser a = PS.ParsecT [TokenPos] () (Either InfixError) a
 data ParseError = Infix InfixError
                 | Parsec PS.ParseError
                 | Lexer PS.ParseError
@@ -35,12 +35,12 @@ parseString str = case lexer str of
       Left e -> Left $ Lexer e
 
 parse :: Parser a -> String -> [TokenPos] -> Either ParseError a
-parse parser file sting = case runParserT parser () file sting of
+parse parser file sting = case PS.runParserT parser () file sting of
     Right a -> first Parsec a
     Left e -> Left $ Infix e
 
 pSatisfy :: (Token -> Bool) -> Parser Token
-pSatisfy f = getToken <$> tokenPrim showToken nextPos testToken
+pSatisfy f = getToken <$> PS.tokenPrim showToken nextPos testToken
    where
      showToken = show . getToken
      testToken x = if f (getToken x) then Just x else Nothing
@@ -67,7 +67,8 @@ pBool = do
   case c of
     "True" -> return True
     "False" -> return False
-    _ -> parserZero
+    _ -> PS.parserZero
+
 pDouble :: Parser Double
 pDouble = do
   Number n <- pSatisfy (\ x -> case x of
@@ -77,28 +78,26 @@ pDouble = do
 
 pLambda :: Parser Expresion
 pLambda = do
-    pos <- getPosition
+    pos <- PS.getPosition
     pSymbol BackSlash
-    ns <- many pIdentifier -- TODO 1) fix location 2) give warning Shadowin variable names (\a a b.t)
+    ns <- PS.many pIdentifier -- TODO 1) fix location 2) give warning Shadowin variable names (\a a b.t)
     pSymbol Dot
     term <- pLambdaTerm
-    loc <- pLoc pos
-    return $ foldr (Lambda loc) term (Name <$> ns)
+    return $ foldr (Lambda pos) term (Name <$> ns)
 
 pApplication :: Parser Expresion
 pApplication = do
-    terms <- many pLambdaTerm'
+    terms <- PS.many pLambdaTerm'
     case fixInfix terms of
         Left erro -> lift $ Left erro
         Right exps -> return exps
 
 pValue :: Parser Expresion
 pValue = do
-    pos <- getPosition
+    pos <- PS.getPosition
     v <- choice [ fmap (Prim . MyDouble) pDouble
                 , fmap (Prim . MyBool ) pBool]
-    loc <- pLoc pos
-    return $ Val loc v
+    return $ Val pos v
 
 pLambdaTerm' :: Parser (Expresion, Bool)
 pLambdaTerm' = choice parsers
@@ -110,38 +109,34 @@ pLambdaTerm = pApplication
 
 pVar :: Parser Expresion
 pVar = do
-    pos <- getPosition
+    pos <- PS.getPosition
     n <- pIdentifier
-    loc <- pLoc pos
-    return $ Var loc (Name n)
+    return $ Var pos (Name n)
 
 pLet :: Parser Expresion
 pLet = do
-  pos <- getPosition
+  pos <- PS.getPosition
   defs <- between
            (pKeyWord Lexer.Let)
            (pKeyWord In)
            (sepEndBy1 pDefinition (pSymbol Semicolon ))
-  loc <- pLoc pos
   term <- pLambdaTerm
-  return $ Lambda.Let loc defs term
+  return $ Lambda.Let pos defs term
 
-pDefinition :: Parser (Def Loc Name)
+pDefinition :: Parser (Def SourcePos Name)
 pDefinition = do
-  pos <- getPosition
+  pos <- PS.getPosition
   str <- pIdentifier
-  args <- many $ withLoc $ Name <$> pIdentifier
+  args <- PS.many $ withPos $ Name <$> pIdentifier
   pSymbol Equal
   term <- pLambdaTerm
-  loc <- pLoc pos
-  return $ Def loc (Name str) $ foldr (uncurry Lambda ) term args
+  return $ Def pos (Name str) $ foldr (uncurry Lambda ) term args
 
-withLoc :: Parser a -> Parser (Loc,a)
-withLoc pars = do
-    pos <- getPosition
+withPos :: Parser a -> Parser (SourcePos,a)
+withPos pars = do
+    pos <- PS.getPosition
     a <- pars
-    loc <- pLoc pos
-    return (loc,a)
+    return (pos,a)
 
 pLine :: Parser Expresion
 pLine = do
@@ -149,24 +144,12 @@ pLine = do
     eof
     return term
 
+
 pOperator :: Parser (Expresion, Bool)
 pOperator = do
-    pos <- getPosition
+    pos <- PS.getPosition
     o <- choice [pPlus, pMultiply ]
-    loc <- pLoc pos
-    return (Val loc o, True)
-
-
--- TODO make a LOcation parser with :: Parser a -> Parser Loc
-pLoc :: SourcePos -> Parser Loc
-pLoc start = do
-    end <- getPosition
-    return Loc
-        { srcFile = sourceName start
-        , lineStart = sourceLine start
-        , columnStart = sourceColumn start
-        , lineEnd = sourceLine end
-        , columnEnd = sourceColumn end}
+    return (Val pos o, True)
 
 pPlus :: Parser Value
 pPlus = pSymbol Plus >> return plus
@@ -176,9 +159,7 @@ pMultiply = pSymbol Multiply >> return multiply
 
 pParentheses :: Parser Expresion
 pParentheses = do
-    pos <- getPosition
     pSymbol LeftParenthesis
     term <- pLambdaTerm
     pSymbol RightParenthesis
-    loc <- pLoc pos
-    return $ setInfo loc term
+    return $ term

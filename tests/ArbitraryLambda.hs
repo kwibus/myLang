@@ -1,6 +1,7 @@
 module ArbitraryLambda
 where
 
+import Data.List
 import Data.Maybe
 import Control.Monad
 import Control.Monad.Trans.Class
@@ -19,76 +20,97 @@ import Type
 import Name
 import ArbiRef
 import PrettyPrint
-import Info
+import Eval
 
 forAllTypedBruijn :: Testable prop => (BruijnTerm () -> prop) -> Property
-forAllTypedBruijn = forAllShowShrink genTyped printBrujin shrinkTyped
+forAllTypedBruijn = forAllShowShrink genTyped printBrujin shrinkTypedBruijn
 
-printBrujin :: BruijnTerm i -> String
-printBrujin = either show PrettyPrint.pShow . bruijn2Lam . removeInfo
+printBrujin :: BruijnTerm () -> String
+printBrujin = either show PrettyPrint.pShow . bruijn2Lam
 
 forAllUnTypedLambda :: Testable prop => (LamTerm () Name -> prop) -> Property
-forAllUnTypedLambda = forAllShrink genUnTyped shrinkUntypedLamba
+forAllUnTypedLambda = forAllShrink genUnTyped shrinkUntypedLambda
 
 forAllUnTypedBruijn :: Testable prop => (BruijnTerm () -> prop) -> Property
 forAllUnTypedBruijn = forAllShrink genUnTyped shrinkUntypedBruijn
 
 forAllShowShrink :: Testable prop => Gen a -> ( a -> String) -> (a -> [a]) -> (a -> prop) -> Property
-forAllShowShrink gen myShow shrinker pf =
-  MkProperty $
+forAllShowShrink gen myShow shrinker pf = MkProperty $
   gen >>= \x ->
     unProperty $
     shrinking shrinker x $ \x' ->
       counterexample (myShow x') (pf x')
 
-shrinkTyped :: BruijnTerm () -> [BruijnTerm () ]
-shrinkTyped = shrinkTerm False elimanateBruijn
+shrinkTypedBruijn :: LamTerm () Bound -> [LamTerm () Bound]
+shrinkTypedBruijn = lambdaDeepShrink (flatShrink `composeShrink` elimanateBruijn) `composeShrink`
+                    deepShrink (shrinkVal) --FIXME`composeShrink` (maybeToList . eval))
 
-shrinkUntypedLamba :: LamTerm () Name -> [LamTerm () Name]
-shrinkUntypedLamba = shrinkTerm True elimanateLambda
+shrinkUntypedBruijn :: LamTerm () Bound -> [LamTerm () Bound]
+shrinkUntypedBruijn = deepShrink (const [double 2] `composeShrink`
+                                  flatShrink `composeShrink`
+                                  shrinkVal `composeShrink`
+                                  elimanateBruijn)
+shrinkUntypedLambda :: LamTerm () Name -> [LamTerm () Name]
+shrinkUntypedLambda  = deepShrink (const [double 2] `composeShrink`
+                                   flatShrink `composeShrink`
+                                   shrinkVal `composeShrink`
+                                   elimanateLambda)
 
-shrinkUntypedBruijn :: BruijnTerm () -> [BruijnTerm ()]
-shrinkUntypedBruijn = shrinkTerm True elimanateBruijn
+shrinkVal :: LamTerm () n -> [LamTerm () n]
+shrinkVal (Val _ v) = val <$> shrinkValue v
+shrinkVal _= []
 
-shrinkTerm :: Bool -> (Name -> LamTerm () n -> Maybe (LamTerm () n )) -> LamTerm () n -> [ LamTerm () n ]
-shrinkTerm untyped elimanate = fastShrink True
-    where fastShrink _ (Val _ v) = val <$> shrinkValue v
-          fastShrink b t = whenTrue b [double 2.0] ++ shrinkT b t
-          shrinkT b (Appl _ t1 t2) = whenTrue b [t1, t2] ++
-                [Appl () t1' t2 | t1' <- fastShrink untyped t1 ] ++
-                [Appl () t1 t2' | t2' <- fastShrink untyped t2 ]
-          shrinkT b (Lambda _ name t) =
-                    whenTrue b (maybeToList (elimanate name t))
-                 ++ (lambda (toString name) <$> fastShrink untyped t)
-          shrinkT _ (Val _ v) = val <$> shrinkValue v
-          shrinkT _ _ = []
+flatShrink :: LamTerm () n -> [LamTerm () n]
+flatShrink (Appl t1 t2) = [t1, t2]
+flatShrink _ = []
 
-whenTrue :: Monoid a => Bool -> a -> a
-whenTrue True a = a
-whenTrue False _ = mempty
+lambdaDeepShrink :: (LamTerm () n -> [LamTerm () n]) -> LamTerm () n -> [LamTerm () n]
+lambdaDeepShrink shrinker term = shrinker term ++ lambdaDeepShrink' term
+    where lambdaDeepShrink' (Lambda () n t) = Lambda () n <$> lambdaDeepShrink shrinker t
+          lambdaDeepShrink' _ = []
 
-elimanateBruijn :: Name -> BruijnTerm () -> Maybe (BruijnTerm ())
-elimanateBruijn _ = go 0
+deepShrink :: (LamTerm () n -> [LamTerm () n]) -> LamTerm () n -> [LamTerm () n]
+deepShrink shrinker term = shrinker  term ++ deepShrink' term
+  where
+    deepShrink' (Appl t1 t2) =
+                [Appl t1' t2 | t1' <- deepShrink shrinker t1 ] ++
+                [Appl t1 t2' | t2' <- deepShrink shrinker t2 ]
+    deepShrink' (Lambda () n t ) = Lambda () n <$> deepShrink shrinker t
+    deepShrink' _ = []
+
+composeShrink :: (a -> [a]) -> (a->[a]) -> a -> [a]
+composeShrink f g a =  f a ++ g a
+
+--TODO add remove let def
+elimanateBruijn ::  BruijnTerm () -> [BruijnTerm ()]
+elimanateBruijn (Lambda () _ term) =  go 0 term
   where
     go i1 (Var () (Bound i2))
-      | i1 == i2 = Nothing
-      | i1 < i2 = Just $ Var () $ Bound (i2 - 1)
-      | otherwise = Just $ Var () $ Bound i2
-    go _ (v@Val {}) = Just v
+      | i1 == i2 = mzero
+      | i1 < i2 = return $ Var () $ Bound (i2 - 1)
+      | otherwise = return $ Var () $ Bound i2
+    go _ (v@Val {}) = return v
     go i (Lambda _ n t) = Lambda () n <$> go (i + 1) t
-    go i (Appl _ t1 t2) = Appl () <$> go i t1 <*> go i t2
+    go i (Appl t1 t2) = Appl <$> go i t1 <*> go i t2
+    go i (Let _ defs t) = Let () <$> (mapM (elimanateDef (i + length defs)) defs ) <*> go (i + length defs) t
+    elimanateDef i (Def _ n t) = Def () n <$> go i t
+elimanateBruijn _ = []
 
-elimanateLambda :: Name -> LamTerm () Name -> Maybe ( LamTerm () Name )
-elimanateLambda name = go
+--TODO add remove let def
+elimanateLambda ::  LamTerm () Name -> [LamTerm () Name]
+elimanateLambda (Lambda () name term) = if go term then [term] else []
   where
-    go t@(Var () n)
-      | n == name = Nothing
-      | otherwise = Just t
-    go v@Val {} = Just v
-    go t1@(Lambda _ n t2)
-      | n == name = Just t1
-      | otherwise = Lambda () n <$> go t2
-    go (Appl _ t1 t2) = Appl () <$> go t1 <*> go t2
+    go (Var () n)
+      | n == name =False
+      | otherwise =True
+    go Val {} = True
+    go (Lambda _ n t2)
+      | n == name = True
+      | otherwise = go t2
+    go (Appl t1 t2) = go t1 || go t2
+    go (Let _ defs t) = not ( any (\(Def _ n _)-> n == name)defs) || (all elimanatedDef defs && go t)
+    elimanatedDef (Def _ _ t) = go t
+elimanateLambda _ = []
 
 genTyped :: ArbiRef n => Gen (LamTerm () n )
 genTyped = fromJust <$> genTerm (Just (TVar (Free (-1))))
@@ -118,10 +140,10 @@ arbitraryTerm n mabeytype maxlist s
         Nothing -> return False
       if b
       then mzero
-      else whenBacksteps (< 20) (
-           oneOfLogic [ arbitraryAppl n mabeytype maxlist s
-                   , arbitraryLambda n mabeytype maxlist s
-                   ] ) $ error $ show mabeytype ++ "\n" ++ show n
+      else oneOfLogic [ arbitraryAppl n mabeytype maxlist s
+                      , arbitraryLambda n mabeytype maxlist s
+                      , arbitraryLet n mabeytype maxlist s
+                      ]
 
 -- TODO fix also genarate var Empty
 arbitraryVar :: ArbiRef n => Maybe Type -> GenState n -> Generater (LamTerm () n)
@@ -133,8 +155,8 @@ arbitraryVar t s = do
 arbitraryAppl :: ArbiRef n => Int -> Maybe Type -> [Type] ->
      GenState n -> Generater (LamTerm () n)
 arbitraryAppl size mabeytype maxlist state = do
-  sizeLeft <- chooseLogic (1, size - 1)
-  let sizeRight = size - sizeLeft
+  sizeLeft <- chooseLogic (1, size - 2)
+  let sizeRight = size - sizeLeft -1
   case mabeytype of
     Nothing -> do
       expr1 <- arbitraryTerm sizeLeft Nothing [] state
@@ -160,9 +182,49 @@ arbitraryLambda size t maxlist state = do
   (n, newState) <- lift $ lift $ newVarRef state var1
   unifyGen t $ TAppl (TVar var1) (TVar var2)
   expr <- case t of
-    Just _ -> arbitraryTerm (size - 1) (Just (TVar var2 )) maxlist newState
+    Just _ -> arbitraryTerm (size - 1) (Just (TVar var2 )) maxlist newState --TODO remove reption
     Nothing -> arbitraryTerm (size - 1) Nothing [] newState
   return $ lambda n expr
+
+arbitraryLet :: ArbiRef n => Int -> Maybe Type -> [Type] -> GenState n -> Generater (LamTerm () n)
+arbitraryLet size t maxlist state =
+    let minmalSize = 1
+        maxDefs = 5
+        maxnumberDefs = min ((size -1)`div`minmalSize) (maxDefs+1)
+    in do
+    numberDefs <- chooseLogic (1,maxnumberDefs)
+    if numberDefs <= 1
+    then mzero
+    else do
+            let totallExtra = (size -1) - minmalSize * numberDefs
+            randomextra <- lift $ lift $ uniformBucket numberDefs totallExtra -- this will not backtrack
+            let (resultSize :varSize)= map (minmalSize +) randomextra
+            vars <- replicateM (numberDefs-1) newFreeVar
+            (varNames, newState) <- lift $ lift $ makeVars state vars
+            let newmaxlist = maxlist ++ map TVar vars
+            term  <- arbitraryTerm resultSize t newmaxlist newState
+            defs  <- mapM (\( v, name,sizeTerm) -> do
+
+                        termN <- arbitraryTerm sizeTerm (fmap (const (TVar v)) t) maxlist newState -- TODO remove self from maxlist
+                        return $ Def () name termN
+                        ) $ zip3 vars (map Name varNames) varSize
+            return $ Let () defs term
+
+makeVars::ArbiRef n => GenState n -> [Free] -> Gen ([String],GenState n)
+makeVars state [] = return ([],state)
+makeVars state (f:fs) = do
+    (newVar,newState) <- newVarRef state f
+    (resetVar,finalState) <- makeVars newState fs
+    return (newVar:resetVar, finalState)
+
+uniformBucket :: Int -> Int -> Gen [Int]
+uniformBucket buckets totaal = do
+    randomList <- replicateM (buckets-1)$ choose (0,totaal) :: Gen [Int]
+    return $ diff $ 0 : (sort randomList ++ [totaal])
+    where diff :: [Int] -> [Int]
+          diff (a:b:rest) = (b-a):diff (b:rest)
+          diff [_]  = []
+          diff [] = []
 
 newVarRef :: ArbiRef n => GenState n -> Free -> Gen (String, GenState n)
 newVarRef state free = do

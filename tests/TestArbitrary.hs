@@ -18,14 +18,13 @@ testArbitrary = testGroup "arbitrary" [testGeneration, testshrink]
 testshrink :: TestTree
 testshrink = testGroup "shrink"
     [ testProperty "all normalised untyped" $
-       forAllTypedBruijn $ \ e -> all (== True) (map welFormd (shrinkUntypedBruijn e ))
+       forAllTypedBruijn $ \ e -> conjoin (map welFormd (shrinkUntypedBruijn e ))
 
     , testProperty "all normalised typed " $
-       forAllUnTypedBruijn $ \ e -> all (== True) (map welFormd (shrinkTyped e ))
+       forAllUnTypedBruijn $ \ e -> conjoin (map welFormd (shrinkTypedBruijn e ))
 
     , testProperty "all typeable" $
-       forAllTypedBruijn $ \ e -> all hasSucces (map solver (shrinkTyped e ))
-
+       noShrinking $ forAllTypedBruijn $ \ e -> conjoin (map (\en ->counterexample (printBrujin en) $ hasSucces $ solver en ) $ shrinkTypedBruijn  e )
     ]
 testGeneration :: TestTree
 testGeneration = testGroup "genration"

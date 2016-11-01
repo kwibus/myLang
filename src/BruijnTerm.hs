@@ -3,6 +3,7 @@ module BruijnTerm
   , UndefinedVar (UndefinedVar)
   , bruijn2Lam
   , lam2Bruijn
+  , defsBounds
   ) where
 
 import Control.Monad.Except
@@ -29,7 +30,6 @@ type BruijnTerm i = LamTerm i Bound
 data UndefinedVar i n = UndefinedVar i n -- ^ i is extra information (location of variable) and n is the name
     deriving (Show, Eq)
 
-
 -- | Converts 'BruijnTerm' to a 'LambTerm'
 --
 -- This function fails with 'Left' 'UndefinedVar' if there is a free variable.
@@ -49,17 +49,18 @@ bruijn2Lam t = go t []
             Nothing -> throwError $ UndefinedVar info n
             Just name -> return $ Var info name
         go (Val i v) _ = return $ Val i v
-        go (Appl i e1 e2 ) env = Appl i <$> go e1 env <*> go e2 env
+        go (Appl e1 e2 ) env = Appl <$> go e1 env <*> go e2 env
         go (Lambda info name e1) env =
             let newName = mkNewName name env
             in Lambda info newName <$> go e1 (newName : env)
         go (Let i defs t1) env = Let i <$> newDefs <*> go t1 newEnv
           where
-
-            defNewNames = map (\ (Def i0 name t0) -> Def i0 (mkNewName name env) t0) defs
-            newDefs = mapM (\ (Def i0 n t0) -> Def i0 n <$> go t0 newEnv ) defNewNames
-            newEnv :: [Name]
-            newEnv = foldl' (\ env' (Def _ n _) -> n : env' ) env defNewNames
+            newDefs = reverse <$> mapM
+                (\ (newN,Def i0 _ t0) -> Def i0 newN <$> go t0 newEnv)
+                (zip newNames $ reverse defs)
+            newEnv =  newNames ++ env
+            newNames :: [Name]
+            newNames = foldl'  (\ env' (Def _ n _) ->  mkNewName n (env++env'): env')  [] defs
 
 -- | Converts 'Lambda' with named variabls to 'Lambda' with Bruijn Index's
 --
@@ -81,7 +82,7 @@ lam2Bruijn t = go t 0 M.empty
         go (Val i v) _ _ = return $ Val i v
         go (Lambda i name t1) depth env =
                  Lambda i (removeIndex (toString name)) <$> go t1 (depth + 1) (M.insert name depth env)
-        go (Appl i t1 t2) depth env = Appl i <$> go t1 depth env <*> go t2 depth env
+        go (Appl t1 t2) depth env = Appl <$> go t1 depth env <*> go t2 depth env
         go (Let i defs t1) depth env = Let i <$> newDefs <*> go t1 newDepth newEnv
           where
             newDepth = depth + length defs
@@ -94,3 +95,11 @@ getAt :: [a] -> Int -> Maybe a
 getAt [] _ = Nothing
 getAt (x : _) 0 = Just x
 getAt (_ : xs) n = getAt xs (n - 1)
+
+
+fromToZero :: Int -> [Int]
+fromToZero n | n < 0 = []
+             | otherwise = n : fromToZero (pred  n)
+
+defsBounds :: [Def i Bound] -> [Bound]
+defsBounds defs =Bound <$> fromToZero (length defs - 1)

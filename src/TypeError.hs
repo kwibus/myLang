@@ -8,8 +8,7 @@ import Type
 import BruijnTerm
 import Lambda
 import Info
-
-import Data.Char
+import Lexer (toChar,reservedSymbols)
 
 data TypeError i =
       UnifyAp (BruijnTerm i) Type Type [UnificationError]
@@ -34,23 +33,23 @@ instance Eq UnificationError where
    Unify {} == Unify {} = True
    (==) _ _ = False
 
-showErrors :: String -> [TypeError Loc] -> Doc
+showErrors :: String -> [TypeError SourcePos] -> Doc
 showErrors str = vcat . map (showError str)
 
-showError :: String -> TypeError Loc -> Doc
-showError str (UnifyAp expr t1 t2 err ) = text (showLoc (getLocation expr)) <+> text "TypeError " <$>
+showError :: String -> TypeError SourcePos-> Doc
+showError str (UnifyAp expr t1 t2 err ) = text (showPosition (getPosition expr)) <+> text "TypeError " <$>
         indent 4 ( showUnifyApError str expr t1 t2 err)
 showError _ _ = text "No error messages implemented"
 
-showUnifyApError :: String -> BruijnTerm Loc -> Type -> Type -> [UnificationError] -> Doc
-showUnifyApError str (Appl i e1 e2) t1 t2 _ =
+showUnifyApError :: String -> BruijnTerm SourcePos-> Type -> Type -> [UnificationError] -> Doc
+showUnifyApError str e@(Appl e1 e2) t1 t2 _ =
   let compleetDictonarie = mkDictonarie [t1, t2]
       localShow t = text $ pShowWithDic t compleetDictonarie
-  in getWord (getLocation e1) str <+> text "is applied to wrong type of argumts" <$>
-      dquotes (getWord i str) <$>
+  in getsource e1 str <+> text "is applied to wrong type of argumts" <$>
+      dquotes (getsource e str) <$>
       indent 2 (
-          getWord (getLocation e1) str <+> text "::" <+> localShow t1 <$>
-          getWord (getLocation e2) str <+> text "::" <+> localShow t2
+          getsource e1 str <+> text "::" <+> localShow t1 <$>
+          getsource e2 str <+> text "::" <+> localShow t2
       )
 showUnifyApError _ _ _ _ _ = text "No error messages implemented"
 
@@ -59,24 +58,32 @@ showUnifyApError _ _ _ _ _ = text "No error messages implemented"
     -- "can`t construct infinit Type " -- ++tShow (TVar f) ++ "= "
 
 
-showLine :: Loc -> String -> String
-showLine loc str = lines str !! (lineStart loc - 1 )
+showLine :: Int -> Int -> String -> [String]
+showLine start n str = take n $ drop (start - 1 )$ lines str
 
-underlineWord :: Loc -> String -> Doc
-underlineWord loc str = text pre <> red ( text word) <> text post
+getsource :: BruijnTerm SourcePos -> String -> Doc
+getsource term str =
+    if sourceLine start /= sourceLine end
+    then  vsep $ map text  srcLines
+    else text $ tillEndColumn (sourceColumn end)$
+          seekColumn (sourceColumn start)
+          (head srcLines )
   where
-    selectedLine = showLine loc str
-    (pre, xs) = splitAt (columnStart loc) selectedLine
-    (word, post) = break (== ' ') xs
+    srcLines = showLine (sourceLine start) (sourceLine start - sourceLine end + 1) str
+    end   = getLastWordPos term
+    start = getPosition term
 
-getWord :: Loc -> String -> Doc
-getWord loc str =
-    if lineStart loc /= lineEnd loc
-    then vsep $ map text $ take (lineEnd loc - lineStart loc + 1) $ drop (lineStart loc - 1) (lines str)
-    else text $ trim word
+seekColumn :: Int -> String -> String
+seekColumn n = drop (n-1)
+
+tillEndColumn:: Int -> String -> String
+tillEndColumn n str = begin ++ tillEndWord rest
   where
-    selectedLine = showLine loc str
-    word = take (columnEnd loc - columnStart loc ) $ drop (columnStart loc - 1 ) selectedLine
+    (begin, rest)=splitAt n str
 
-trim :: String -> String
-trim s = reverse $ dropWhile isSpace $ reverse $ dropWhile isSpace s
+tillEndWord :: String -> String
+tillEndWord [] = []
+tillEndWord (s:str) = s: takeWhile (flip notElem (' ': map toChar reservedSymbols)) str
+
+-- trim :: String -> String
+-- trim s = reverse $ dropWhile isSpace $ reverse $ dropWhile isSpace s

@@ -3,6 +3,7 @@ module TestParser (testParser ) where
 import Test.Tasty
 import Test.Tasty.HUnit
 import Test.Tasty.QuickCheck
+import Test.QuickCheck.Property
 
 import ArbitraryLambda
 import TestSetParseShow
@@ -52,13 +53,14 @@ testParserProperties = testGroup "properties"
         forAllUnTypedLambda $ \ term ->
             let string = pShow term
                 parsed = fmap removeInfo (parseString string)
-            in counterexample ("\tpShow:        " ++ string ++
-                             "\n\tparsed:       " ++ show parsed ++
-                             "\n\tpshow parsed: " ++ show (fmap pShow parsed)) $
-            case parsed of
-                Right t -> t == term
-                -- Left Infix {} -> True -- TODO Check , add Lexer
-                Left _ -> False
+            in case parsed of
+                Right t -> case testString string t of
+                    Nothing -> property succeeded
+                    Just errormessages -> counterexample errormessages False
+                Left e -> counterexample ("could no parser string:\n" ++
+                                           string ++
+                                         "\nexception:" ++ show e)
+                                         False
    ]
 
 testSet :: String -> [(String, LamTerm () Name)] -> TestTree
@@ -82,16 +84,23 @@ testParserLetEdge = testGroup "let Edge case"
   , testCaseParser "let a = 1.0 in a" (mkLet [("a", double 1.0)] (var "a"))
   ]
 
+testString ::String -> LamTerm () Name -> Maybe String
+testString string expected
+    | result == expectM = Nothing
+    | otherwise = Just $
+        "try to Parse:\n" ++ string ++
+      "\nexpected: " ++ show expected ++
+      "\nbut got : " ++ show result ++
+    "\n\npshow expected: " ++ show (fmap pShow expectM) ++
+      "\npshow but got : " ++ show (fmap pShow result )
+  where
+    result = fmap removeInfo (parseString string)
+    expectM = return expected
+
 testCaseParser :: String -> LamTerm () Name -> TestTree
-testCaseParser string expect = testCase string $
-    let result = fmap removeInfo (parseString string)
-        expectM = return expect
-    in assertBool ("try to Parse:\n" ++ string ++
-                 "\nexpected: " ++ show expect ++
-                 "\nbut got : " ++ show result ++
-               "\n\npshow expected: " ++ show (fmap pShow expectM) ++
-                 "\npshow but got : " ++ show (fmap pShow result ))
-             (result == expectM)
+testCaseParser string expected = testCase string $ case testString string expected of
+    Nothing -> return  ()
+    Just messages -> assertFailure  messages
 
 parserFail :: String -> TestTree
 parserFail string = testCase ("fail at:" ++ string ) $ case parseString string of

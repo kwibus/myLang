@@ -8,8 +8,7 @@ import Value hiding (isInfix)
 import Lambda
 import Name
 import Associativity
-import Info
---
+
 -- $setup
 -- >>> import Operator
 
@@ -20,7 +19,7 @@ import Info
 --
 --  examples:
 --
--- >>>pShow $ Appl() (Var() (Name "a"))(Var ()(Name "b") )
+-- >>>pShow $ Appl (Var() (Name "a"))(Var ()(Name "b") )
 -- "a b"
 --
 -- >>>pShow $ Lambda () (Name "a")(Var ()(Name "a") )
@@ -39,16 +38,16 @@ import Info
 -- >>> pShow $Lambda ()(DummyBegin)(Var () (Name"a")   )
 -- "a"
 --
--- >>> pShow $Lambda ()(DummyBegin) (Appl () (Appl () (Val () plus)(Var ()DummyBegin))(Val () (Prim $ MyDouble 1)))
+-- >>> pShow $Lambda ()(DummyBegin) (Appl  (Appl (Val () plus)(Var ()DummyBegin))(Val () (Prim $ MyDouble 1)))
 -- "+ 1.0"
 
 pShow :: LamTerm i Name -> String
-pShow = show . go True lowPrec . removeInfo
+pShow = show . go True lowPrec
  where
   go :: Bool                         -- ^ indicate if prented term is top leftmost of a expresion
                                      -- ^ to indicate of Lambda Terms  Should be enclosed in parenthese
       -> (Precedence, Associativity) -- ^ precedence of previous Infix  (if there is no infix then its lowPrec)
-      -> LamTerm () Name             -- ^ term that should be printed
+      -> LamTerm i Name             -- ^ term that should be printed
       -> Doc                         -- ^ result
   go _ _ (Var _ name ) = text $ prettyPrint name -- ignore Empty
 
@@ -62,12 +61,12 @@ pShow = show . go True lowPrec . removeInfo
                     dot
     in parensIf (not topLeft) $lambda <> go True lowPrec nextTerm
 
-  go topLeft p (Let _ defs term) = text "let" <+>
-                                   align (vcat $ map showDefs defs) <$$>
-                                   text "in" <+>
-                                   go topLeft p term
-    where showDefs (Def _ n t) =
-            text (
+  go topLeft _ (Let _ defs term) = parensIf (not topLeft ) $
+                    text "let" <+>
+                    align (vcat $ map showDefs defs) <$$>
+                    text "in" <+>
+                    go True lowPrec  term
+    where showDefs (Def _ n t) = text (
              unwords (map toString (n : args)) ++
               " = ")
             <>
@@ -86,7 +85,7 @@ pShow = show . go True lowPrec . removeInfo
                                    ,docArg topLeft (getPrec function ) arg2]
         (arg1 : arg2 : args) -> if higherPrec p precApplication
                                 then parens $ go True lowPrec t
-                                else parens (go True lowPrec (Appl () (Appl () function arg1) arg2))
+                                else parens (go True lowPrec (Appl (Appl function arg1) arg2))
                                      <+> docArgments precApplication args
     | otherwise = if higherPrec p precApplication
         then parens (go True lowPrec t)
@@ -120,6 +119,6 @@ myConcat :: [Doc] -> Doc
 myConcat = foldl1 myAppend
 
 isNotFullAplliedInfix :: LamTerm i Name -> Bool
-isNotFullAplliedInfix (Appl _ t1 _) = isInfix t1
+isNotFullAplliedInfix (Appl t1 _) = isInfix t1
 isNotFullAplliedInfix t = isInfix t
 

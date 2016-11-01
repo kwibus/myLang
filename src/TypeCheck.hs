@@ -53,7 +53,7 @@ newFreeVar = do
     return $ Free i
 
 solveWith :: BruijnTerm i -> TSubst -> TEnv -> Infer i (Type, TSubst)
-solveWith e@(Let _ defs e2) sub tenv = do
+solveWith e@(Let _ defs e2) sub tenv = do -- TODO vorbid type some type of self refrence
   newVars <- replicateM (length defs) newFreeVar
   let tempTEnv= foldl ( flip ( bInsert. TVar)) tenv newVars
   (polys, subs) <- unzip <$> mapM (solveDefs tempTEnv) defs

@@ -11,7 +11,6 @@ import GenState
 import Value
 import Operator
 import Type (Type)
-import MakeType
 import Lambda
 
 shrinkValue :: Value -> [Value]
