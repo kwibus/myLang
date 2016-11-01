@@ -83,6 +83,10 @@ deriving instance  Generic  InfixError
 instance NFData InfixError  where
     rnf = genericRnf
 
+-- deriving instance  Generic Text.Parsec.Pos.SourcePos
+instance NFData SourcePos where
+    rnf = flip seq ()
+
 -- deriving instance  Generic Text.Parsec.Error.ParseError
 instance NFData Text.Parsec.Error.ParseError where
     rnf = flip seq ()
@@ -91,9 +95,6 @@ deriving instance  Generic Value
 instance NFData Value where
     rnf v = seq v ()
 
-deriving instance  Generic Loc
-instance NFData Loc where
-    rnf = genericRnf
 
 deriving instance  Generic (LamTerm i n )
 instance  (NFData i, NFData n) => NFData (LamTerm i n) where
