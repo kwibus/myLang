@@ -34,7 +34,10 @@ letSet =
    "\nin a", mkLet [("b", double 1.0), ("a", var "b")] (var "a"))
 
   , ("let id a = a;" ++
-   "\nin id", mkLet [("id", lambda "a" (var "a" ))] (var "id"))
+   "\nin id", mkLet [("id", lambda "a" $ var "a")] (var "id"))
+
+  , ("let const a b = a;" ++
+   "\nin const", mkLet [("const", lambda "a" $ lambda  "b" $ var "a" )] (var "const"))
 
   , ("let b = 1.0;" ++
    "\nin + (+)", mkLet [("b", double 1.0)] $ lambda "#" $ appl (appl (val plus)(var "#"))(val plus))
