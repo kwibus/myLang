@@ -30,6 +30,7 @@ library
                       ,dlist
 
   exposed-modules:     Lambda
+                      ,TaggedLambda
                       ,Parser
                       ,Lexer
                       ,Value
