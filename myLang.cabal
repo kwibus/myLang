@@ -49,7 +49,7 @@ library
                       ,ErrorCollector
                       ,Name
                       ,Associativity
-  Ghc-Options:          -Wall -fno-ignore-asserts  -fprof-auto
+  Ghc-Options:          -Wall -fno-ignore-asserts
   default-language:    Haskell2010
 
 executable interperter
@@ -121,7 +121,7 @@ test-suite tests
                       ,TestSetParseShow
                       ,TestType
                       ,TestTypeCheker
-  Ghc-Options:          -Wall -fno-ignore-asserts  -fprof-auto
+  Ghc-Options:          -Wall -fno-ignore-asserts -threaded -rtsopts
   default-language:    Haskell2010
 
 test-suite doctests
