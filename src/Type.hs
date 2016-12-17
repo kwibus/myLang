@@ -2,6 +2,7 @@ module Type where
 
 import qualified Data.IntMap as IM
 import Data.Maybe
+import qualified Data.Set as Set
 
 import Data.List
 import Name
@@ -79,3 +80,8 @@ showTypeInstance TBool = "Bool"
 dropTypeArg :: TypeA i -> TypeA i
 dropTypeArg (TAppl _ t ) = t
 dropTypeArg _ = error "apply non function"
+
+typeFreeVars :: Type -> Set.Set Free
+typeFreeVars (TVar v ) = Set.singleton v
+typeFreeVars (TAppl t1 t2) = typeFreeVars t1 `Set.union` typeFreeVars t2
+typeFreeVars _ = Set.empty

@@ -127,15 +127,10 @@ instantiate = fmap snd . toTVar fEmtyEnv
 generalize :: TEnv -> Type -> Type
 generalize env = toPoly
   where
-    freeInEnv = Set.unions $ map (freeVars . snd) $ bToList env
+    freeInEnv = Set.unions $ map (typeFreeVars . snd) $ bToList env
     toPoly (TAppl t1 t2 ) = TAppl (toPoly t1) (toPoly t2)
     toPoly (TVar i) | not (Set.member i freeInEnv) = TPoly i
     toPoly t = t
-
-freeVars :: Type -> Set.Set Free
-freeVars (TVar v ) = Set.singleton v
-freeVars (TAppl t1 t2) = freeVars t1 `Set.union` freeVars t2
-freeVars _ = Set.empty
 
 -- instanceOf :: PolyType -> PolyType -> _
 -- instanceOf (Forall v1 t1 ) (Forall v2 t2 ) = undefined
