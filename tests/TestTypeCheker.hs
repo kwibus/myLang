@@ -10,7 +10,7 @@ import qualified ExampleBruijn as B
 import MakeTerm
 import MakeType
 import ArbitraryType ()
-import TestUtils
+import Properties
 import ArbitraryLambda
 
 import TypeCheck

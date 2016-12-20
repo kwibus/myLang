@@ -1,4 +1,5 @@
-module TestUtils where
+module Properties where
+
 import Data.List (foldl')
 import Control.Monad
 import Data.Maybe

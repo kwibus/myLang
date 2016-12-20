@@ -110,7 +110,7 @@ test-suite tests
                       ,GenState
                       ,Logic
                       ,MakeTerm
-                      ,TestUtils
+                      ,Properties
                       ,SearchTree
                       ,TestSearchTree
                       ,TestArbitrary

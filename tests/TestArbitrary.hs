@@ -4,7 +4,7 @@ import Test.Tasty
 import Test.Tasty.QuickCheck
 import Data.Maybe
 
-import TestUtils
+import Properties
 import ArbitraryLambda
 
 import BruijnTerm

@@ -11,7 +11,7 @@ import TypeCheck
 import BruijnTerm
 import BruijnEnvironment
 import qualified ExampleBruijn as B
-import TestUtils
+import Properties
 import ArbitraryLambda
 
 import Eval
