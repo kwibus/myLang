@@ -12,6 +12,8 @@ import TestParser
 import TestType
 import TestLogic
 import TestSearchTree
+import TestTopologicalSort
+import TestModificationTags
 
 main :: IO ()
 main = defaultMain tests
@@ -21,10 +23,12 @@ tests = testGroup "tests"
     [ testSearchTree
     , testLogic
     , testArbitrary
+    , testModificationTags
     , testTypeChecker
     , testType
     , testPrettyPrintLambda
     , testBruijn
+    , testTopologicalSort
     , testEval
     , testParser
     ]

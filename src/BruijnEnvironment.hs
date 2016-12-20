@@ -103,3 +103,6 @@ mapWithBound :: (Bound -> a -> b) -> BruijnEnv a -> BruijnEnv b
 mapWithBound f b@BruijnState{bruijnDepth = dept,bruijnMap =m} =
     b {bruijnMap = IM.mapWithKey (\index a-> f (Bound $! dept -index -1)a  ) m}
 
+bReorder :: BruijnEnv a -> [Bound] -> BruijnEnv a
+bReorder env order = foldl go env $ zip order [0..]
+  where go envN (bi , j)  = bReplace (Bound j) (bLookup bi env) envN
