@@ -15,18 +15,15 @@ import MakeTerm
 import BruijnTerm
 import Lambda
 import BruijnEnvironment
+import PrintBruijn
 import FreeEnvironment
 import Type
 import Name
 import ArbiRef
-import PrettyPrint
 import Eval
 
 forAllTypedBruijn :: Testable prop => (BruijnTerm () -> prop) -> Property
 forAllTypedBruijn = forAllShowShrink genTyped printBrujin shrinkTypedBruijn
-
-printBrujin :: BruijnTerm () -> String
-printBrujin = either show PrettyPrint.pShow . bruijn2Lam
 
 forAllUnTypedLambda :: Testable prop => (LamTerm () Name -> prop) -> Property
 forAllUnTypedLambda = forAllShrink genUnTyped shrinkUntypedLambda

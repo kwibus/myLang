@@ -8,6 +8,7 @@ import TestUtils
 import ArbitraryLambda
 
 import BruijnTerm
+import PrintBruijn
 import MakeType
 import TypeCheck
 import ErrorCollector
