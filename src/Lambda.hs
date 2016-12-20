@@ -13,6 +13,12 @@ data LamTerm i n = Lambda i Name (LamTerm i n)
 
 data Def i n = Def i Name (LamTerm i n) deriving (Eq, Show)
 
+implementation :: Def i n-> LamTerm i n
+implementation (Def _ _ t) = t
+
+mapImplementation :: (LamTerm i n1 -> LamTerm i n2) -> Def i n1-> Def i n2
+mapImplementation f (Def i n t) = Def i n (f t)
+
 isInfix :: LamTerm i Name -> Bool
 isInfix (Val _ v ) = Value.isInfix v
 isInfix _ = False

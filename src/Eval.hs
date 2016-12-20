@@ -48,7 +48,7 @@ evalWithEnv env (Appl func args) = (firstFullExpr `append` nextFullExpr ) `appen
 
     final = case valueFunc of
       (Lambda _ _ t1) -> let newestEnv = bInsert valueArgs envArg
-                             fixEnv (Bound b) term = if isValue term
+                             fixEnv (Bound b) term = if normalForm term
                                                      then term
                                                      else Var () $ Bound (b - 1)
                          in cons (substituteEnv (mapWithBound fixEnv newestEnv) t1,envArg ) $
@@ -113,7 +113,7 @@ substituteEnv :: Scope () -> BruijnTerm () -> BruijnTerm ()
 substituteEnv env term
     | bNull newEnv = term
     | otherwise = go 0 newEnv term
-  where newEnv  = bFilter isValue env
+  where newEnv  = bFilter normalForm env
         go :: Int -> BruijnEnv (BruijnTerm ()) -> BruijnTerm () -> BruijnTerm ()
         go depth e (Lambda i n t) = Lambda i n $ go (depth + 1) e t
         go _     _ t@Val {} = t
@@ -168,12 +168,12 @@ applyValue v1@BuildIn {arrity = n, stack = s, myType = t } v2 =
     v1 {arrity = n - 1 , stack = v2 : s, myType = dropTypeArg t}
 applyValue _ _ = error "apply value"
 
-isValue :: BruijnTerm i -> Bool
-isValue Var {} = True-- False --TODO check
-isValue Val {} = True
-isValue Lambda {} = True
-isValue Appl {} = False
-isValue Let {} = False
+normalForm :: BruijnTerm i -> Bool
+normalForm Var {} = True -- False --TODO check
+normalForm Val {} = True
+normalForm Lambda {} = True
+normalForm Appl {} = False
+normalForm Let {} = False
 
 -- increase every variale name in term that not bound in that therm with increase
 incFree :: Int -> BruijnTerm i -> BruijnTerm i

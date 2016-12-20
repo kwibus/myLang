@@ -86,6 +86,9 @@ hasSucces :: ErrorCollector e a -> Bool
 hasSucces (Error _ ) = False
 hasSucces (Result _) = True
 
+hasErrors :: ErrorCollector e a -> Bool
+hasErrors = not . hasSucces
+
 fromEither :: MonadPlus m => Either e a -> ErrorCollector (m e) a
 fromEither (Left e) = Error $ return e
 fromEither (Right a) = Result a
