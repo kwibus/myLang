@@ -4,7 +4,14 @@ import qualified Data.IntMap as IM
 import Control.Exception.Base
 import Data.Maybe
 import Data.List
--- TODO remove b prefix
+
+-- TODO remove b prefix and give beter names
+
+-- TODO consistend inuative order in BruijnEnv
+--   defs / bfromlist is [2,1,0]
+--   Reorder ?
+
+
 -- | Bound is wrapper arround Int and is used to represent BruijnIndex.
 -- BruijnIndex rever to a env, but are dependent on the surrounding terms.
 -- If you add extra lambda:
@@ -14,15 +21,18 @@ import Data.List
 -- * \\0  ==>   \\1
 --
 -- You have to modify the Inde
-newtype Bound = Bound Int deriving (Eq, Show)
+newtype Bound = Bound Int deriving (Eq, Show,Ord)
 
 --TODO replace with list
 --TODO Fix name to BruijnEnv
 data BruijnEnv a = BruijnState
      { bruijnDepth :: Int
      , bruijnMap :: IM.IntMap a
-     } deriving (Show, Eq)
+     } deriving Eq
 
+-- TODO maybe import to debug module
+instance Show a => Show (BruijnEnv a) where
+    show env = '[' :  intercalate"," ( map (show. snd) $ reverse $ IM.toDescList  $ bruijnMap env )++ "<]"
 
 toInt :: Bound -> Int
 toInt (Bound i) = i
@@ -51,6 +61,7 @@ bInsert :: a -> BruijnEnv a -> BruijnEnv a
 bInsert a b@BruijnState {bruijnDepth = depth, bruijnMap = m} =
      b {bruijnDepth = depth + 1, bruijnMap = IM.insert depth a m }
 
+-- when env= bInserts [1,2,3] bEmtyEnv  then bLookup Bound 0 will be 3; Bruij counts left to righ
 bInserts :: [a] ->  BruijnEnv a -> BruijnEnv a
 bInserts list env = foldl' (flip bInsert) env list
 
