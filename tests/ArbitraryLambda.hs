@@ -20,7 +20,6 @@ import FreeEnvironment
 import Type
 import Name
 import ArbiRef
-import Eval
 
 forAllTypedBruijn :: Testable prop => (BruijnTerm () -> prop) -> Property
 forAllTypedBruijn = forAllShowShrink genTyped printBrujin shrinkTypedBruijn
@@ -40,7 +39,8 @@ forAllShowShrink gen myShow shrinker pf = MkProperty $
 
 shrinkTypedBruijn :: LamTerm () Bound -> [LamTerm () Bound]
 shrinkTypedBruijn = lambdaDeepShrink (flatShrink `composeShrink` elimanateBruijn) `composeShrink`
-                    deepShrink (shrinkVal) --FIXME`composeShrink` (maybeToList . eval))
+                    deepShrink shrinkVal --TODO  also shrink with eval
+
 
 shrinkUntypedBruijn :: LamTerm () Bound -> [LamTerm () Bound]
 shrinkUntypedBruijn = deepShrink (const [double 2] `composeShrink`
