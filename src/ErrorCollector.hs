@@ -1,6 +1,10 @@
 {-# LANGUAGE MultiParamTypeClasses, FlexibleInstances, UndecidableInstances #-}
 module ErrorCollector where
 
+-- TODO maybe there exist already a libary implenting this
+-- TODO wright test
+-- TODO does it satify monoad rules
+
 import Data.Monoid
 import Control.Monad.State.Class
 import Control.Monad.Trans.Class
@@ -25,9 +29,14 @@ instance Monoid e => Monad (ErrorCollector e) where
   m >>= f = case m of
               Result a -> f a
               Error e -> Error e
+-- TODO maybe define monadfail
+-- TODO can collect more in do block when you define
+  -- m1 >> m2 = (case m2 of Result a -> return $ const a
+  --                        Error e -> Error e) <*> m1
 
 newtype ErrorCollectorT e m a = ErrorT {runErrorT :: m (ErrorCollector e a)}
 
+--TODO maybe add monoadfail, >> (seer monad ErrorCollector)
 instance (Monoid e, Monad m) => Monad (ErrorCollectorT e m) where
   return = pure
   (>>) = (*>)
@@ -46,7 +55,7 @@ instance Functor m => Functor (ErrorCollectorT e m) where
 
 toExcept :: (Monad m, Monoid e) => ErrorCollector e a -> ErrorCollectorT e m a
 toExcept errorCol = case errorCol of
-    Error e -> ErrorT $ return $ Error e 
+    Error e -> ErrorT $ return $ Error e
     Result a -> return a
 
 throw :: e ->  ErrorCollector e a
