@@ -3,13 +3,13 @@ module TestTopologicalSort where
 import Test.Tasty
 import Test.Tasty.HUnit
 
-import Data.Maybe
-
+import BruijnEnvironment
 import MakeTerm
 import TopologicalSort
 import BruijnTerm
 import PrintBruijn
 import ModificationTags
+import Properties
 
 testTopologicalSort :: TestTree
 testTopologicalSort = testGroup "topologicalSort"
@@ -17,22 +17,23 @@ testTopologicalSort = testGroup "topologicalSort"
 
 testNonCirculair :: TestTree
 testNonCirculair = testGroup "noncircular#" $  map
-    (\t -> testCase (printBrujin t) $ isJust ( sortTerm t) @?= True )
+    (\t -> testCase (printBrujin t) $  isCirculair t @?= False)
     noncircular
 
 testCirculair :: TestTree
 testCirculair = testGroup "circular" $ map
-    (\t -> testCase (printBrujin t) $ sortTerm t @?= Nothing)
+    (\t -> testCase (printBrujin t) $ isCirculair t @?= True)
     circular
 
 testSort :: TestTree
 testSort = testGroup "sortTerm" $ map
-    (\(t1,t2) -> testCase (printBrujin t1) $ fmap proces (sortTerm t1) @?= Just t2 )
+    (\(t1,t2) -> testCase (printBrujin t1) $ fmap proces (sortTerm t1) @?= t2 )
     sortTermExample
 
 testTopological :: TestTree
 testTopological =  testGroup "topologicalSort" $ map
    (\(d1,d2,r) -> testCase (show d1 ++ show d2) $ topologicalSort d1 d2 @?= r) topologicalSortExample
+
 circular :: [BruijnTerm () ]
 circular =
   [ mkLet [("a",bvar 0)] $ bvar 0
@@ -54,30 +55,33 @@ noncircular =
     , mkLet [("f",lambda "a" $ appl (bvar 1)(bvar 0)),("g",lambda "a" $ appl (bvar 2)(bvar 0))] $ bvar 0
     ]
 
-sortTermExample :: [(BruijnTerm (),BruijnTerm ())]
+sortTermExample :: [(BruijnTerm (),Either (DataCycle ()) (BruijnTerm ()))]
 sortTermExample =
   [ ( mkLet [("a",bvar 0),("b",true  )] $ bvar 0
-    , mkLet [("b",true  ),("a",bvar 1)] $ bvar 1)
+    , return $ mkLet [("b",true  ),("a",bvar 1)] $ bvar 1)
 
   , ( mkLet [("a", appl (bvar 0) (bvar 1)), ("b", bvar 3 ), ("c", bvar 1)] $ bvar 2
-    , mkLet [("b", bvar 3), ("c", bvar 2), ("a", appl (bvar 1) (bvar 2))] $ bvar 0)
+    , return $ mkLet [("b", bvar 3), ("c", bvar 2), ("a", appl (bvar 1) (bvar 2))] $ bvar 0)
 
   , ( mkLet [("b", bvar 3), ("a", appl (bvar 0) (bvar 2)), ("c", bvar 2)] $ bvar 1
-    , mkLet [("b", bvar 3), ("c", bvar 2), ("a", appl (bvar 1) (bvar 2))] $ bvar 0)
+    , return $ mkLet [("b", bvar 3), ("c", bvar 2), ("a", appl (bvar 1) (bvar 2))] $ bvar 0)
 
   , ( mkLet [("c", bvar 1), ("b", bvar 3), ("a", appl (bvar 2) (bvar 1))] $ bvar 0
-    , mkLet [("b", bvar 3), ("c", bvar 2), ("a", appl (bvar 1) (bvar 2))] $ bvar 0)
+    , return $ mkLet [("b", bvar 3), ("c", bvar 2), ("a", appl (bvar 1) (bvar 2))] $ bvar 0)
+
+  , ( mkLet [("a",bvar 0)] $ mkLet [("b",bvar 0)] $bvar 0
+    , Left $ DataCycle (mkLet [("b",bvar 0)] $ bvar 0 )
+                        [Bound 0, Bound 0])
   ]
 
-
-topologicalSortExample :: [([(Char,[Char])],[(Char,[Char])] , Maybe [Char])]
+topologicalSortExample :: [([(Char,[Char])],[(Char,[Char])] , Either [Char] [Char])]
 topologicalSortExample =
-    [ ([]           , []                     , Just "")
-    , ([('a',"a")]  , []                     , Nothing)
-    , ([]           , [('a',"a")]            , Just "a")
-    , ([('a',"b")]  , []                     , Just "ba")
-    , ([]           , [('a',"b") ,('b',"a")] , Just "ba")
-    , ([('b',"a")]  , [('a',"a")]            , Just "ab")
-    , ([('b',"a")]  , [('a',"b")]            , Nothing)
-    , ([('c',"a")]  , [('a',"b") ,('b',"a")] , Just "bac")
+    [ ([]           , []                     , return "")
+    , ([('a',"a")]  , []                     , Left "aa")
+    , ([]           , [('a',"a")]            , return "a")
+    , ([('a',"b")]  , []                     , return "ba")
+    , ([]           , [('a',"b") ,('b',"a")] , return "ba")
+    , ([('b',"a")]  , [('a',"a")]            , return "ab")
+    , ([('b',"a")]  , [('a',"b")]            , Left "bab" )
+    , ([('c',"a")]  , [('a',"b") ,('b',"a")] , return "bac")
     ]

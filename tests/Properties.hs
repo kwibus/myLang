@@ -1,6 +1,6 @@
 module Properties where
 
-import Data.Maybe
+import Data.Either
 
 import Lambda
 import BruijnTerm
@@ -37,4 +37,4 @@ size (Let _ defs term) =sum (map sizeDefs  defs) + size term + 1
 size _ = 1
 
 isCirculair :: BruijnTerm i -> Bool
-isCirculair = isNothing . sortTerm
+isCirculair = isLeft. sortTerm

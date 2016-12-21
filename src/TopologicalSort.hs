@@ -2,6 +2,7 @@
 module TopologicalSort
     ( topologicalSort
     , sortTerm
+    , DataCycle (..)
     ) where
 
 import Data.List (sortBy)
@@ -17,6 +18,12 @@ import BruijnEnvironment
 import BruijnTerm
 import Lambda
 
+-- | data type when sortTerm fails, cointaining :
+--
+-- * The Let defenitions where  cycle ocure
+-- * the chain of dependencies that that let to cycle (exampel [Bound 0, Bound 1, Bound 0])
+data DataCycle i = DataCycle (BruijnTerm i)  [Bound] deriving (Eq,Show)
+
 --TODO rename (current name refers to i use it, no on how it can be used)
 type FreeVars = Set.Set Int
 
@@ -28,7 +35,7 @@ type FreeVars = Set.Set Int
 --
 -- * this function does not rename variables (bruijen index), but add tages that descips how it should be renamed. this can be done with 'ModificationTags.proces'
 
--- TODO error messages
+-- TODO consider to add the ablity find more then one
 -- TODO check if it would be easyer to refere to let defenitions with [0..Ndefs-1] instead of [Ndefs-1 .. 0]
 -- TODO split freevars accumulate and reorder Let
 -- this function finds freevars of definition's. if one of this freevars refers to other definition's in let add it as depency.
@@ -46,10 +53,10 @@ type FreeVars = Set.Set Int
 --      topologicalSort expect normal naming scheme, no relative (bruij-index's)
 --      but if you only work in fixed scope/depth the naming is fixed
 
-sortTerm :: BruijnTerm i -> Maybe (Tag.LamTerm i Bound Modify)
+sortTerm :: BruijnTerm i -> Either (DataCycle i) (Tag.LamTerm i Bound Modify)
 sortTerm term = fst <$> go 0 term
   where
-    -- go :: Int -> BruijnTerm i  -> Maybe (Tag.LamTerm i Bound Modify, FreeVars )
+    go :: Int -> BruijnTerm i  -> Either (DataCycle i) (Tag.LamTerm i Bound Modify, FreeVars )
     go _ (Val i v)  = return (Tag.Val i v,Set.empty)
     go depth (Var i b)  = return (Tag.Var i b, insert depth b Set.empty)
     go depth (Lambda i n t) = first (Tag.Lambda i n) <$> go (depth + 1) t
@@ -74,7 +81,7 @@ sortTerm term = fst <$> go 0 term
                 Lambda {} -> True
                 _ -> False
         let (funcDef,valDep) = partitionWith (isFunction .implementation) depencys  defs
-        newOrder <- topologicalSort valDep funcDef
+        newOrder <- first (makeDataCycle (Let i defs t)) $ topologicalSort valDep funcDef
         let reorderTerm = Tag.Tag $ Reorder $ order2Permutation newOrder
         let sortedDefs = map (Tag.mapImplementation reorderTerm . (\b -> bLookup b $ bFromList defs')) newOrder
         return (Tag.Let i sortedDefs $ reorderTerm t', Set.unions (removeOutScope depth freeT:newFrees))
@@ -126,12 +133,15 @@ data Tag a = Processed | StrongDepencys [a]| WeakDepencys [a] | Forbidden derivi
 
 -- | 'topologicalSort' will make a list of a dependency graph. In this list all dependency will become before the things them self.
 --
--- * program will give 'Noting' if there cyclic dependency, berceaus there exist no solution
+-- * program will give 'Left' depency-chain if there is a cyclic dependency, berceaus then there exist no solution
 --
--- * The first and second arguments are list of items/task with there dependence's.
--- The items/task of the second list may depend direct or indirect on itself without errors
+--      * the depency-chain is a list Nodes, path to the cycle, (backtrace), ending where cycle was detected.
+--      * The first and second arguments are list of items/task with there dependence's.
+--        The items/task of the second list may depend direct or indirect on itself without errors
 --
--- * if no dependency of item/task are listed then no dependency's are assumed
+--      * possible depency-chain: @[b,a,c,a]@
+--
+-- * if no dependency of a item/task are given, then no dependency's are assumed
 --
 -- example:
 --
@@ -143,7 +153,7 @@ data Tag a = Processed | StrongDepencys [a]| WeakDepencys [a] | Forbidden derivi
 --                      ]
 --                      [("me",["me","hotdog"])]
 --     :}
---Just ["puppies","dog","bun","mustard seed","vinegar","mustard","hotdog","me"]
+--Right ["puppies","dog","bun","mustard seed","vinegar","mustard","hotdog","me"]
 
 
 -- TODO rename weak strong
@@ -160,7 +170,7 @@ data Tag a = Processed | StrongDepencys [a]| WeakDepencys [a] | Forbidden derivi
 -- if visited node is tagged as forbidden its part fo cycle
 -- if node is not tagged assume no depencys so inserted direcly
 
-topologicalSort :: Ord a => [(a,[a])]-> [(a,[a])] -> Maybe [a]
+topologicalSort :: Ord a => [(a,[a])]-> [(a,[a])] -> Either [a] [a]
 topologicalSort strong weak = reverse . snd <$> foldM visit (initTags,[]) tasks
   where
     -- tasks :: [a]
@@ -170,11 +180,14 @@ topologicalSort strong weak = reverse . snd <$> foldM visit (initTags,[]) tasks
     -- visit :: (Tags a, [a]) -> a ->Maybe (Tags a, [a])
     visit (tags, order) a = case Map.lookup a tags of
         Just (StrongDepencys dependencys) -> do
-            (newtags,neworder) <- foldM visit (Map.insert a Forbidden tags ,order) dependencys
+            (newtags,neworder) <- first (a:) $foldM visit (Map.insert a Forbidden tags ,order) dependencys
             return (Map.insert a Processed newtags , a:neworder)
         Just (WeakDepencys dependencys) -> do
-            (newtags,neworder) <- foldM visit (Map.insert a Processed tags ,order) dependencys
+            (newtags,neworder) <- first (a:) $ foldM visit (Map.insert a Processed tags ,order) dependencys
             return (newtags , a:neworder)
-        Just Forbidden -> Nothing
+        Just Forbidden -> Left  [a]
         Just Processed -> return (tags,order)
         Nothing -> return (tags,a:order)
+
+makeDataCycle :: BruijnTerm i -> [Bound] -> DataCycle i
+makeDataCycle term chain = DataCycle term $ dropWhile (/= last chain ) chain
