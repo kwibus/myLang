@@ -19,7 +19,6 @@ import FreeEnvironment
 import MakeTerm
 import Operator
 import Value
-import PrettyPrint
 import ErrorCollector
 import qualified Type as T
 
@@ -306,9 +305,9 @@ testEvalProp = testGroup "propertys" $
                     t1 <- solver e
                     return $ counterexample (
                           "\neval:" ++ show expr2 ++
-                        "\n\npShow     : " ++ show (fmap pShow (bruijn2Lam e)) ++
+                        "\n\npShow     : " ++ pShow e ++
                           "\n\t::" ++ T.pShow t1 ++
-                         "\n\npShow eval: " ++ show (fmap pShow (bruijn2Lam expr2)) ++
+                         "\n\npShow eval: " ++ pShow expr2 ++
                           "\n\t::" ++ T.pShow t2)
                         $ unifys t1
                                  (T.mapVar (\ (Free i) -> Free (i + 10000)) t2)

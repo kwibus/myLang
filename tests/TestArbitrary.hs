@@ -8,7 +8,6 @@ import Properties
 import ArbitraryLambda
 
 import BruijnTerm
-import PrintBruijn
 import MakeType
 import TypeCheck
 import ErrorCollector
@@ -25,7 +24,7 @@ testshrink = testGroup "shrink"
        forAllUnTypedBruijn $ \ e -> conjoin (map welFormd (shrinkTypedBruijn e ))
 
     , testProperty "all typeable" $
-       noShrinking $ forAllTypedBruijn $ \ e -> conjoin (map (\en ->counterexample (printBrujin en) $ hasSucces $ solver en ) $ shrinkTypedBruijn  e )
+       noShrinking $ forAllTypedBruijn $ \ e -> conjoin (map (\en ->counterexample (pShow en) $ hasSucces $ solver en ) $ shrinkTypedBruijn  e )
     ]
 testGeneration :: TestTree
 testGeneration = testGroup "genration"

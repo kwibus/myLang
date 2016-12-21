@@ -30,11 +30,12 @@ readEvalPrint input = outPutDoc $ merge $ do
     ast <- mapLeft (text . show) $ parseString input
     bruijn <- mapLeft (text . show) $ lam2Bruijn ast
     t <- toEither $ mapError (showErrors input) $ solver bruijn
-    return $ text $ pShow t
+    return $ text $ Type.pShow t
 
 merge :: Either a a -> a
 merge (Right a) = a
 merge (Left a) = a
+
 
 outPutDoc :: Doc -> InputT IO ()
 outPutDoc doc = liftIO $ putDoc $ doc <> line

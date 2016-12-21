@@ -84,7 +84,6 @@ executable sample
                       ,Logic
                       ,MakeTerm
                       ,SearchTree
-                      ,PrintBruijn
 
 test-suite tests
   Hs-Source-Dirs:      tests
@@ -127,7 +126,6 @@ test-suite tests
                       ,MakeTagedTerm
                       ,TestModificationTags
                       ,TestTopologicalSort
-                      ,PrintBruijn
   Ghc-Options:          -Wall -fno-ignore-asserts -threaded -rtsopts
   default-language:    Haskell2010
 

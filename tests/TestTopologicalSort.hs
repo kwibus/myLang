@@ -7,7 +7,6 @@ import BruijnEnvironment
 import MakeTerm
 import TopologicalSort
 import BruijnTerm
-import PrintBruijn
 import ModificationTags
 import Properties
 
@@ -17,17 +16,17 @@ testTopologicalSort = testGroup "topologicalSort"
 
 testNonCirculair :: TestTree
 testNonCirculair = testGroup "noncircular#" $  map
-    (\t -> testCase (printBrujin t) $  isCirculair t @?= False)
+    (\t -> testCase (pShow t) $  isCirculair t @?= False)
     noncircular
 
 testCirculair :: TestTree
 testCirculair = testGroup "circular" $ map
-    (\t -> testCase (printBrujin t) $ isCirculair t @?= True)
+    (\t -> testCase (pShow t) $ isCirculair t @?= True)
     circular
 
 testSort :: TestTree
 testSort = testGroup "sortTerm" $ map
-    (\(t1,t2) -> testCase (printBrujin t1) $ fmap proces (sortTerm t1) @?= t2 )
+    (\(t1,t2) -> testCase (pShow t1) $ fmap proces (sortTerm t1) @?= t2 )
     sortTermExample
 
 testTopological :: TestTree

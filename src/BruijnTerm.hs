@@ -4,6 +4,7 @@ module BruijnTerm
   , bruijn2Lam
   , lam2Bruijn
   , defsBounds
+  , pShow
   ) where
 
 import Control.Monad.Except
@@ -14,6 +15,7 @@ import Data.List (foldl')
 import Name
 import BruijnEnvironment
 import Lambda
+import qualified PrettyPrint as Lambda
 
 -- | 'Lambda' term where The Bruijn Index are used.
 --
@@ -30,6 +32,9 @@ type BruijnTerm i = LamTerm i Bound
 data UndefinedVar i n = UndefinedVar i n -- ^ i is extra information (location of variable) and n is the name
     deriving (Show, Eq)
 
+pShow :: BruijnTerm () -> String
+pShow = either show Lambda.pShow . bruijn2Lam
+--
 -- | Converts 'BruijnTerm' to a 'LambTerm'
 --
 -- This function fails with 'Left' 'UndefinedVar' if there is a free variable.
