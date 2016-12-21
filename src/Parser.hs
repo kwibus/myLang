@@ -39,42 +39,37 @@ parse parser file sting = case PS.runParserT parser () file sting of
     Right a -> first Parsec a
     Left e -> Left $ Infix e
 
-pSatisfy :: (Token -> Bool) -> Parser Token
-pSatisfy f = getToken <$> PS.tokenPrim showToken nextPos testToken
+pToken :: (Token -> Maybe a) -> Parser a
+pToken f =  PS.tokenPrim showToken nextPos testToken
    where
      showToken = show . getToken
-     testToken x = if f (getToken x) then Just x else Nothing
+     testToken x = f (getToken x)
      nextPos _ x _ = getposition x
 
+pSatisfy :: (Token -> Bool) -> Parser ()
+pSatisfy f = pToken ( guard .f )
+
 pSymbol :: ReservedSymbol -> Parser ()
-pSymbol s = void $ pSatisfy (== ReservedS s)
+pSymbol s = pSatisfy (== ReservedS s)
 
 pKeyWord :: ReservedWord -> Parser ()
-pKeyWord w = void $ pSatisfy (== ReservedW w)
+pKeyWord w = pSatisfy (== ReservedW w)
 
 pIdentifier :: Parser String
-pIdentifier = do
-  Identifier str <- pSatisfy (\ x -> case x of
-    Identifier _ -> True
-    _ -> False)
-  return str
+pIdentifier = pToken (\ x -> case x of
+    Identifier str -> Just str
+    _ -> Nothing )
 
 pBool :: Parser Bool
-pBool = do
-  CapIdentifier c <- pSatisfy (\ x -> case x of
-        CapIdentifier _ -> True
-        _ -> False)
-  case c of
-    "True" -> return True
-    "False" -> return False
-    _ -> PS.parserZero
+pBool = pToken (\ x -> case x of
+        CapIdentifier "True" -> Just True
+        CapIdentifier "False" -> Just False
+        _ -> Nothing)
 
 pDouble :: Parser Double
-pDouble = do
-  Number n <- pSatisfy (\ x -> case x of
-    Number _ -> True
-    _ -> False)
-  return n
+pDouble =pToken (\ x -> case x of
+    Number n -> Just n
+    _ -> Nothing )
 
 pLambda :: Parser Expresion
 pLambda = do

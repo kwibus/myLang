@@ -5,11 +5,16 @@ import Control.Monad.State.Strict
 import MakeType
 import Associativity
 
-pop :: State Stack Value
-pop = do
+pop :: (Value -> a )-> State Stack a
+pop f = do
     s <- get
     put $ tail s
-    return $ head s
+    return $ f $ head s
+
+popDouble :: State Stack Double
+popDouble = pop (\v -> case v of
+    Prim (MyDouble n) -> n
+    _ -> error $ "expeceted doubel on the stack. but got" ++ show v)
 
 operators :: [Value]
 operators = [plus, multiply]
@@ -27,8 +32,8 @@ plus = BuildIn
 
 evalplus :: State Stack Value
 evalplus = do
-    Prim (MyDouble a) <- pop
-    Prim (MyDouble b) <- pop
+    a <- popDouble
+    b <- popDouble
     return $ Prim $ MyDouble $ a + b
 
 multiply :: Value
@@ -44,6 +49,6 @@ multiply = BuildIn
 
 evalMultiply :: State Stack Value
 evalMultiply = do
-    Prim (MyDouble a) <- pop
-    Prim (MyDouble b) <- pop
+    a <- popDouble
+    b <- popDouble
     return $ Prim $ MyDouble $ a * b
