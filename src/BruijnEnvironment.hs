@@ -90,6 +90,9 @@ bExtend n = bDrop (-n)
 bFilter :: (a -> Bool) -> BruijnEnv a -> BruijnEnv a
 bFilter f env = env {bruijnMap = IM.filter f $ bruijnMap env}
 
+bSize :: BruijnEnv a -> Int
+bSize = IM.size . bruijnMap
+
 bSplitAt :: Int -> BruijnEnv  a -> (BruijnEnv a, [a])
 bSplitAt n b = (b{bruijnDepth = newDepth,bruijnMap = low}, maybeToList pivot ++ map snd (IM.toAscList high))
   where (low,pivot,high) = IM.splitLookup newDepth(bruijnMap b )

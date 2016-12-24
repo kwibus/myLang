@@ -53,10 +53,10 @@ type FreeVars = Set.Set Int
 --      topologicalSort expect normal naming scheme, no relative (bruij-index's)
 --      but if you only work in fixed scope/depth the naming is fixed
 
-sortTerm :: BruijnTerm i -> Either (DataCycle i) (Tag.LamTerm i Bound Modify)
+sortTerm :: BruijnTerm i -> Either (DataCycle i) (Tag.LamTerm i Bound (Modify i))
 sortTerm term = fst <$> go 0 term
   where
-    go :: Int -> BruijnTerm i  -> Either (DataCycle i) (Tag.LamTerm i Bound Modify, FreeVars )
+    go :: Int -> BruijnTerm i  -> Either (DataCycle i) (Tag.LamTerm i Bound (Modify i), FreeVars )
     go _ (Val i v)  = return (Tag.Val i v,Set.empty)
     go depth (Var i b)  = return (Tag.Var i b, insert depth b Set.empty)
     go depth (Lambda i n t) = first (Tag.Lambda i n) <$> go (depth + 1) t
