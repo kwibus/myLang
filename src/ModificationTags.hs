@@ -2,8 +2,11 @@
 module ModificationTags
     ( Modify(..)
     , Ref  (..)
+    , LamTerm (..)
     , proces
     , rember
+    , piek
+    , Def (..)
     )
 where
 

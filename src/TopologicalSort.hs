@@ -12,11 +12,11 @@ import qualified Data.Map as Map
 import qualified Data.Set as Set
 import Data.Bifunctor
 
-import ModificationTags
+import ModificationTags as Free
 import qualified TaggedLambda as Tag
 import BruijnEnvironment
 import BruijnTerm
-import Lambda
+import qualified Lambda as Lam
 
 -- | data type when sortTerm fails, cointaining :
 --
@@ -57,19 +57,19 @@ sortTerm :: BruijnTerm i -> Either (DataCycle i) (Tag.LamTerm i Bound (Modify i)
 sortTerm term = fst <$> go 0 term
   where
     go :: Int -> BruijnTerm i  -> Either (DataCycle i) (Tag.LamTerm i Bound (Modify i), FreeVars )
-    go _ (Val i v)  = return (Tag.Val i v,Set.empty)
-    go depth (Var i b)  = return (Tag.Var i b, insert depth b Set.empty)
-    go depth (Lambda i n t) = first (Tag.Lambda i n) <$> go (depth + 1) t
-    go depth (Appl t1 t2) = do
+    go _ (Lam.Val i v)  = return (Tag.Val i v,Set.empty)
+    go depth (Lam.Var i b)  = return (Tag.Var i b, insert depth b Set.empty)
+    go depth (Lam.Lambda i n t) = first (Tag.Lambda i n) <$> go (depth + 1) t
+    go depth (Lam.Appl t1 t2) = do
         (t1',free1) <- go depth t1
         (t2',free2) <- go depth t2
         return (Tag.Appl t1' t2', Set.union free1  free2)
-    go depth (Let i defs t) = do
+    go depth (Lam.Let i defs t) = do
         let ndefs = length defs
         let newDepth = depth + ndefs
         (t',freeT) <- go newDepth t
         (defs', frees) <- unzip <$> mapM
-            (\ (Def i_ n_ t_) -> first (Tag.Def i_ n_)<$> go newDepth t_)
+            (\ (Lam.Def i_ n_ t_) -> first (Tag.Def i_ n_)<$> go newDepth t_)
             defs
 
         let (newFrees,defSelfs) = unzip $ map (splitPast depth . removeOutScope newDepth) frees
@@ -78,10 +78,10 @@ sortTerm term = fst <$> go 0 term
                 (map (Bound . (newDepth - )) . Set.toList)
                 defSelfs
         let isFunction term_ = case term_ of
-                Lambda {} -> True
+                Lam.Lambda {} -> True
                 _ -> False
-        let (funcDef,valDep) = partitionWith (isFunction .implementation) depencys  defs
-        newOrder <- first (makeDataCycle (Let i defs t)) $ topologicalSort valDep funcDef
+        let (funcDef,valDep) = partitionWith (isFunction .Lam.implementation) depencys  defs
+        newOrder <- first (makeDataCycle (Lam.Let i defs t)) $ topologicalSort valDep funcDef
         let reorderTerm = Tag.Tag $ Reorder $ order2Permutation newOrder
         let sortedDefs = map (Tag.mapImplementation reorderTerm . (\b -> bLookup b $ bFromList defs')) newOrder
         return (Tag.Let i sortedDefs $ reorderTerm t', Set.unions (removeOutScope depth freeT:newFrees))
