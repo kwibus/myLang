@@ -39,6 +39,7 @@ testReorderTag = testGroup "Reorder"
         reorder [1,0] $ T.appl (T.bvar 0) (T.bvar 1 ))
         @?=
         lambda "a" ( lambda "b" $ appl (bvar 1) (bvar 0))
+
     -- , testCase "reorder non existent" $
     --     proces (T.lambda "a" $ reorder [1,0] $ T.bvar 0)
     --     @?= lambda "a" ( bvar 1)
@@ -54,7 +55,10 @@ testSubstituteTag = testGroup "Substitut"
 
     , testCase "[a/1.0] \\b.a = \\b.1.0" $
         proces (sub (double 1) (T.lambda "b" $ T.bvar 1 )) @?= lambda "b" (double 1.0)
-    --
+
+    , testCase "([a/1.0]a)a =1.0a" $
+        proces (T.appl (sub (double 1) $ T.bvar 0) (T.bvar 0)) @?= appl (double 1)(bvar 0)
+
     -- -- , testCase "[a/\\c.b,b/1,0] a = \\c.1.0" $
     -- --     let env = bFromList [lambda "c" (bvar 1),double 1]
     -- --     in substituteEnv env  (bvar 1)  @?= lambda "c" (double 1.0)

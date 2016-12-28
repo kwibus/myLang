@@ -35,7 +35,7 @@ type FreeVars = Set.Set Int
 --
 -- * this function does not rename variables (bruijen index), but add tages that descips how it should be renamed. this can be done with 'ModificationTags.proces'
 
--- TODO consider to add the ablity find more then one
+-- TODO consider to add the ablity find more then one error
 -- TODO check if it would be easyer to refere to let defenitions with [0..Ndefs-1] instead of [Ndefs-1 .. 0]
 -- TODO split freevars accumulate and reorder Let
 -- this function finds freevars of definition's. if one of this freevars refers to other definition's in let add it as depency.
@@ -126,7 +126,6 @@ order2Permutation :: [Bound] -> [Bound]
 order2Permutation order = map fst $ sortBy (comparing snd ) relation
   where
     relation = zip (map Bound [0..]) $ reverse order -- (old, new) (reverse because bruijn-index 0 reverse to last defined)
-
 
 data Tag a = Processed | StrongDepencys [a]| WeakDepencys [a] | Forbidden deriving Show
 -- type Tags a=  Map.Map a (Tag a)
