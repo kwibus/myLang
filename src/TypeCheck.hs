@@ -9,7 +9,6 @@ import Data.Bifunctor
 
 import ErrorCollector
 import Value
-import Lambda
 import Type
 import BruijnTerm
 import BruijnEnvironment

@@ -1,7 +1,6 @@
 module MakeTerm where
 
 import BruijnTerm
-import Lambda
 import Value
 import BruijnEnvironment
 import Name

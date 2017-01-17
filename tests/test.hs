@@ -13,7 +13,7 @@ import TestType
 import TestLogic
 import TestSearchTree
 import TestTopologicalSort
-import TestModificationTags
+import TestModify
 
 main :: IO ()
 main = defaultMain tests
@@ -23,7 +23,7 @@ tests = testGroup "tests"
     [ testSearchTree
     , testLogic
     , testArbitrary
-    , testModificationTags
+    , testModify
     , testTypeChecker
     , testType
     , testPrettyPrintLambda

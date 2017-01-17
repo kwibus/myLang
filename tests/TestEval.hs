@@ -20,7 +20,7 @@ import Operator
 import Value
 import ErrorCollector
 import qualified Type as T
-import ModificationTags
+import Modify
 
 testEval :: TestTree
 testEval = testGroup "eval"

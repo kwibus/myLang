@@ -11,7 +11,6 @@ import Info
 import PrettyPrint
 import Parser
 import Lambda
-import Name
 import TestSetParseShow
 
 testPrettyPrintLambda :: TestTree

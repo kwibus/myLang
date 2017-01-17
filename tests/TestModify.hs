@@ -1,16 +1,17 @@
-module TestModificationTags where
+module TestModify where
 
 import Test.Tasty
 import Test.Tasty.HUnit
 import ModificationTags
+import Modify
 import qualified TaggedLambda as T
 import BruijnEnvironment
 import BruijnTerm
 import qualified MakeTagedTerm as T
 import MakeTerm
 
-testModificationTags :: TestTree
-testModificationTags = testGroup "modifcation tags"
+testModify :: TestTree
+testModify = testGroup "modifcation tags"
     [ testApplyModify
     , testReorderTag
     , testsubstituteTag

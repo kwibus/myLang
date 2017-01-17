@@ -6,9 +6,8 @@ import FreeEnvironment
 import BruijnEnvironment
 import Type
 import BruijnTerm
-import Lambda
 import Info
-import Lexer (toChar,reservedSymbols)
+import Lexer (toChar, reservedSymbols)
 
 data TypeError i =
       UnifyAp (BruijnTerm i) Type Type [UnificationError]
@@ -36,12 +35,12 @@ instance Eq UnificationError where
 showErrors :: String -> [TypeError SourcePos] -> Doc
 showErrors str = vcat . map (showError str)
 
-showError :: String -> TypeError SourcePos-> Doc
+showError :: String -> TypeError SourcePos -> Doc
 showError str (UnifyAp expr t1 t2 err ) = text (showPosition (getPosition expr)) <+> text "TypeError " <$>
         indent 4 ( showUnifyApError str expr t1 t2 err)
 showError _ _ = text "No error messages implemented"
 
-showUnifyApError :: String -> BruijnTerm SourcePos-> Type -> Type -> [UnificationError] -> Doc
+showUnifyApError :: String -> BruijnTerm SourcePos -> Type -> Type -> [UnificationError] -> Doc
 showUnifyApError str e@(Appl e1 e2) t1 t2 _ =
   let compleetDictonarie = mkDictonarie [t1, t2]
       localShow t = text $ pShowWithDic t compleetDictonarie
@@ -59,31 +58,31 @@ showUnifyApError _ _ _ _ _ = text "No error messages implemented"
 
 
 showLine :: Int -> Int -> String -> [String]
-showLine start n str = take n $ drop (start - 1 )$ lines str
+showLine start n str = take n $ drop (start - 1 ) $ lines str
 
 getsource :: BruijnTerm SourcePos -> String -> Doc
 getsource term str =
     if sourceLine start /= sourceLine end
-    then  vsep $ map text  srcLines
-    else text $ tillEndColumn (sourceColumn end)$
+    then vsep $ map text srcLines
+    else text $ tillEndColumn (sourceColumn end) $
           seekColumn (sourceColumn start)
           (head srcLines )
   where
     srcLines = showLine (sourceLine start) (sourceLine start - sourceLine end + 1) str
-    end   = getLastWordPos term
+    end = getLastWordPos term
     start = getPosition term
 
 seekColumn :: Int -> String -> String
-seekColumn n = drop (n-1)
+seekColumn n = drop (n - 1)
 
-tillEndColumn:: Int -> String -> String
+tillEndColumn :: Int -> String -> String
 tillEndColumn n str = begin ++ tillEndWord rest
   where
-    (begin, rest)=splitAt n str
+    (begin, rest) = splitAt n str
 
 tillEndWord :: String -> String
 tillEndWord [] = []
-tillEndWord (s:str) = s: takeWhile (flip notElem (' ': map toChar reservedSymbols)) str
+tillEndWord (s : str) = s : takeWhile (flip notElem (' ' : map toChar reservedSymbols)) str
 
 -- trim :: String -> String
 -- trim s = reverse $ dropWhile isSpace $ reverse $ dropWhile isSpace s

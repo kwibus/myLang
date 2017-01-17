@@ -4,7 +4,6 @@ import qualified ExampleLambda as L
 import MakeTerm
 
 import Lambda
-import Name
 import Operator
 
 basic :: [(String, LamTerm () Name)]

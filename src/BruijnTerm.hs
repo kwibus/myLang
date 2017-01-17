@@ -1,5 +1,6 @@
 module BruijnTerm
-  ( BruijnTerm
+  ( module Lambda
+  , BruijnTerm
   , UndefinedVar (UndefinedVar)
   , bruijn2Lam
   , lam2Bruijn

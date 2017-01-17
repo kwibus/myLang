@@ -10,8 +10,7 @@ import Control.Monad.State
 import qualified Data.Map as Map
 import qualified Data.Set as Set
 import Data.Bifunctor
-
-import ModificationTags as Free
+import ModificationTags
 import qualified TaggedLambda as Tag
 import BruijnEnvironment
 import BruijnTerm

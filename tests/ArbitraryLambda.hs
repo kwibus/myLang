@@ -13,7 +13,6 @@ import GenState
 import ArbitraryValue
 import MakeTerm
 import BruijnTerm
-import Lambda
 import BruijnEnvironment
 import FreeEnvironment
 import Type

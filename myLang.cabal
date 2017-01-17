@@ -52,6 +52,7 @@ library
                       ,Name
                       ,Associativity
                       ,ModificationTags
+                      ,Modify
                       ,Unprocessed
   Ghc-Options:          -Wall -fno-ignore-asserts
   default-language:    Haskell2010
@@ -133,7 +134,7 @@ test-suite tests
                       ,TestType
                       ,TestTypeCheker
                       ,MakeTagedTerm
-                      ,TestModificationTags
+                      ,TestModify
                       ,TestTopologicalSort
   Ghc-Options:          -Wall -fno-ignore-asserts -threaded -rtsopts
   default-language:    Haskell2010

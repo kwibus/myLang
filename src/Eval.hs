@@ -17,7 +17,7 @@ import BruijnTerm
 import Value
 import BruijnEnvironment
 import Type
-import ModificationTags as Mod
+import Modify
 import TaggedLambda as Tag
 import LambdaF
 import Lambda as Lam

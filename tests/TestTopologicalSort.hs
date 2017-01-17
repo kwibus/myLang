@@ -7,7 +7,7 @@ import BruijnEnvironment
 import MakeTerm
 import TopologicalSort
 import BruijnTerm
-import ModificationTags
+import Modify
 import Properties
 
 testTopologicalSort :: TestTree

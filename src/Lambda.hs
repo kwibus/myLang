@@ -1,4 +1,9 @@
-module Lambda where
+module Lambda
+    ( module Lambda
+    , Name ()
+    , Value ()
+    )
+where
 
 import Associativity
 import Name

@@ -6,7 +6,6 @@ import ArbitraryLambda (genTyped)
 
 import PrettyPrint
 import Lambda
-import Name
 
 main :: IO ()
 main = do

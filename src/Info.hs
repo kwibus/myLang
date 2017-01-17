@@ -7,7 +7,6 @@ module Info
     ) where
 
 import Lambda
-import Name
 import Text.Parsec.Pos
 
 type Expresion = LamTerm SourcePos Name
