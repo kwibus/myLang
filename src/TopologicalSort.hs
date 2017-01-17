@@ -32,7 +32,7 @@ type FreeVars = Set.Set Int
 --
 -- * this function return 'Nothing' when this is not possible (@ let a = a in a @)
 --
--- * this function does not rename variables (bruijen index), but add tages that descips how it should be renamed. this can be done with 'ModificationTags.proces'
+-- * this function does not rename variables (bruijen index), but add tages that descips how it should be renamed. this can be done with 'ModificationTags.applyModify'
 
 -- TODO consider to add the ablity find more then one error
 -- TODO check if it would be easyer to refere to let defenitions with [0..Ndefs-1] instead of [Ndefs-1 .. 0]

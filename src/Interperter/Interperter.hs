@@ -36,7 +36,6 @@ merge :: Either a a -> a
 merge (Right a) = a
 merge (Left a) = a
 
-
 -- TODO this will give no color on Windows
 -- https://hackage.haskell.org/package/ansi-wl-pprint-0.6.7.3/docs/Text-PrettyPrint-ANSI-Leijen.html
 outPutDoc :: Doc -> InputT IO ()

@@ -27,9 +27,10 @@ library
                       ,mtl
                       ,transformers
                       ,ansi-wl-pprint
-                      ,dlist
+                      ,assert-failure
 
   exposed-modules:     Lambda
+                      ,LambdaF
                       ,TaggedLambda
                       ,TopologicalSort
                       ,Parser
@@ -51,6 +52,7 @@ library
                       ,Name
                       ,Associativity
                       ,ModificationTags
+                      ,Unprocessed
   Ghc-Options:          -Wall -fno-ignore-asserts
   default-language:    Haskell2010
 
@@ -67,7 +69,7 @@ executable interperter
                       ,containers
                       ,parsec
                       ,parsec-numbers
-                      ,dlist
+
   default-language:    Haskell2010
 
 executable sample
@@ -105,7 +107,9 @@ test-suite tests
                       ,containers
                       ,transformers
                       ,checkers
-                      ,dlist
+                      ,parsec
+                      ,parsec-numbers
+                      ,ansi-wl-pprint
 
   other-modules:      ArbiRef
                       ,ArbitraryLambda
@@ -161,3 +165,13 @@ Benchmark bench
                     ,deepseq
                     ,deepseq-generics
     default-language:    Haskell2010
+
+  other-modules:    ArbiRef
+                    ,ArbitraryLambda
+                    ,ArbitraryValue
+                    ,ExampleBruijn
+                    ,GenState
+                    ,Logic
+                    ,MakeTerm
+                    ,NFDataInstances
+                    ,SearchTree

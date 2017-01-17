@@ -1,114 +1,170 @@
 {-# LANGUAGE LambdaCase, FlexibleContexts #-}
-module ModificationTags
-    ( Modify(..)
-    , Ref  (..)
-    , LamTerm (..)
-    , proces
-    , rember
-    , piek
-    , Def (..)
-    )
-where
+-- | this Module defines tags for delaying modifications of BruijnTerm's
+--
+-- For some modification you have to rewrite to hole subtree. but if you tag ("TaggedLambda") that subtree with you modification, you can batch you modifications and do them only when needed.
+module ModificationTags where
 
-import Control.Monad.Reader
+import Control.Monad.State.Lazy
 import BruijnEnvironment
 import qualified TaggedLambda as Tag
 import qualified Lambda as Lam
+import LambdaF
 import BruijnTerm
-import Name
-import Value
 
 data Modify i = Reorder [Bound] -- ^ @[1, 0, 2]@ will make bound 0 -> 1, 1 -> 0 2 -> 2
               | Substitut (Lam.LamTerm i Bound) -- ^ wil Substitut Bound 0 term. If higher index if deeper
               deriving (Eq, Show)
 
-data LamTerm i n a = Lambda i Name a
-            | Appl a a
-            | Var i n
-            | Val i Value
-            | Let i [Def i n a] a
-            deriving (Eq, Show)
+addTag :: Modify i -> Unprocessed i -> Unprocessed i
+addTag m (Unprocessed t) = Unprocessed $ Tag.Tag m t
 
-instance Functor (LamTerm i n) where
-    fmap f (Lambda i n t) = Lambda i n $ f t
-    fmap f (Appl t1 t2)  = Appl (f t1) (f t2)
-    fmap _ (Var i n) = Var i n
-    fmap _ (Val i v)  = Val i v
-    fmap f (Let i defs t ) = Let i (map fmapDef defs) $ f t
-      where
-        fmapDef (Def  i_ n_ t_)  = Def i_ n_ $ f t_
+-- TODO split file
+applyModify :: Tag.LamTerm i Bound (Modify i ) -> Lam.LamTerm i Bound
+applyModify term = evalState (proces (Unprocessed term)) empty
 
-data Def i n a = Def i Name a deriving (Eq, Show)
+-- | when you walk over tree you have to know wich part have already been modified and which not
+-- TODO rename inprogress
+newtype Unprocessed i = Unprocessed (Tag.LamTerm i Bound (Modify i)) deriving (Show, Eq)
 
-data Ref i = Subst (Lam.LamTerm i Bound)  | Keep Int deriving (Show, Eq)
+sub :: BruijnTerm i -> Unprocessed i -> Unprocessed i
+sub = addTag . Substitut
 
-rember :: Modify i -> BruijnEnv (Ref i) -> BruijnEnv (Ref i)
-rember (Reorder order) env = bReorder env order
-rember (Substitut term) env = bInsert (Subst term) env
+reorder :: [Int] -> Unprocessed i -> Unprocessed i
+reorder = addTag . Reorder . map Bound
 
-data Unprocessed i = Unprocessed Int (Tag.LamTerm i Bound (Modify i))
-                deriving Show
+-- TODO rename remove use reader
+localT :: MonadState (SymbolTable i) m => m a -> m a
+localT m = do
+    oldSymbolTable <- get
+    a <- m
+    put oldSymbolTable
+    return a
 
+data Symbol i = Subst Int (Lam.LamTerm i Bound)
+           | Undefined Int
+           | Keep Int Int (Lam.LamTerm i Bound)
+           deriving (Show, Eq)
+
+remember :: Modify i -> SymbolTable i -> SymbolTable i
+remember modification s@SymbolTable {getEnv = env} = remember' modification
+  where
+    remember' (Reorder order)  = s {getEnv = bReorder env order}
+    remember' (Substitut term) = s {getEnv = bInsert (Subst (bruijnDepth env + 1) term) env}
+
+-- rename
+insertT :: [Symbol i] -> SymbolTable i -> SymbolTable i
+insertT refs s@SymbolTable {getEnv = env, getDepth = depth}
+    = s {getEnv = bInserts refs env
+        , getDepth = depth + length refs}
+
+-- TODO remove
+getLambdaT :: Unprocessed i -> Tag.LamTerm i Bound (Modify i)
+getLambdaT (Unprocessed l) = l
+
+-- TODO env rename name , get simbolTabe
+data SymbolTable i = SymbolTable
+            { getDepth :: Int
+            , getEnv :: BruijnEnv (Symbol i)}
+              deriving (Eq, Show)
+
+empty :: SymbolTable i
+empty = SymbolTable 0 bEmtyEnv
+
+-- | peek allows you to see the modified tree, without modifying hole tree
+--   it uses a state monad to remember witch modifications it still have to to
 -- TODO find better name
-piek :: MonadReader (BruijnEnv (Ref i)) m => Unprocessed i -> (LamTerm i Bound (Unprocessed i) -> m a)  -> m a
-piek (Unprocessed depth term) f = case term of
-    Tag.Tag m t -> local (rember m)( piek (Unprocessed depth t) f)
-    Tag.Val i v -> f (Val i v)
+-- peak
+peek :: MonadState (SymbolTable i) m
+     => Unprocessed i
+    -> (LamTermF i Bound (Unprocessed i) -> m a)
+    -> m a
+peek (Unprocessed term) f = case term of
+    Tag.Tag m t -> localT $ modify (remember m) >> peek (Unprocessed t) f
+    Tag.Val i v -> f (ValF i v)
     Tag.Var i b@(Bound n) -> do
-        env <- ask
+        env <- gets getEnv
+        depth <- gets getDepth
         case bMaybeLookup b env of
-            Just (Keep depthDefined) -> f (Var i $ Bound $ depth - depthDefined - 1)
-            Just (Subst t2) -> let increase = depth - nsubst (bDrop (n+1) env)
-                               in local (const bEmtyEnv) $ piek (Unprocessed 0 $ Tag.tag $ incFree increase t2) f -- TODO this can faster?
-            Nothing -> f ( Var i (Bound $ n - nsubst env))
+            Just (Keep depthDefined orignalsize foundTerm) ->
+                let varname = Bound $ depth - depthDefined - 1
+                    newTagTerm = Tag.tag $ incFree (bruijnDepth env - orignalsize) foundTerm
+                in f ( PtrF i varname $ Unprocessed newTagTerm)
 
-    Tag.Appl t1 t2 -> f (Appl (Unprocessed depth t1) (Unprocessed depth t2))
-    Tag.Lambda i n t ->
-        local (bInsert $ Keep depth) $ f (Lambda i n $ Unprocessed (depth +1) t)
-    Tag.Let i defs t ->
-        local (bInserts $ map Keep [depth .. newDepth -1]) $
-        f (Let i (map piekDef defs ) (Unprocessed newDepth t ))
+            Just (Undefined depthDefined) -> f (VarF i $ Bound $ depth - depthDefined - 1)
+            Just (Subst orignalsize t2) ->
+                    -- TODO this can faster?
+                let newTagTerm = Unprocessed $ Tag.tag $ incFree (bruijnDepth env - orignalsize + 1) t2
+                in peek newTagTerm f
+            Nothing -> f ( VarF i (Bound $ n - nsubst env)) --TODO nsubst can be memorize wordt it ?
+
+    Tag.Appl t1 t2 -> f (ApplF (Unprocessed t1) (Unprocessed t2))
+    Tag.Lambda i n t -> do
+        depth <- gets getDepth
+        localT $ modify (insertT [Undefined depth] ) >> f (LambdaF i n $ Unprocessed t)
+    Tag.Let i defs t -> do
+        depth <- gets getDepth
+        let newDepth = depth + nDefs
+        localT ( do
+                modify $ insertT $ map Undefined [depth .. newDepth - 1]
+                f (LetF i (map peekDef defs ) (Unprocessed t ))
+                 )
           where
             nDefs = length defs
-            newDepth = depth + nDefs
-            piekDef (Tag.Def i_ n_ t_) = Def i_ n_ $ Unprocessed newDepth t_
+            peekDef (Tag.Def i_ n_ t_) = DefF i_ n_ $ Unprocessed t_
 
-nsubst::  BruijnEnv (Ref i) -> Int
-nsubst = bSize . bFilter (\case
-                 Subst {}-> True
-                 _ -> False  )
+substitut :: MonadState (SymbolTable i) m => Bound -> BruijnTerm i -> m ()
+substitut b term = modify ( \ (SymbolTable depth env) -> SymbolTable (depth - 1) $
+            bReplace b (Subst (bruijnDepth env) term) env )
 
---TODO add comments
-proces :: Tag.LamTerm () Bound (Modify ())-> Lam.LamTerm () Bound
-proces term =
-  -- go term 0 bEmtyEnv
-  runReader (go $ Unprocessed 0 term) bEmtyEnv
-  where
-    go unprocced = piek unprocced $ \case
-            Var i b -> return $ Lam.Var i b
-            Val i v -> return $ Lam.Val i v
+-- TODO rename inline
+storeT :: Bound -> BruijnTerm i -> SymbolTable i -> SymbolTable i
+storeT b@(Bound offset) term (SymbolTable depth env) = SymbolTable depth $ bReplace b
+    (Keep (depth - offset - 1) (bruijnDepth env) term)
+    env
 
-            Appl t1 t2 -> do
-                t1' <-go t1
-                t2' <- go t2
+store :: MonadState (SymbolTable i) m => Bound -> BruijnTerm i -> m ()
+store b term = modify (storeT b term)
+
+nsubst :: BruijnEnv (Symbol i) -> Int
+nsubst = bSize . bFilter (\ case
+                 Subst {} -> True
+                 _ -> False)
+
+--TODO rename proces
+proces :: MonadState (SymbolTable i) m => Unprocessed i -> m (Lam.LamTerm i Bound)
+proces unprocessed = localT $ peek unprocessed $ \ case
+            PtrF i b _ -> return $ Lam.Var i b
+            VarF i b -> return $ Lam.Var i b
+            ValF i v -> return $ Lam.Val i v
+            ApplF t1 t2 -> do
+                t1' <- proces t1
+                t2' <- proces t2
                 return $ Lam.Appl t1' t2'
-            Lambda i n t -> Lam.Lambda i n <$> go t
-            Let i defs t -> Lam.Let i <$> mapM goDef defs <*> go t
-              where
-                goDef (Def i_ n_ t_) = Lam.Def i_ n_ <$> go t_
+            LambdaF i n t -> Lam.Lambda i n <$> proces t
+            LetF i defs t -> Lam.Let i <$> mapM procesDef defs <*> proces t
 
--- TODO remove duplcated incfree (also in eval)
+procesDef :: MonadState (SymbolTable i) m => DefF i Bound (Unprocessed i) -> m (Lam.Def i Bound)
+procesDef (DefF i n t) = Lam.Def i n <$> proces t
+
+--TODO move to tag
+unpeekDef :: DefF i Bound (Unprocessed i) -> Tag.Def i Bound (Modify i)
+unpeekDef (DefF i n (Unprocessed t)) = Tag.Def i n t
+
 incFree :: Int -> BruijnTerm i -> BruijnTerm i
-incFree 0 term = term
-incFree increase  term = go 0 term
+incFree = incFreeOfset 0
+
+incFreeOfset :: Int -> Int -> BruijnTerm i -> BruijnTerm i
+incFreeOfset _ 0 term = term
+incFreeOfset ofset increase term = go ofset term
   where
     go :: Int -> BruijnTerm i -> BruijnTerm i
-    go depth (Lam.Lambda i n t) =Lam.Lambda i n $ go (depth+1) t
-    go depth (Lam.Appl t1 t2) = Lam.Appl (go depth t1)(go depth t2)
-    go depth (Lam.Var i (Bound n)) | n >= depth  = Lam.Var i $ Bound $ n+increase
-                               | otherwise = Lam.Var i (Bound n)
+    go depth (Lam.Lambda i n t) = Lam.Lambda i n $ go (depth + 1) t
+    go depth (Lam.Appl t1 t2) = Lam.Appl (go depth t1) (go depth t2)
+    go depth (Lam.Var i (Bound n))
+        | n >= depth = Lam.Var i $ Bound $ n + increase
+        | otherwise = Lam.Var i (Bound n)
     go depth (Lam.Let i defs t) = Lam.Let i (fmap incDefs defs) $ go newDepth t
       where
-        newDepth = depth +length defs
+        newDepth = depth + length defs
         incDefs (Lam.Def is ns ts) = Lam.Def is ns $ go newDepth ts
     go _ (Lam.Val i v) = Lam.Val i v

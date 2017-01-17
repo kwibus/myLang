@@ -3,8 +3,6 @@ module Parser (
   ParseError (..)
 ) where
 
-
--- import Data.Either.Unwrap
 import Data.Bifunctor
 import Control.Monad.Identity
 import Control.Monad.Trans.Class
@@ -40,14 +38,14 @@ parse parser file sting = case PS.runParserT parser () file sting of
     Left e -> Left $ Infix e
 
 pToken :: (Token -> Maybe a) -> Parser a
-pToken f =  PS.tokenPrim showToken nextPos testToken
+pToken f = PS.tokenPrim showToken nextPos testToken
    where
      showToken = show . getToken
      testToken x = f (getToken x)
      nextPos _ x _ = getposition x
 
 pSatisfy :: (Token -> Bool) -> Parser ()
-pSatisfy f = pToken ( guard .f )
+pSatisfy f = pToken ( guard . f )
 
 pSymbol :: ReservedSymbol -> Parser ()
 pSymbol s = pSatisfy (== ReservedS s)
@@ -67,7 +65,7 @@ pBool = pToken (\ x -> case x of
         _ -> Nothing)
 
 pDouble :: Parser Double
-pDouble =pToken (\ x -> case x of
+pDouble = pToken (\ x -> case x of
     Number n -> Just n
     _ -> Nothing )
 
@@ -127,11 +125,11 @@ pDefinition = do
   term <- pLambdaTerm
   return $ Def pos (Name str) $ foldr (uncurry Lambda ) term args
 
-withPos :: Parser a -> Parser (SourcePos,a)
+withPos :: Parser a -> Parser (SourcePos, a)
 withPos pars = do
     pos <- PS.getPosition
     a <- pars
-    return (pos,a)
+    return (pos, a)
 
 pLine :: Parser Expresion
 pLine = do
@@ -157,4 +155,4 @@ pParentheses = do
     pSymbol LeftParenthesis
     term <- pLambdaTerm
     pSymbol RightParenthesis
-    return $ term
+    return term

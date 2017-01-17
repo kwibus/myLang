@@ -26,7 +26,7 @@ testCirculair = testGroup "circular" $ map
 
 testSort :: TestTree
 testSort = testGroup "sortTerm" $ map
-    (\ (t1, t2) -> testCase (pShow t1) $ fmap proces (sortTerm t1) @?= t2 )
+    (\ (t1, t2) -> testCase (pShow t1) $ fmap applyModify (sortTerm t1) @?= t2 )
     sortTermExample
 
 testTopological :: TestTree

@@ -3,7 +3,6 @@ module TestTypeCheker (testTypeChecker) where
 import Test.Tasty
 import Test.Tasty.HUnit
 import Test.Tasty.QuickCheck
--- import Control.Monad.Except
 import Data.IntMap
 
 import qualified ExampleBruijn as B
