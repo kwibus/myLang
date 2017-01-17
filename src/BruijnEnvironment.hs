@@ -11,7 +11,6 @@ import Data.List
 --   defs / bfromlist is [2,1,0]
 --   Reorder ?
 
-
 -- | Bound is wrapper arround Int and is used to represent BruijnIndex.
 -- BruijnIndex rever to a env, but are dependent on the surrounding terms.
 -- If you add extra lambda:
@@ -21,7 +20,7 @@ import Data.List
 -- * \\0  ==>   \\1
 --
 -- You have to modify the Inde
-newtype Bound = Bound Int deriving (Eq, Show,Ord)
+newtype Bound = Bound Int deriving (Eq, Show, Ord)
 
 --TODO replace with list
 --TODO Fix name to BruijnEnv
@@ -32,13 +31,22 @@ data BruijnEnv a = BruijnState
 
 -- TODO maybe import to debug module
 instance Show a => Show (BruijnEnv a) where
-    show env = '[' :  intercalate"," ( map (show. snd) $ reverse $ IM.toDescList  $ bruijnMap env )++ "<]"
+    show env = '[' :
+        intercalate "," ( map showindex $ Bound <$> fromToZero (depth - 1))
+        ++ "<" ++ show depth ++ "]"
+      where
+        depth = bruijnDepth env
+        showindex i = fromMaybe "_" $ show <$> bMaybeLookup i env
+
+fromToZero :: Int -> [Int]
+fromToZero n | n < 0 = []
+             | otherwise = n : fromToZero (pred n)
 
 toInt :: Bound -> Int
 toInt (Bound i) = i
 
 bNull :: BruijnEnv a -> Bool
-bNull BruijnState {bruijnDepth = 0}  = True
+bNull BruijnState {bruijnDepth = 0} = True
 bNull _ = False
 
 bEmtyEnv :: BruijnEnv a
@@ -47,7 +55,7 @@ bEmtyEnv = BruijnState
     , bruijnMap = IM.empty
     }
 bMember :: Bound -> BruijnEnv a -> Bool
-bMember b e= isJust $ bMaybeLookup b e
+bMember b e = isJust $ bMaybeLookup b e
 
 bLookup :: Bound -> BruijnEnv a -> a
 bLookup (Bound i) BruijnState {bruijnDepth = depth, bruijnMap = m} =
@@ -62,7 +70,7 @@ bInsert a b@BruijnState {bruijnDepth = depth, bruijnMap = m} =
      b {bruijnDepth = depth + 1, bruijnMap = IM.insert depth a m }
 
 -- when env= bInserts [1,2,3] bEmtyEnv  then bLookup Bound 0 will be 3; Bruij counts left to righ
-bInserts :: [a] ->  BruijnEnv a -> BruijnEnv a
+bInserts :: [a] -> BruijnEnv a -> BruijnEnv a
 bInserts list env = foldl' (flip bInsert) env list
 
 -- TODO can remove duplcate code by using bInserts
@@ -80,8 +88,8 @@ bReplace (Bound i) a b@BruijnState {bruijnDepth = depth, bruijnMap = m} =
 
 -- TODO ??? could remove duplecate cate by using bSplitAt
 bDrop :: Int -> BruijnEnv a -> BruijnEnv a
-bDrop n b = b {bruijnDepth = newDepth, bruijnMap = newM}
-    where (newM,_) = IM.split newDepth(bruijnMap b )
+bDrop n b = assert (n >= 0 && n <= bruijnDepth b) b {bruijnDepth = newDepth, bruijnMap = newM}
+    where (newM, _) = IM.split newDepth (bruijnMap b)
           newDepth = bruijnDepth b - n
 
 bExtend :: Int -> BruijnEnv a -> BruijnEnv a
@@ -93,19 +101,18 @@ bFilter f env = env {bruijnMap = IM.filter f $ bruijnMap env}
 bSize :: BruijnEnv a -> Int
 bSize = IM.size . bruijnMap
 
-bSplitAt :: Int -> BruijnEnv  a -> (BruijnEnv a, [a])
-bSplitAt n b = (b{bruijnDepth = newDepth,bruijnMap = low}, maybeToList pivot ++ map snd (IM.toAscList high))
-  where (low,pivot,high) = IM.splitLookup newDepth(bruijnMap b )
+bSplitAt :: Int -> BruijnEnv a -> (BruijnEnv a, [a])
+bSplitAt n b = (b {bruijnDepth = newDepth, bruijnMap = low}, maybeToList pivot ++ map snd (IM.toAscList high))
+  where (low, pivot, high) = IM.splitLookup newDepth (bruijnMap b)
         newDepth = bruijnDepth b - n
 
-
-instance Functor BruijnEnv  where
-    fmap f b = b{bruijnMap = fmap f (bruijnMap b)}
+instance Functor BruijnEnv where
+    fmap f b = b {bruijnMap = fmap f (bruijnMap b)}
 
 mapWithBound :: (Bound -> a -> b) -> BruijnEnv a -> BruijnEnv b
-mapWithBound f b@BruijnState{bruijnDepth = dept,bruijnMap =m} =
-    b {bruijnMap = IM.mapWithKey (\index a-> f (Bound $! dept -index -1)a  ) m}
+mapWithBound f b@BruijnState {bruijnDepth = dept, bruijnMap = m} =
+    b {bruijnMap = IM.mapWithKey (\ index a -> f (Bound $! dept - index - 1) a) m}
 
 bReorder :: BruijnEnv a -> [Bound] -> BruijnEnv a
-bReorder env order = foldl go env $ zip order [0..]
-  where go envN (bi , j)  = bReplace (Bound j) (bLookup bi env) envN
+bReorder env order = foldl go env $ zip order [0 ..]
+  where go envN (bi , j) = bReplace (Bound j) (bLookup bi env) envN

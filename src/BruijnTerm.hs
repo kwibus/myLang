@@ -34,7 +34,7 @@ data UndefinedVar i n = UndefinedVar i n -- ^ i is extra information (location o
 
 pShow :: BruijnTerm () -> String
 pShow = either show Lambda.pShow . bruijn2Lam
---
+
 -- | Converts 'BruijnTerm' to a 'LambTerm'
 --
 -- This function fails with 'Left' 'UndefinedVar' if there is a free variable.
@@ -61,11 +61,11 @@ bruijn2Lam t = go t []
         go (Let i defs t1) env = Let i <$> newDefs <*> go t1 newEnv
           where
             newDefs = reverse <$> mapM
-                (\ (newN,Def i0 _ t0) -> Def i0 newN <$> go t0 newEnv)
+                (\ (newN, Def i0 _ t0) -> Def i0 newN <$> go t0 newEnv)
                 (zip newNames $ reverse defs)
-            newEnv =  newNames ++ env
+            newEnv = newNames ++ env
             newNames :: [Name]
-            newNames = foldl'  (\ env' (Def _ n _) ->  mkNewName n (env++env'): env')  [] defs
+            newNames = foldl' (\ env' (Def _ n _) -> mkNewName n (env ++ env') : env') [] defs
 
 -- | Converts 'Lambda' with named variabls to 'Lambda' with Bruijn Index's
 --
@@ -101,10 +101,5 @@ getAt [] _ = Nothing
 getAt (x : _) 0 = Just x
 getAt (_ : xs) n = getAt xs (n - 1)
 
-
-fromToZero :: Int -> [Int]
-fromToZero n | n < 0 = []
-             | otherwise = n : fromToZero (pred  n)
-
-defsBounds :: [Def i Bound] -> [Bound]
-defsBounds defs =Bound <$> fromToZero (length defs - 1)
+defsBounds :: [a] -> [Bound]
+defsBounds defs = Bound <$> fromToZero (length defs - 1)
