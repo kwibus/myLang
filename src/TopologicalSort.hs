@@ -4,7 +4,6 @@ module TopologicalSort
     , sortTerm
     , DataCycle (..)
     ) where
-
 import Data.List (sortBy)
 import Data.Ord
 import Control.Monad.State
@@ -22,7 +21,7 @@ import qualified Lambda as Lam
 --
 -- * The Let defenitions where  cycle ocure
 -- * the chain of dependencies that that let to cycle (exampel [Bound 0, Bound 1, Bound 0])
-data DataCycle i = DataCycle (BruijnTerm i)  [Bound] deriving (Eq,Show)
+data DataCycle i = DataCycle (BruijnTerm i) [Bound] deriving (Eq, Show)
 
 --TODO rename (current name refers to i use it, no on how it can be used)
 type FreeVars = Set.Set Int
@@ -56,61 +55,63 @@ type FreeVars = Set.Set Int
 sortTerm :: BruijnTerm i -> Either (DataCycle i) (Tag.LamTerm i Bound (Modify i))
 sortTerm term = fst <$> go 0 term
   where
-    go :: Int -> BruijnTerm i  -> Either (DataCycle i) (Tag.LamTerm i Bound (Modify i), FreeVars )
-    go _ (Lam.Val i v)  = return (Tag.Val i v,Set.empty)
-    go depth (Lam.Var i b)  = return (Tag.Var i b, insert depth b Set.empty)
+    go :: Int -> BruijnTerm i -> Either (DataCycle i) (Tag.LamTerm i Bound (Modify i), FreeVars )
+    go _ (Lam.Val i v) = return (Tag.Val i v, Set.empty)
+    go depth (Lam.Var i b) = return (Tag.Var i b, insert depth b Set.empty)
     go depth (Lam.Lambda i n t) = first (Tag.Lambda i n) <$> go (depth + 1) t
     go depth (Lam.Appl t1 t2) = do
-        (t1',free1) <- go depth t1
-        (t2',free2) <- go depth t2
-        return (Tag.Appl t1' t2', Set.union free1  free2)
+        (t1', free1) <- go depth t1
+        (t2', free2) <- go depth t2
+        return (Tag.Appl t1' t2', Set.union free1 free2)
     go depth (Lam.Let i defs t) = do
         let ndefs = length defs
         let newDepth = depth + ndefs
-        (t',freeT) <- go newDepth t
+        (t', freeT) <- go newDepth t
         (defs', frees) <- unzip <$> mapM
-            (\ (Lam.Def i_ n_ t_) -> first (Tag.Def i_ n_)<$> go newDepth t_)
+            (\ (Lam.Def i_ n_ t_) -> first (Tag.Def i_ n_) <$> go newDepth t_)
             defs
 
-        let (newFrees,defSelfs) = unzip $ map (splitPast depth . removeOutScope newDepth) frees
+        let (newFrees, defSelfs) = unzip $ map (splitPast depth . removeOutScope newDepth) frees
         let depencys = zip (defsBounds defs) $
                 map
-                (map (Bound . (newDepth - )) . Set.toList)
+                (map (Bound . (newDepth -)) . Set.toList)
                 defSelfs
         let isFunction term_ = case term_ of
                 Lam.Lambda {} -> True
                 _ -> False
-        let (funcDef,valDep) = partitionWith (isFunction .Lam.implementation) depencys  defs
+        let (funcDef, valDep) = partitionWith (isFunction . Lam.implementation) depencys defs
         newOrder <- first (makeDataCycle (Lam.Let i defs t)) $ topologicalSort valDep funcDef
         let reorderTerm = Tag.Tag $ Reorder $ order2Permutation newOrder
-        let sortedDefs = map (Tag.mapImplementation reorderTerm . (\b -> bLookup b $ bFromList defs')) newOrder
-        return (Tag.Let i sortedDefs $ reorderTerm t', Set.unions (removeOutScope depth freeT:newFrees))
+        let sortedDefs = map (Tag.mapImplementation reorderTerm . (\ b -> bLookup b $ bFromList defs')) newOrder
+        return (Tag.Let i sortedDefs $ reorderTerm t', Set.unions (removeOutScope depth freeT : newFrees))
 
 -- | given current depth add bruijen variable to set of freevarabls
 insert :: Int -> Bound -> FreeVars -> FreeVars
-insert depth (Bound b) = Set.insert (depth-b) -- store depth-defined = current depth - bruijn-index (how much higer is defined)
+-- store depth-defined = current depth - bruijn-index (how much higer is defined)
+insert depth (Bound b) = Set.insert (depth - b)
 
 -- | given current depth and freeVars its gives freevars that are inscope
 removeOutScope :: Int -> FreeVars -> FreeVars
-removeOutScope depth vars = fst $ Set.split (depth+1) vars -- remove all variable that are defined deep then current depth
+-- remove all variable that are defined deep then current depth
+removeOutScope depth vars = fst $ Set.split (depth + 1) vars
 
 -- | split from low to including a, and reset
-splitPast :: Ord a => a -> Set.Set a-> (Set.Set a, Set.Set a)
+splitPast :: Ord a => a -> Set.Set a -> (Set.Set a, Set.Set a)
 splitPast pivot set =
     if member
-    then (Set.insert pivot less,bigger)
-    else (less,bigger)
+    then (Set.insert pivot less, bigger)
+    else (less, bigger)
   where
       (less, member, bigger) = Set.splitMember pivot set
 
 -- TODO could keep orinal order
-partitionWith :: (b -> Bool) ->[a] -> [b] -> ([a],[a])
-partitionWith f as bs = foldl split ([],[]) $ zip as bs
+partitionWith :: (b -> Bool) -> [a] -> [b] -> ([a], [a])
+partitionWith f as bs = foldl split ([], []) $ zip as bs
   where
-    split (trues,falses) (a,b) =
+    split (trues, falses) (a, b) =
         if f b
-            then (a:trues,   falses)
-            else (trues  , a:falses)
+            then (a : trues,     falses)
+            else (trues    , a : falses)
 
 -- TODO maybe rename?
 -- | when given new order in witch  bruijenvariable are defined it returns a list of subsitutions to correct subtems.
@@ -125,10 +126,11 @@ partitionWith f as bs = foldl split ([],[]) $ zip as bs
 order2Permutation :: [Bound] -> [Bound]
 order2Permutation order = map fst $ sortBy (comparing snd ) relation
   where
-    relation = zip (map Bound [0..]) $ reverse order -- (old, new) (reverse because bruijn-index 0 reverse to last defined)
+    -- (old, new) (reverse because bruijn-index 0 reverse to last defined)
+    relation = zip (map Bound [0 ..]) $ reverse order
 
-data Tag a = Processed | StrongDepencys [a]| WeakDepencys [a] | Forbidden deriving Show
--- type Tags a=  Map.Map a (Tag a)
+data Tag a = Processed | StrongDepencys [a] | WeakDepencys [a] | Forbidden deriving Show
+type Tags a = Map.Map a (Tag a)
 
 -- | 'topologicalSort' will make a list of a dependency graph. In this list all dependency will become before the things them self.
 --
@@ -154,7 +156,6 @@ data Tag a = Processed | StrongDepencys [a]| WeakDepencys [a] | Forbidden derivi
 --     :}
 --Right ["puppies","dog","bun","mustard seed","vinegar","mustard","hotdog","me"]
 
-
 -- TODO rename weak strong
 -- TODO give meaning ful error messages
 --
@@ -162,31 +163,36 @@ data Tag a = Processed | StrongDepencys [a]| WeakDepencys [a] | Forbidden derivi
 --
 -- if node has no dependency it can be inserted directly
 -- if node has dependency's mark is as Forbidden.
---      (if its children are its parent have a cycle, if its node witch may refer to itself mark it instead as Processed)
+--      (if its children are its parent have a cycle, if its node witch is allowed refer to itself mark it instead as Processed)
 --      do all of its depencys first
 --      tag this node as Processed and insert node
 -- if the node is tagged as Processed it`s already checked  and inserted so go to next
 -- if visited node is tagged as forbidden its part fo cycle
 -- if node is not tagged assume no depencys so inserted direcly
 
-topologicalSort :: Ord a => [(a,[a])]-> [(a,[a])] -> Either [a] [a]
-topologicalSort strong weak = reverse . snd <$> foldM visit (initTags,[]) tasks
+topologicalSort :: Ord a => [(a, [a])] -> [(a, [a])] -> Either [a] [a]
+topologicalSort strong weak = reverse . snd <$> foldM visit (initTags, []) tasks
   where
     -- tasks :: [a]
-    tasks = map fst strong  ++  map fst weak
+    tasks = map fst strong ++ map fst weak
     -- initTags :: Tags a
     initTags = Map.fromList $ map (second StrongDepencys) strong ++ map (second WeakDepencys ) weak
-    -- visit :: (Tags a, [a]) -> a ->Maybe (Tags a, [a])
+    -- visit :: (Tags a, [a]) -> a ->Either [a] (Tags a, [a])
     visit (tags, order) a = case Map.lookup a tags of
         Just (StrongDepencys dependencys) -> do
-            (newtags,neworder) <- first (a:) $foldM visit (Map.insert a Forbidden tags ,order) dependencys
-            return (Map.insert a Processed newtags , a:neworder)
+            (newtags, neworder) <- first (a :) $ foldM visit (Map.insert a Forbidden tags, order) dependencys
+            return (Map.insert a Processed newtags, a : neworder)
         Just (WeakDepencys dependencys) -> do
-            (newtags,neworder) <- first (a:) $ foldM visit (Map.insert a Processed tags ,order) dependencys
-            return (newtags , a:neworder)
-        Just Forbidden -> Left  [a]
-        Just Processed -> return (tags,order)
-        Nothing -> return (tags,a:order)
+            (newtags, neworder) <- first (a :) $ foldM (weakvisit a) (tags, order) dependencys
+            return (Map.insert a Processed newtags, a : neworder)
+        Just Forbidden -> Left [a]
+        Just Processed -> return (tags, order)
+        Nothing -> return (tags, a : order)
+    weakvisit :: Ord a => a -> (Tags a, [a]) -> a -> Either [a] (Tags a, [a])
+    weakvisit parrent (tags, order) a = case Map.lookup a tags of
+        Just (WeakDepencys _) -> visit (Map.insert parrent Processed tags, order) a
+        Just (StrongDepencys _) -> visit (Map.insert parrent Forbidden tags, order) a
+        _ -> visit (tags, order) a
 
 makeDataCycle :: BruijnTerm i -> [Bound] -> DataCycle i
 makeDataCycle term chain = DataCycle term $ dropWhile (/= last chain ) chain
