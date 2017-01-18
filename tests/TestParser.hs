@@ -8,6 +8,7 @@ import Test.QuickCheck.Property
 import ArbitraryLambda
 import TestSetParseShow
 import MakeTerm
+import TestUtils
 
 import Name
 import Lambda
@@ -98,9 +99,9 @@ testString string expected
     expectM = return expected
 
 testCaseParser :: String -> LamTerm () Name -> TestTree
-testCaseParser string expected = testCase string $ case testString string expected of
-    Nothing -> return  ()
-    Just messages -> assertFailure  messages
+testCaseParser string expected = testCase (removeNewLines string) $ case testString string expected of
+    Nothing -> return ()
+    Just messages -> assertFailure messages
 
 parserFail :: String -> TestTree
 parserFail string = testCase ("fail at:" ++ string ) $ case parseString string of

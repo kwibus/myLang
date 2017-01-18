@@ -9,6 +9,7 @@ import TopologicalSort
 import BruijnTerm
 import Modify
 import Properties
+import TestUtils
 
 testTopologicalSort :: TestTree
 testTopologicalSort = testGroup "topologicalSort"
@@ -16,17 +17,17 @@ testTopologicalSort = testGroup "topologicalSort"
 
 testNonCirculair :: TestTree
 testNonCirculair = testGroup "noncircular" $ map
-    (\ t -> testCase (pShow t) $ isCirculair t @?= False)
+    (\ t -> testCase (removeNewLines $ pShow t) $ isCirculair t @?= False)
     noncircular
 
 testCirculair :: TestTree
 testCirculair = testGroup "circular" $ map
-    (\ t -> testCase (pShow t) $ isCirculair t @?= True)
+    (\ t -> testCase (removeNewLines $ pShow t) $ isCirculair t @?= True)
     circular
 
 testSort :: TestTree
 testSort = testGroup "sortTerm" $ map
-    (\ (t1, t2) -> testCase (pShow t1) $ fmap applyModify (sortTerm t1) @?= t2 )
+    (\ (t1, t2) -> testCase (removeNewLines $ pShow t1) $ fmap applyModify (sortTerm t1) @?= t2 )
     sortTermExample
 
 testTopological :: TestTree

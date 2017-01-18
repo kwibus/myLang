@@ -136,6 +136,7 @@ test-suite tests
                       ,MakeTagedTerm
                       ,TestModify
                       ,TestTopologicalSort
+                      ,TestUtils
   Ghc-Options:          -Wall -fno-ignore-asserts -threaded -rtsopts
   default-language:    Haskell2010
 

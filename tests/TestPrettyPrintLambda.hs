@@ -5,13 +5,14 @@ import Test.Tasty.HUnit
 import Test.Tasty.QuickCheck
 import Control.Arrow
 
+import TestSetParseShow
+import TestUtils
 import ArbitraryLambda
 
 import Info
 import PrettyPrint
 import Parser
 import Lambda
-import TestSetParseShow
 
 testPrettyPrintLambda :: TestTree
 testPrettyPrintLambda = testGroup "pShow"
@@ -35,7 +36,7 @@ testPShowAdvanced :: TestTree
 testPShowAdvanced = testGroup "Advanced" $ map testPShowExample advanced
 
 testPShowExample :: (String, LamTerm () Name) -> TestTree
-testPShowExample (expected, inputTerm) = testCase expected $ pShow inputTerm @?= expected
+testPShowExample (expected, inputTerm) = testCase (removeNewLines expected) $ pShow inputTerm @?= expected
 
 testNoRedundantParens :: TestTree
 testNoRedundantParens = testProperty "no redundant parenthesis" $ forAllUnTypedLambda ( \ term ->
