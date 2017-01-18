@@ -4,7 +4,6 @@ import Data.Maybe
 import Test.QuickCheck.Gen
 import Control.Monad.State.Class
 import Control.Monad
-import SearchTree
 
 import Logic
 import Name
@@ -14,7 +13,7 @@ import Type
 import TypeCheck
 import ErrorCollector
 import Control.Monad.State.Strict
-
+import SearchTree
 data GenState n = State
   { freeNames :: [String]
   , tEnv :: BruijnEnv (String, Free)
@@ -30,8 +29,14 @@ defualtGenState = State
 type Generater a = LogicGen (Env, Int) SearchTree a
 type Env = FreeEnv Type
 
-runGenerartor ::Generater a -> Gen (Maybe a)
-runGenerartor g = fmap listToMaybe $ pruneT 100 3 $ evalStateT g (fEmtyEnv, 0)
+runGenerartor :: Generater a -> SearchTree Gen a
+runGenerartor g = evalStateT g (fEmtyEnv, 0)
+
+generateGen :: Generater a -> Gen (Maybe a)
+generateGen g = listToMaybe <$> pruneT 1000 4 ( runGenerartor g)
+
+generateList :: Generater a -> Gen [a]
+generateList = foundT . runGenerartor
 
 unifyGen :: Maybe Type -> Type -> Generater ()
 unifyGen Nothing _ = return ()

@@ -54,7 +54,7 @@ testLogic = testGroup "Logic"
     ]
 
 allJust :: Show a => TestName -> Generater a -> TestTree
-allJust name g = testPropertyWith name (runGenerartor g ) isJust
+allJust name g = testPropertyWith name (generateGen g ) isJust
 
 testPropertyWith :: (Testable prop, Show a) => TestName -> Gen a -> (a -> prop) -> TestTree
 testPropertyWith name gen test = singleTest name $ QC $ forAll gen test

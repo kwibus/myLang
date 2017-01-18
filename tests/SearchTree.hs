@@ -105,17 +105,16 @@ instance Monad m => MonadPlus (SearchTree m ) where
 foundT :: Functor m => SearchTree m a -> m [a]
 foundT tree = catMaybes <$> toListT ( search tree)
 
-pruneT :: Functor m => Int -> Int -> SearchTree m a-> m [a]
-pruneT maxfailures stepBacks = fmap (prune maxfailures  stepBacks) . run . search
+pruneT :: Functor m => Int -> Int -> SearchTree m a -> m [a]
+pruneT maxfailures stepBacks = fmap (prune maxfailures stepBacks) . run . search
 
-
-prune :: Int -> Int -> Tree (Maybe a)-> [a]
+prune :: Int -> Int -> Tree (Maybe a) -> [a]
 prune maxfailures stepBacks = go [] 0
   where
-    failure ::[Tree (Maybe a)]  -> Int -> [a]
+    failure :: [Tree (Maybe a)] -> Int -> [a]
     failure stack failures
-        | failures+1 >= maxfailures = moveBack (drop stepBacks stack) 0
-        | otherwise = moveBack stack (failures +1)
+        | failures + 1 >= maxfailures = moveBack (drop stepBacks stack) 0
+        | otherwise = moveBack stack (failures + 1)
 
     moveBack [] _ = []
     moveBack (nextTry : rest) failures = go rest failures nextTry

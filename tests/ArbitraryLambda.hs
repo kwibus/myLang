@@ -39,7 +39,6 @@ shrinkTypedBruijn :: LamTerm () Bound -> [LamTerm () Bound]
 shrinkTypedBruijn = lambdaDeepShrink (flatShrink `composeShrink` elimanateBruijn) `composeShrink`
                     deepShrink shrinkVal --TODO  also shrink with eval
 
-
 shrinkUntypedBruijn :: LamTerm () Bound -> [LamTerm () Bound]
 shrinkUntypedBruijn = deepShrink (const [double 2] `composeShrink`
                                   flatShrink `composeShrink`
@@ -92,12 +91,12 @@ elimanateBruijn (Lambda () _ term) =  go 0 term
 elimanateBruijn _ = []
 
 --TODO add remove let def
-elimanateLambda ::  LamTerm () Name -> [LamTerm () Name]
+elimanateLambda :: LamTerm () Name -> [LamTerm () Name]
 elimanateLambda (Lambda () name term) = if go term then [term] else []
   where
     go (Var () n)
-      | n == name =False
-      | otherwise =True
+      | n == name = False
+      | otherwise = True
     go Val {} = True
     go (Lambda _ n t2)
       | n == name = True
@@ -113,12 +112,16 @@ genTyped = fromJust <$> genTerm (Just (TVar (Free (-1))))
 genUnTyped :: ArbiRef n => Gen (LamTerm () n )
 genUnTyped = fromJust <$> genTerm Nothing
 
-genWithType :: ArbiRef n => Type -> Gen (Maybe (LamTerm () n ))
+genWithType :: ArbiRef n => Type -> Gen (Maybe (LamTerm () n))
 genWithType t = genTerm (Just t)
 
 genTerm :: ArbiRef n => Maybe Type -> Gen ( Maybe (LamTerm () n ))
-genTerm t = sized $ \ n -> runGenerartor $ arbitraryTerm n t [] defualtGenState
+genTerm t = sized $ \ n -> generateGen $ generateTerm n t
 
+generateTerm :: ArbiRef n => Int -> Maybe Type -> Generater (LamTerm () n)
+generateTerm n t = arbitraryTerm n t [] defualtGenState
+
+-- more qonsitent names
 arbitraryTerm :: ArbiRef n => Int -> Maybe Type -> [Type] ->
       GenState n -> Generater (LamTerm () n)
 arbitraryTerm n mabeytype maxlist s
@@ -231,4 +234,3 @@ newVarRef state free = do
              then (: []) <$> choose ('a', 'z')
              else elements $ map (fst . snd) names
   return (newname, updateState state boolNewName newname free)
-
