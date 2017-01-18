@@ -3,6 +3,13 @@ module Main where
 
 import Test.DocTest
 
+-- TODO can nicer
 main :: IO ()
-main =  doctest ["-itest","-isrc","tests/MakeTerm.hs","src/Operator","src/PrettyPrint.hs","tests/Properties.hs","src/TypeCheck.hs"]
-
+main = doctest [ "-itest"
+                , "-isrc"
+                , "tests/MakeTerm.hs"
+                , "src/Operator"
+                , "src/PrettyPrint.hs"
+                , "tests/Properties.hs"
+                , "src/TypeCheck.hs"
+               ]

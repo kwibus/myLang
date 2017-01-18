@@ -33,6 +33,10 @@ data Symbol i = Subst Int (BruijnTerm i)
            | Keep Int Int (BruijnTerm i)
            deriving (Show, Eq)
 
+-- FIXME reorder (Keep,substitut) combination does not work
+-- if for some reason a subtree should be reorderd, and it contains refrence outside subtree (keep/substitut)
+-- it will also reorder that part
+
 remember :: Modify i -> SymbolTable i -> SymbolTable i
 remember modification s@SymbolTable {getEnv = env} = remember' modification
   where
@@ -60,8 +64,6 @@ empty = SymbolTable 0 bEmtyEnv
 
 -- | peek allows you to see the modified tree, without modifying hole tree
 --   it uses a state monad to remember witch modifications it still have to to
--- TODO find better name
--- peak
 peek :: MonadState (SymbolTable i) m
      => Unprocessed i
     -> (LamTermF i Bound (Unprocessed i) -> m a)
@@ -112,6 +114,9 @@ storeT b@(Bound offset) term (SymbolTable depth env) = SymbolTable depth $ bRepl
 
 store :: MonadState (SymbolTable i) m => Bound -> BruijnTerm i -> m ()
 store b term = modify (storeT b term)
+
+dropSymbol :: MonadState (SymbolTable i) m => m ()
+dropSymbol = modify (\ (SymbolTable depth env) -> SymbolTable (depth - 1) (bDrop 1 env))
 
 nsubst :: BruijnEnv (Symbol i) -> Int
 nsubst = bSize . bFilter (\ case

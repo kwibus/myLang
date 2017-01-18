@@ -29,7 +29,7 @@ boundFromState s = do
 
 updateStateBound :: GenState n -> Bool -> String -> Free -> GenState n
 updateStateBound state _ name free = state {tEnv = newTEnv}
-    where newTEnv= bInsert (name, free) (tEnv state)
+    where newTEnv = bInsert (name, free) (tEnv state)
 
 nameFromState :: GenState Name -> Generater (Name, Free )
 nameFromState s = do
@@ -37,7 +37,7 @@ nameFromState s = do
    return (Name name, f)
 
 updateStateName :: GenState n -> Bool -> String -> Free -> GenState n
-updateStateName state@State {tEnv=env } newVar name free = state {tEnv = newTEnv}
+updateStateName state@State {tEnv = env } newVar name free = state {tEnv = newTEnv}
     where newTEnv :: BruijnEnv (String, Free)
           newTEnv = bInsert (name, free) (if newVar
             then removeVar name env

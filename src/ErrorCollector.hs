@@ -58,7 +58,7 @@ toExcept errorCol = case errorCol of
     Error e -> ErrorT $ return $ Error e
     Result a -> return a
 
-throw :: e ->  ErrorCollector e a
+throw :: e -> ErrorCollector e a
 throw = Error
 
 catch :: ErrorCollector e1 a -> (e1 -> ErrorCollector e2 a ) -> ErrorCollector e2 a
@@ -69,7 +69,7 @@ catch ma f = case ma of
 throwT :: Monad m => e -> ErrorCollectorT e m a
 throwT = ErrorT . return . Error
 
-catchT :: Monad m => ErrorCollectorT  e1 m a -> ( e1 -> ErrorCollectorT e2 m a ) -> ErrorCollectorT e2 m a
+catchT :: Monad m => ErrorCollectorT e1 m a -> ( e1 -> ErrorCollectorT e2 m a ) -> ErrorCollectorT e2 m a
 catchT ema f = ErrorT $ do
     ma <- runErrorT ema
     case ma of

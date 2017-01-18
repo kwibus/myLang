@@ -14,6 +14,7 @@ import TypeCheck
 import ErrorCollector
 import Control.Monad.State.Strict
 import SearchTree
+
 data GenState n = State
   { freeNames :: [String]
   , tEnv :: BruijnEnv (String, Free)
@@ -42,7 +43,7 @@ unifyGen :: Maybe Type -> Type -> Generater ()
 unifyGen Nothing _ = return ()
 unifyGen (Just t1) t2 = do
     sub <- getSub
-    case unify (apply sub t1)(apply sub t2) >>= unifySubs sub of
+    case unify (apply sub t1) (apply sub t2) >>= unifySubs sub of
         Error {} -> mzero
         (Result sub1) -> setEnv sub1
 

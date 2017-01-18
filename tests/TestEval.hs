@@ -22,6 +22,7 @@ import ErrorCollector
 import qualified Type as T
 import Modify
 
+-- TODO test with free variables
 testEval :: TestTree
 testEval = testGroup "eval"
     [ testEvalBasic

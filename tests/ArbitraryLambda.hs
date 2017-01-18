@@ -30,9 +30,9 @@ forAllUnTypedBruijn = forAllShrink genUnTyped shrinkUntypedBruijn
 
 forAllShowShrink :: Testable prop => Gen a -> ( a -> String) -> (a -> [a]) -> (a -> prop) -> Property
 forAllShowShrink gen myShow shrinker pf = MkProperty $
-  gen >>= \x ->
+  gen >>= \ x ->
     unProperty $
-    shrinking shrinker x $ \x' ->
+    shrinking shrinker x $ \ x' ->
       counterexample (myShow x') (pf x')
 
 shrinkTypedBruijn :: LamTerm () Bound -> [LamTerm () Bound]
@@ -45,14 +45,14 @@ shrinkUntypedBruijn = deepShrink (const [double 2] `composeShrink`
                                   shrinkVal `composeShrink`
                                   elimanateBruijn)
 shrinkUntypedLambda :: LamTerm () Name -> [LamTerm () Name]
-shrinkUntypedLambda  = deepShrink (const [double 2] `composeShrink`
+shrinkUntypedLambda = deepShrink (const [double 2] `composeShrink`
                                    flatShrink `composeShrink`
                                    shrinkVal `composeShrink`
                                    elimanateLambda)
 
 shrinkVal :: LamTerm () n -> [LamTerm () n]
 shrinkVal (Val _ v) = val <$> shrinkValue v
-shrinkVal _= []
+shrinkVal _ = []
 
 flatShrink :: LamTerm () n -> [LamTerm () n]
 flatShrink (Appl t1 t2) = [t1, t2]
@@ -64,7 +64,7 @@ lambdaDeepShrink shrinker term = shrinker term ++ lambdaDeepShrink' term
           lambdaDeepShrink' _ = []
 
 deepShrink :: (LamTerm () n -> [LamTerm () n]) -> LamTerm () n -> [LamTerm () n]
-deepShrink shrinker term = shrinker  term ++ deepShrink' term
+deepShrink shrinker term = shrinker term ++ deepShrink' term
   where
     deepShrink' (Appl t1 t2) =
                 [Appl t1' t2 | t1' <- deepShrink shrinker t1 ] ++
@@ -72,12 +72,12 @@ deepShrink shrinker term = shrinker  term ++ deepShrink' term
     deepShrink' (Lambda () n t ) = Lambda () n <$> deepShrink shrinker t
     deepShrink' _ = []
 
-composeShrink :: (a -> [a]) -> (a->[a]) -> a -> [a]
-composeShrink f g a =  f a ++ g a
+composeShrink :: (a -> [a]) -> (a -> [a]) -> a -> [a]
+composeShrink f g a = f a ++ g a
 
 --TODO add remove let def
-elimanateBruijn ::  BruijnTerm () -> [BruijnTerm ()]
-elimanateBruijn (Lambda () _ term) =  go 0 term
+elimanateBruijn :: BruijnTerm () -> [BruijnTerm ()]
+elimanateBruijn (Lambda () _ term) = go 0 term
   where
     go i1 (Var () (Bound i2))
       | i1 == i2 = mzero
@@ -86,7 +86,7 @@ elimanateBruijn (Lambda () _ term) =  go 0 term
     go _ (v@Val {}) = return v
     go i (Lambda _ n t) = Lambda () n <$> go (i + 1) t
     go i (Appl t1 t2) = Appl <$> go i t1 <*> go i t2
-    go i (Let _ defs t) = Let () <$> (mapM (elimanateDef (i + length defs)) defs ) <*> go (i + length defs) t
+    go i (Let _ defs t) = Let () <$> mapM (elimanateDef (i + length defs)) defs <*> go (i + length defs) t
     elimanateDef i (Def _ n t) = Def () n <$> go i t
 elimanateBruijn _ = []
 
@@ -102,7 +102,7 @@ elimanateLambda (Lambda () name term) = if go term then [term] else []
       | n == name = True
       | otherwise = go t2
     go (Appl t1 t2) = go t1 || go t2
-    go (Let _ defs t) = not ( any (\(Def _ n _)-> n == name)defs) || (all elimanatedDef defs && go t)
+    go (Let _ defs t) = not ( any (\ (Def _ n _) -> n == name) defs) || (all elimanatedDef defs && go t)
     elimanatedDef (Def _ _ t) = go t
 elimanateLambda _ = []
 
@@ -154,7 +154,7 @@ arbitraryAppl :: ArbiRef n => Int -> Maybe Type -> [Type] ->
      GenState n -> Generater (LamTerm () n)
 arbitraryAppl size mabeytype maxlist state = do
   sizeLeft <- chooseLogic (1, size - 2)
-  let sizeRight = size - sizeLeft -1
+  let sizeRight = size - sizeLeft - 1
   case mabeytype of
     Nothing -> do
       expr1 <- arbitraryTerm sizeLeft Nothing [] state
@@ -188,40 +188,40 @@ arbitraryLet :: ArbiRef n => Int -> Maybe Type -> [Type] -> GenState n -> Genera
 arbitraryLet size t maxlist state =
     let minmalSize = 1
         maxDefs = 5
-        maxnumberDefs = min ((size -1)`div`minmalSize) (maxDefs+1)
+        maxnumberDefs = min ((size - 1) `div` minmalSize) (maxDefs + 1)
     in do
-    numberDefs <- chooseLogic (1,maxnumberDefs)
+    numberDefs <- chooseLogic (1, maxnumberDefs)
     if numberDefs <= 1
     then mzero
     else do
-            let totallExtra = (size -1) - minmalSize * numberDefs
+            let totallExtra = (size - 1) - minmalSize * numberDefs
             randomextra <- lift $ lift $ uniformBucket numberDefs totallExtra -- this will not backtrack
-            let (resultSize :varSize)= map (minmalSize +) randomextra
-            vars <- replicateM (numberDefs-1) newFreeVar
+            let (resultSize : varSize) = map (minmalSize +) randomextra
+            vars <- replicateM (numberDefs - 1) newFreeVar
             (varNames, newState) <- lift $ lift $ makeVars state vars
             let newmaxlist = maxlist ++ map TVar vars
-            term  <- arbitraryTerm resultSize t newmaxlist newState
-            defs  <- mapM (\( v, name,sizeTerm) -> do
-
-                        termN <- arbitraryTerm sizeTerm (fmap (const (TVar v)) t) maxlist newState -- TODO remove self from maxlist
+            term <- arbitraryTerm resultSize t newmaxlist newState
+            defs <- mapM (\ (v, name, sizeTerm) -> do
+                         -- TODO remove self from maxlist
+                        termN <- arbitraryTerm sizeTerm (fmap (const (TVar v)) t) maxlist newState
                         return $ Def () name termN
                         ) $ zip3 vars (map Name varNames) varSize
             return $ Let () defs term
 
-makeVars::ArbiRef n => GenState n -> [Free] -> Gen ([String],GenState n)
-makeVars state [] = return ([],state)
-makeVars state (f:fs) = do
-    (newVar,newState) <- newVarRef state f
-    (resetVar,finalState) <- makeVars newState fs
-    return (newVar:resetVar, finalState)
+makeVars :: ArbiRef n => GenState n -> [Free] -> Gen ([String], GenState n)
+makeVars state [] = return ([], state)
+makeVars state (f : fs) = do
+    (newVar, newState) <- newVarRef state f
+    (resetVar , finalState) <- makeVars newState fs
+    return (newVar : resetVar, finalState)
 
 uniformBucket :: Int -> Int -> Gen [Int]
 uniformBucket buckets totaal = do
-    randomList <- replicateM (buckets-1)$ choose (0,totaal) :: Gen [Int]
+    randomList <- replicateM (buckets - 1) $ choose (0, totaal) :: Gen [Int]
     return $ diff $ 0 : (sort randomList ++ [totaal])
     where diff :: [Int] -> [Int]
-          diff (a:b:rest) = (b-a):diff (b:rest)
-          diff [_]  = []
+          diff (a : b : rest) = (b - a) : diff (b : rest)
+          diff [_] = []
           diff [] = []
 
 newVarRef :: ArbiRef n => GenState n -> Free -> Gen (String, GenState n)

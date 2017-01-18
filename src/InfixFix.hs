@@ -23,25 +23,26 @@ fixInfix :: [(Expresion, Bool)] -- ^ List of terms in the order the appear.
 fixInfix expresions = case expresions of
     -- infix that are only applied from the left are replaced with:
     -- (+1..) == \a.(a+1..)
-    ((e, True) : _ :_) ->  fmap (Lambda (getPosition e) DummyBegin) $ -- double _ because it has to be applied from left
-            inserMissingLastVar ((Var (getPosition e) DummyBegin,False): expresions)
+    ((e, True) : _ : _) -> Lambda (getPosition e) DummyBegin <$>
+            inserMissingLastVar ((Var (getPosition e) DummyBegin, False) : expresions)
     _ -> inserMissingLastVar expresions
-    where list2Appl:: [Expresion] -> Expresion
+    where list2Appl :: [Expresion] -> Expresion
           list2Appl = foldl1 Appl
           -- shuntingYard does not work with not fully applied infix
           -- so append variable if last expresion is infix and prepend with lambda for that variable
-          inserMissingLastVar ::  [(Expresion, Bool)] -> Either InfixError Expresion
-          inserMissingLastVar stream =  case last stream of
-                   (_, False) -> toPolishNotation stream
-                   (lastE,True) -> fixEndingHiddenVariable <$> toPolishNotation  (stream++[(Var (getPosition lastE) DummyEnd ,False)])
+          inserMissingLastVar :: [(Expresion, Bool)] -> Either InfixError Expresion
+          inserMissingLastVar stream = case last stream of
+               (_, False) -> toPolishNotation stream
+               (lastE, True) -> fixEndingHiddenVariable <$> toPolishNotation
+                   (stream ++ [(Var (getPosition lastE) DummyEnd, False)])
           toPolishNotation :: [(Expresion, Bool)] -> Either InfixError Expresion
-          toPolishNotation stream = list2Appl . reverse  <$> (shuntingYard stream [] [])
+          toPolishNotation stream = list2Appl . reverse <$> shuntingYard stream [] []
           -- append variable can be remove via eta conversion
           -- for eta conversion you normally have to consider if the removed variable is used in the body
           -- but now you don't have to consider that, because its only appended on the end
           fixEndingHiddenVariable :: Expresion -> Expresion
-          fixEndingHiddenVariable (Appl e (Var _ DummyEnd))  = e
-          fixEndingHiddenVariable e  = Lambda (getPosition e) DummyEnd e
+          fixEndingHiddenVariable (Appl e (Var _ DummyEnd)) = e
+          fixEndingHiddenVariable e = Lambda (getPosition e) DummyEnd e
 
 -- |Modifyd ShuntingYard is a algoritme to convert infix to revers polish notation
 shuntingYard ::
@@ -65,14 +66,14 @@ shuntingYard ((e, True) : es) vs op = if higherThenTop e op
 -- the result of this is a value so push it on the value stack.
 shuntingYard ((e, False) : es) vs op =
     let (functionsAndArgs, rest) = break snd es
-        nonInfix = foldl1  Appl (e : map fst functionsAndArgs)
+        nonInfix = foldl1 Appl (e : map fst functionsAndArgs)
     in shuntingYard rest (nonInfix : vs) op
 
 unwindStack :: [Expresion] -> [Expresion] -> ([Expresion], [Expresion])
 unwindStack [] os = (os, [])
 unwindStack vs [] = (vs, [])
 unwindStack (v1 : v2 : vs) (o : os) = uncurry unwindStack (Appl (Appl o v2) v1 : vs, os)
-unwindStack (v : vs) (o : os) = (Appl  o v : vs, os)
+unwindStack (v : vs) (o : os) = (Appl o v : vs, os)
 
 higherThenTop :: Expresion -> [Expresion] -> Bool
 higherThenTop _ [] = True
