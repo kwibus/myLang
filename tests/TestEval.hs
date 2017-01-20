@@ -72,8 +72,7 @@ testEvalBasic = testGroup "basic"
       fullEval (appl (lambda "b" (appl B.id (bvar 0))) (double 1.0))
       @?= double 1
 
-  , testCase "(\\b.id id b)1.0" $
-      evalSteps (appl (lambda "b" (appl (appl B.id B.id) (bvar 0))) (double 1))
+  , testCase "(\\b.id id b)1.0" $ evalSteps (appl (lambda "b" (appl (appl B.id B.id) (bvar 0))) (double 1))
       @?= [ appl (appl B.id B.id) (double 1)
           , appl B.id (double 1)
           , double 1
@@ -124,59 +123,59 @@ plus1 = val $ applyValue plus (Prim $ MyDouble 1)
 -- TODO  sort and cleanup test description
 testEvalLet :: TestTree
 testEvalLet = testGroup "let"
-  [ testCase "eval let a = 1.0 in a" $
+  [ testCase "let a = 1.0 in a" $
       evalSteps (mkLet [("a", double 1) ] (bvar 0))
       @?= [ mkLet [("a", double 1) ] (double 1)
           , double 1.0]
 
-  , testCase "eval let a = 1.0 in b" $
+  , testCase "let a = 1.0 in b" $
       eval (mkLet [("a", double 1.0) ] (bvar 1))
       @?= Nothing
 
-  , testCase "evalSteps let a = 1.0 in \\b.a" $
+  , testCase "let a = 1.0 in \\b.a" $
       evalSteps (mkLet [("a", double 1) ] $ lambda "b" $ bvar 1)
       @?= []
 
-  , testCase "eval let a = 1.0 + 2.0 in a" $
+  , testCase "let a = 1.0 + 2.0 in a" $
       evalSteps (mkLet [("a", appl (appl (val plus) (double 1)) (double 2))] (bvar 0))
       @?= [ mkLet [("a", appl plus1 (double 2))] $ bvar 0
           , mkLet [("a", double 3)] $ bvar 0
           , mkLet [("a", double 3)] $ double 3
           , double 3.0]
 
-  , testCase "fullEval let  c = 1; a = let b = c in b;in a" $
+  , testCase "let c = 1; a = let b = c in b in a" $
       fullEval (mkLet [("c", double 1), ("a", mkLet [("b", bvar 1)] $ bvar 0)] $ bvar 1)
       @?= double 1
 
-  , testCase "evalSteps let b=1.0; a = b in a " $
+  , testCase "let b = 1.0; a = b in a " $
       evalSteps (mkLet [("b", double 1.0), ("a", bvar 1)] (bvar 0))
       @?= [ mkLet [("b", double 1.0), ("a", double 1.0)] $ bvar 0
           , mkLet [("b", double 1.0), ("a", double 1.0)] $ double 1
           , double 1]
 
-  , testCase "evalSteps let a = true; b = c; c = false in true " $
+  , testCase "let a = true; b = c; c = false in true " $
       evalSteps (mkLet [("a", true), ("b", bvar 2), ("c", false)] true)
       @?= [ mkLet [("a", true), ("b", true), ("c", false)] true
           , true]
 
-  , testCase "evalSteps let a=true; a = false; c = a in true " $
+  , testCase "let a = true; b = false; c = a in true " $
       evalSteps (mkLet [("a", true), ("b", false), ("c", bvar 2)] true)
       @?= [mkLet [ ("a", true), ("b", false), ("c", true)] true
           , true]
 
-  , testCase "evalSteps let a = \\b.b in a " $
+  , testCase "let a = \\b.b in a " $
       evalSteps (mkLet [("a", B.id) ] (bvar 0))
       @?= [mkLet [("a", B.id)] B.id]
 
-  , testCase "fullEval let a = \\b.1.0 in \\c.a " $
+  , testCase "let a = \\b.1.0 in \\c.a " $
       eval (mkLet [("a", lambda "b" (double 1)) ] $ lambda "c" (bvar 1))
        @?= Nothing
 
-  , testCase "evalSteps let a = \\c.b ;b=1.0 in a " $
+  , testCase "let a = \\c.b; b=1.0 in a " $
       evalSteps (mkLet [("a", lambda "c" $ bvar 1), ("b", double 1.0)] (bvar 1))
       @?= [ mkLet [("a", lambda "c" $ bvar 1), ("b", double 1.0)] $ lambda "c" $ bvar 1 ]
 
-  , testCase "evalSteps let a = let b = 1.0 in b ;in a " $
+  , testCase "let a = let b = 1.0 in b; in a " $
       evalSteps (mkLet [("a", mkLet [("b", double 1)] (bvar 0))] (bvar 0))
       @?= [ mkLet [("a", mkLet [("b", double 1)] $ double 1)] (bvar 0)
           , mkLet [("a", double 1)] (bvar 0)
@@ -184,15 +183,15 @@ testEvalLet = testGroup "let"
           , double 1.0
           ]
 
-  , testCase "eval let a = 1 + in  a" $
+  , testCase "let a = 1 + in  a" $
         eval (mkLet [("a", appl (val plus) (double 1))] $ bvar 0)
         @?= Just (mkLet [("a", plus1)] $ bvar 0 )
 
-  , testCase "eval let a = 1 + in let b = 2 in a" $
+  , testCase "let a = 1 + in let b = 2 in a" $
         eval (mkLet [("a", appl (val plus) (double 1))] $ mkLet [("b", double 2)] $ bvar 1)
         @?= Just (mkLet [("a", plus1)] $ mkLet [("b", double 2)] $ bvar 1)
 
-  , testCase "evalSteps (let a = 1.0) ;in \\b.a+b) 2.0 " $
+  , testCase "let a = 1.0 in \\b.a+b) 2.0 " $
       evalSteps (appl (mkLet [("a", double 1)]
                           (lambda "b" $ appl (appl (val plus) (bvar 1))
                                              (bvar 0)))
@@ -203,7 +202,7 @@ testEvalLet = testGroup "let"
           , mkLet [("a", double 1)] $ double 3
           , double 3]
 
-  , testCase "fullEval (let b = 1.0) ;in \\a.a+b) 2.0 " $
+  , testCase "let b = 1.0; in \\a.a+b) 2.0 " $
       fullEval (appl (mkLet [("b", double 1)]
                             (lambda "a" $ appl (appl (val plus) (bvar 0))
                                              (bvar 1)))
@@ -236,12 +235,17 @@ testEvalLet = testGroup "let"
           , true
           ]
 
-  , testCase "let c = True ;a = (\\b.c) false;in a" $
-      evalSteps (mkLet [("c", true), ("a", appl (lambda "b" (bvar 2)) false)] (bvar 0))
-      @?= [ mkLet [("c", true), ("a", bvar 1)] $ bvar 0
-          , mkLet [("c", true), ("a", true)] $ bvar 0
-          , mkLet [("c", true), ("a", true)] true
+  , testCase "(let a = True; c = (\\b.c) false in a)" $
+      evalSteps ( mkLet [("a", true), ("c", appl (lambda "b" $ bvar 2) false)] (bvar 0))
+      @?= [ mkLet [("a", true), ("c", bvar 1)] $ bvar 0
+          , mkLet [("a", true), ("c", true)] $ bvar 0
+          , mkLet [("a", true), ("c", true)] true
           , true]
+
+  -- , testCase "(let a = (\\b.a) false; in a)" $
+  --     evalSteps ( mkLet [("a",appl (lambda "b" (bvar 1)) false)] (bvar 0))
+  --     @?= [mkLet [("a",bvar 0)] (bvar 0)]
+
 
   , testCase "let a = id; b = a in b" $
       evalSteps ( mkLet [("a", B.id), ("b", bvar 1)] $ bvar 0)
@@ -266,31 +270,94 @@ testEvalLet = testGroup "let"
       @?= [ mkLet [("a", true)] true
           , true]
 
-  , testCase "let a = 1 in let b = true ; c = b in false  " $
+  , testCase "let a = 1 in let b = true; c = b in false  " $
       evalSteps (mkLet [("a", double 1)] $ mkLet [("b", true), ("c", bvar 1)] false )
       @?= [ mkLet [("a", double 1)] $ mkLet [("b", true), ("c", true)] false
           , mkLet [("a", double 1)] false
           , false]
+
+  , testCase "let x = 1 in (\\y.x)true" $
+       evalSteps (mkLet [("x", double 1)] $ appl (lambda "y" $ bvar 1) true )
+       @?= [ mkLet [("x", double 1)] $ bvar 0
+           , mkLet [("x", double 1)] $ double 1
+           , double 1]
 
   , testCase "let x = 1 + in (\\y.x)true" $
        evalSteps (mkLet [("x", appl (val plus) (double 1))] $ appl (lambda "y" $ bvar 1) true )
        @?= [ mkLet [("x", plus1)] $ appl (lambda "y" $ bvar 1) true
            , mkLet [("x", plus1)] $ bvar 0
            , mkLet [("x", plus1)] plus1
-           , plus1 ]
+           , plus1
+           ]
+
+  , testCase "let x = 1; y = x  in (\\a.x)true" $
+        evalSteps (mkLet [("x", double 1), ("y", bvar 1)] $ appl (lambda "a" $ bvar 1) true)
+        @?= [ mkLet [("x", double 1), ("y", double 1)] $ appl (lambda "a" $ bvar 1) true
+            , mkLet [("x", double 1), ("y", double 1)] $ bvar 0
+            , mkLet [("x", double 1), ("y", double 1)] $ double 1
+            , double 1
+            ]
 
   , testCase "let f = \\a.f 1 in f 2 " $
         take 4 (evalSteps (mkLet [("f", lambda "a" $ appl (bvar 1) (double 1))] $ appl (bvar 0) (double 2)))
         @?= [ mkLet [("f", lambda "a" $ appl (bvar 1) (double 1))] $
-                    appl (lambda "a" $ appl (bvar 1) (double 1)) (double 2)
+                    appl (lambda "a" $ appl (bvar 1) (double 1)) $ double 2
+            , mkLet [("f", lambda "a" $ appl (bvar 1) (double 1))] $ appl (bvar 0) (double 1)
             , mkLet [("f", lambda "a" $ appl (bvar 1) (double 1))] $
-                    appl (bvar 0) (double 1)
-            , mkLet [("f", lambda "a" $ appl (bvar 1) (double 1))] $
-                    appl (lambda "a" $ appl (bvar 1) (double 1)) (double 1)
+                    appl (lambda "a" $ appl (bvar 1) (double 1)) $ double 1
             , mkLet [("f", lambda "a" $ appl (bvar 1) (double 1))] $ appl (bvar 0) (double 1)
             ]
-  ]
 
+
+  , testCase "let f = \\a.id 1; id = id in f 2 " $
+        evalSteps (mkLet [("f", lambda "a" $ appl (bvar 1) (double 1)), ("id", B.id)] $
+                         appl (bvar 1) (double 2))
+        @?= [ mkLet [("f", lambda "a" $ appl (bvar 1) (double 1)), ("id", B.id)] $
+                    appl (lambda "a" $ appl (bvar 1) (double 1)) (double 2)
+            , mkLet [("f", lambda "a" $ appl (bvar 1) (double 1)), ("id", B.id)] $
+                    appl (bvar 0) (double 1)
+            , mkLet [("f", lambda "a" $ appl (bvar 1) (double 1)), ("id", B.id)] $
+                    appl (lambda "a" $ bvar 0) (double 1)
+            , mkLet [("f", lambda "a" $ appl (bvar 1) (double 1)), ("id", B.id)] $
+                     double 1
+            , double 1
+            ]
+
+  , testCase "let a = true; b = a in let c = a in b" $
+        evalSteps (mkLet [("a", true), ("b", bvar 1)] $ mkLet [("c", bvar 1)] $ bvar 1)
+             @?= [ mkLet [("a", true), ("b", true )] $ mkLet [("c", bvar 1)] $ bvar 1
+                 , mkLet [("a", true), ("b", true )] $ mkLet [("c", true)] $ bvar 1
+                 , mkLet [("a", true), ("b", true )] $ mkLet [("c", true)] true
+                 , mkLet [("a", true), ("b", true )] true
+                 , true
+                 ]
+  , testCase "(let f a = f a in f) True" $
+        take 4 ( evalSteps (appl (mkLet [("f", lambda "a" $ appl (bvar 1) (bvar 0))] $ bvar 0) true))
+        @?= [ appl (mkLet [("f", lambda "a" $ appl (bvar 1) (bvar 0))] $
+                lambda "a" $ appl (bvar 1) (bvar 0)) true
+            , mkLet [("f", lambda "a" $ appl (bvar 1) (bvar 0))] $ appl (bvar 0) true
+            , mkLet [("f", lambda "a" $ appl (bvar 1) (bvar 0))] $
+                appl (lambda "a" $ appl (bvar 1) (bvar 0)) true
+            , mkLet [("f", lambda "a" $ appl (bvar 1) (bvar 0))] $ appl (bvar 0) true
+            ]
+
+  , testCase "(\\a. let f b = a in f) true" $
+        evalSteps (appl (lambda "a" $ mkLet [("f", lambda "b" $ bvar 2)] $ bvar 0) true)
+        @?= [ mkLet [("f", lambda "b" true)] $ bvar 0
+            , mkLet [("f", lambda "b" true)] $ lambda "b" true
+            ]
+
+  , testCase "let f a = a true 1 in let b = 2+ in f (\\c. b)" $
+        fullEval ( mkLet [("f", lambda "a" $ appl (appl (bvar 0) true) (double 1))] $
+                   mkLet [("b", appl (val plus) (double 2))] $
+                   appl (bvar 1) (lambda "c" $ bvar 1 ) )
+        @?= double 3
+
+  , testCase "let a = true in (\\b c.a) (false)" $
+        evalSteps (mkLet [("a", true)] $ appl (lambda "b" $ lambda "c" $ bvar 2) false)
+        @?= [ mkLet [("a", true)] $ lambda "c" $ bvar 1]
+
+  ]
 testEvalProp :: TestTree
 testEvalProp = testGroup "propertys" $
   let forAllNonCiculair prop = forAllTypedBruijn $ \ e -> case sortTerm e of
