@@ -4,9 +4,10 @@ module Eval
   , evalSteps
   , fullEval
   , applyValue
-  , evalWithEnv
+  -- , evalWithEnv
   )
 where
+
 import Control.Monad.Writer
 import Control.Monad.State.Lazy
 import qualified Control.Monad.State.Strict as Strict
@@ -38,6 +39,18 @@ trans original f = fromMaybe original <$> go original
        return (addTag m <$> newT)
     go term = peek term f
 
+trans' :: Unprocessed ()
+      -> (LamTermF () Bound (Unprocessed ()) -> State (SymbolTable ()) (Maybe (Unprocessed ())))
+      -> State (SymbolTable ()) (Maybe (Unprocessed ()))
+trans' original f = go original
+  where
+    go :: Unprocessed () -> State (SymbolTable ()) (Maybe (Unprocessed ()))
+    go (Unprocessed (Tag.Tag m t)) = localT $ do
+       modify $ remember m
+       newT <- go (Unprocessed t)
+       return (addTag m <$> newT)
+    go term = peek term f
+
 -- |eval term in accordance with call by value.
 -- If a term can't be further be evaluated it will return 'Nothing'
 eval :: BruijnTerm () -> Maybe (BruijnTerm ())
@@ -46,91 +59,100 @@ eval = listToMaybe . evalSteps
 evalSteps :: BruijnTerm () -> [BruijnTerm ()]
 evalSteps term = map (applyModify . getLambdaT) evaled
     where
-    evaled = snd $ runEval term
+    evaled = evalState (evalSteps' $ Unprocessed $ Tag.tag term) empty
 
 fullEval :: BruijnTerm () -> BruijnTerm ()
-fullEval = applyModify . getLambdaT . fst . runEval
-
-runEval :: BruijnTerm () -> (Unprocessed (), [Unprocessed ()])
-runEval term = evalState (runWriterT $ evalWithEnv unprocessed) empty
+fullEval term = applyModify $ getLambdaT evaled
   where
-    unprocessed = Unprocessed $ Tag.tag term
+    evaled = evalState (fullEval' $ Unprocessed $ Tag.tag term) empty
 
-evalWithEnv :: Unprocessed () -> Evaluator (Unprocessed ())
+fullEval' :: Unprocessed () -> State (SymbolTable ()) (Unprocessed ())
+fullEval' orignal = fst <$> runWriterT (evalWithEnv orignal)
+
+evalSteps' :: Unprocessed () -> State (SymbolTable ()) [Unprocessed ()]
+evalSteps' orignal = execWriterT (evalWithEnv orignal)
+
+produce :: Monad m => a -> WriterT [a] m a
+produce a = tell [a] >> return a
+
+evalWithEnv :: Unprocessed () -> WriterT [Unprocessed ()] (State (SymbolTable ())) (Unprocessed ())
 evalWithEnv term = trans term $ \ case
     (ApplF t1 t2) -> do
         t2' <- censor (map $ appl t1) $ evalWithEnv t2
         t1' <- censor (map $ flip appl t2') $ evalWithEnv t1
         t2'' <- proces t2'
-        Just <$> unrafel t1' t2''
-        where
-          unrafel :: Unprocessed () -> BruijnTerm () -> Evaluator (Unprocessed ())
-          unrafel function argument =
-            trans function $ \ case
-                LambdaF _ _ t1'' -> do
-                    tell [sub argument t1'']
-                    substitut (Bound 0) argument
-                    censor (map (sub argument)) $ Just . sub argument <$> evalWithEnv t1''
+        result <- unrafel t1' t2''
+        return $ Just result
+      where
+        unrafel function argument = trans function $ \ case
+            (LetF _ defs subFunction) -> do
+                bdefs <- mapM procesDef defs
+                zipWithM_ store (defsBounds defs) $ map implementation bdefs
+                t <- censor (map (mkLet () defs)) $ unrafel subFunction argument
+                peek t $ \ case
+                    (ValF i v) -> Just <$> produce ( val i v)
+                    _ -> return $ Just $ mkLet () defs t
+            f -> do
+                final <- lift $ betaReduction f argument
+                case final of
+                      (Just body) -> tell [body] >> ( Just <$> evalWithEnv body)
+                      Nothing -> return Nothing
 
-                ValF _ v ->
-                    case value argument of
-                        Just v2 ->
-                            let newvalue = val () $ applyValue v v2
-                            in tell [ newvalue ] >> return ( Just newvalue)
-                        Nothing -> return Nothing
-
-                LetF _ defs t -> do
-                    bdefs <- mapM procesDef defs
-                    zipWithM_ store (defsBounds defs) $ map implementation bdefs
-                    result <- censor (map $ mkLet () defs) $ unrafel t argument
-                    peek result $ \ case
-                        (ValF _ v) -> tell [val () v] >> return (Just $ val () v)
-                        _ -> return $ Just $ mkLet () defs result
-
-                t -> do
-                        env <- get
-                        return $ error $ show (t, term, env)
-    LetF _ defs t -> do
-        defs' <- retell (\ defW -> mkLet () defW t ) $ evalDefs defs
-        t' <- censor ( map ( mkLet () defs' )) $ evalWithEnv t
+    (PtrF _ _ t) -> Just <$> produce t
+    (LetF _ defs t) -> do
+        defs' <- retell (\ defW -> mkLet () defW t) $ evalDefs defs
+        t' <- censor (map (mkLet () defs')) $ evalWithEnv t
         peek t' $ \ case
-            ValF i v ->
-                let v' = val i v
-                in tell [v'] >> return (Just v')
+            (ValF i v) -> Just <$> produce ( val i v)
             _ -> return $ Just $ mkLet () defs' t'
-
-    (PtrF _ _ foundTerm) -> do
-        tell [foundTerm]
-        return $ Just foundTerm
-
     _ -> return Nothing
 
-evalDefs :: [DefF () Bound (Unprocessed ())] -> WriterT [[DefF () Bound (Unprocessed ())]] (State (SymbolTable ())) [DefF () Bound (Unprocessed ())]
-evalDefs defs = do
-    let go n evaledDefs unevaledDefs = case unevaledDefs of
-            [] -> error "ice let without def"
-            [lasDef] -> (: []) <$> censorDef n evaledDefs lasDef
-            (currentDef : nextDefs) ->
-                do evalCurrentDef <- censorDef n evaledDefs currentDef
-                   (:) evalCurrentDef <$> go (n + 1) ( evaledDefs ++ [evalCurrentDef]) nextDefs
-    go 0 [] defs
+evalDefs :: [DefF () Bound (Unprocessed ())]
+         -> WriterT [[DefF () Bound (Unprocessed ())]]
+                 (State (SymbolTable ()))
+                 [DefF () Bound (Unprocessed ())]
+evalDefs defs = incrementalM evalDef (length defs - 1) defs
   where
-    nDefs = length defs
-    censorDef :: Int
-              -> [DefF () Bound (Unprocessed ())]
-              -> DefF () Bound (Unprocessed ())
-              -> WriterT [[DefF () Bound (Unprocessed ())]] (State ( SymbolTable ())) (DefF () Bound (Unprocessed ()))
-    censorDef n evaledDefs def = retell
-        (\ currentWriten -> evaledDefs ++ [currentWriten] ++ drop (n + 1) defs) $
-        evalDef (Bound (nDefs - n - 1), def)
-
-    evalDef :: (Bound, DefF () Bound (Unprocessed ()))
-            -> WriterT [DefF () Bound (Unprocessed () )] (State (SymbolTable ())) (DefF () Bound (Unprocessed ()) )
-    evalDef (b, DefF i n t_) = do
+    evalDef :: Int
+            -> DefF () Bound (Unprocessed ())
+            -> WriterT [DefF () Bound (Unprocessed ())]
+                    (State (SymbolTable ()))
+                    (DefF () Bound (Unprocessed ()), Int )
+    evalDef b (DefF i n t_) = do
         result <- retell ( DefF i n ) $ evalWithEnv t_
-        finResult <- proces result
-        store b finResult
-        return (DefF i n result)
+        findResult <- proces result
+        store (Bound b) findResult
+        return (DefF i n result, b - 1)
+
+incrementalM :: Monad m => (b -> a -> WriterT [a] m (a, b)) -> b -> [a] -> WriterT [[a]] m [a]
+incrementalM _ _ [] = return []
+incrementalM f b [a] = retell (: []) $ (: []) . fst <$> f b a
+incrementalM f b (a : as) = do
+    (newA, newState) <- retell (: as) $ f b a
+    censorMap (newA :) ( incrementalM f newState as)
+
+censorMap :: Monad m => (w -> w) -> WriterT [w] m w -> WriterT [w] m w
+censorMap f = censor (map f) . fmap f
+
+betaReduction :: LamTermF () Bound (Unprocessed ())
+              -> BruijnTerm ()
+              -> State (SymbolTable ()) (Maybe (Unprocessed ()))
+betaReduction function argument = case function of
+    LambdaF _ _ t -> do
+        dropSymbol
+        return $ Just $ sub argument t
+
+    ValF _ v ->
+        case value argument of
+            Just v2 -> return (Just $ val () $ applyValue v v2)
+            Nothing -> return Nothing
+
+    LetF _ defs t -> do
+        bdefs <- mapM procesDef defs
+        zipWithM_ store (defsBounds defs) $ map implementation bdefs
+        fmap (mkLet () defs) <$> trans' t (flip betaReduction argument)
+
+    _ -> return Nothing
 
 retell :: Monad m => (w -> w') -> WriterT [w] m a -> WriterT [w'] m a
 retell f = mapWriterT (fmap $ second (map f))
