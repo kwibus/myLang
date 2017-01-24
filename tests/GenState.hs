@@ -1,4 +1,5 @@
 module GenState where
+-- TODO fixnaem
 
 import Data.Maybe
 import Test.QuickCheck.Gen
