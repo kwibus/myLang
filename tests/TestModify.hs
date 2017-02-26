@@ -111,7 +111,11 @@ testsubstituteTag = testGroup "sub'stitut"
 
 testCombined :: TestTree
 testCombined = testGroup "sub'stitut and Reorder combined"
-    [ testCase "[a/d]\\b. [b<->a] [c/e]ac = \\b.ba" $
+    [ testCase "[a/true,b/a] [a<->b] b = true" $
+        applyModify (sub' true $ sub' (bvar 0) $ reorder' [1, 0] $ T.bvar 1 )
+        @?= bvar 0
+
+    , testCase "[a/d]\\b. [b<->a] [c/e]ac = \\b.ba" $
         applyModify (sub' (bvar 0) $
                 T.lambda "b" $ reorder' [1, 0] $
                 sub' (bvar 2) $

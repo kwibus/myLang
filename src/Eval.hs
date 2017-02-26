@@ -4,7 +4,9 @@ module Eval
   , evalSteps
   , fullEval
   , applyValue
-  -- , evalWithEnv
+  , evalWithEnv
+  , trans
+  , trans'
   )
 where
 

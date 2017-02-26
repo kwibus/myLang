@@ -10,6 +10,7 @@ data Associativity
   = AssoRight -- ^ Right Associative.
   | AssoLeft  -- ^ Left Associative.
   deriving Eq
+
 -- | Compare Precedence and returns true if the first argument bind tighter.
 --   It expect that the order of its argument's to be the same as the corresponding functions
 --   This is so it can take Associativity in to account

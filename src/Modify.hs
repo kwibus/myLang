@@ -82,7 +82,7 @@ peek (Unprocessed term) f = case term of
 
             Just (Undefined depthDefined) -> f (VarF i $ Bound $ depth - depthDefined - 1)
             Just (Subst orignalsize t2) ->
-                    -- TODO this can faster?
+                    -- TODO this can faster? drop part env instead of increase free?
                 let newTagTerm = Unprocessed $ Tag.tag $ incFree (bruijnDepth env - orignalsize + 1) t2
                 in peek newTagTerm f
             Nothing -> f ( VarF i (Bound $ n - nsubst env)) --TODO nsubst can be memorize wordt it ?
@@ -137,6 +137,7 @@ proces unprocessed = localT $ peek unprocessed $ \ case
 
 procesDef :: MonadState (SymbolTable i) m => DefF i Bound (Unprocessed i) -> m (Lam.Def i Bound)
 procesDef (DefF i n t) = Lam.Def i n <$> proces t
+
 incFree :: Int -> BruijnTerm i -> BruijnTerm i
 incFree = incFreeOfset 0
 

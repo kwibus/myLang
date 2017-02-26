@@ -1,10 +1,13 @@
-module TestEval (testEval
-) where
+module TestEval
+    ( testEval
+    ) where
+
 import Test.Tasty
 import Test.Tasty.HUnit
 import Test.Tasty.QuickCheck
 import Data.Maybe
 import Data.List
+import Control.Monad.State
 
 import TypeCheck
 import BruijnTerm
@@ -16,20 +19,68 @@ import TopologicalSort
 import Eval
 import FreeEnvironment
 import MakeTerm
+import qualified MakeTagedTerm as Tag
 import Operator
 import Value
 import ErrorCollector
 import qualified Type as T
+import BruijnEnvironment
+import LambdaF
 import Modify
+import qualified Unprocessed as U
 
 -- TODO test with free variables
+
 testEval :: TestTree
 testEval = testGroup "eval"
-    [ testEvalBasic
+    [ testTrans
+    , testEvalBasic
     , testEvalBuildin
     , testEvalLet
     , testEvalProp
     ]
+
+testTrans :: TestTree
+testTrans = testGroup "trans"
+    [ idempotenceTranc "a = a" (U.Unprocessed $ Tag.bvar 0)
+        empty
+        (bvar 0)
+
+    , idempotenceTranc "[a <-> b] a = b"
+        (reorder [1, 0] $ U.Unprocessed $ Tag.bvar 0)
+        (insertT [Undefined 0, Undefined 1] empty)
+        (bvar 1)
+
+    , idempotenceTranc "[a <-> b] a {a=true,b=a} = b"
+        (reorder [1, 0] $ U.Unprocessed $ Tag.bvar 0)
+        (insertT [Keep 0 2 (bvar 0), Keep 0 2 true ] empty)
+        (bvar 1)
+
+    , idempotenceTranc ""
+        (sub true $ U.Unprocessed $ Tag.bvar 1)
+        empty
+        (bvar 1)
+    ]
+
+idempotenceTranc :: String -> U.Unprocessed () -> SymbolTable () -> BruijnTerm () -> TestTree
+idempotenceTranc description example syms result = testCaseSteps description $ \ step -> do
+    step "f a"
+    evalState (proces . fromJust =<< f example) syms @?= result
+    step "f f a"
+    evalState (do
+        maybeA <- f example
+        case maybeA of
+            Just a -> Just <$> (f a >>= proces . fromJust )
+            Nothing -> return Nothing
+      ) syms
+     @?= Just result
+  where f :: U.Unprocessed () -> State (SymbolTable ()) (Maybe (U.Unprocessed ()))
+        f a = trans' a (return . idT)
+
+idT :: LamTermF () Bound (U.Unprocessed ()) -> Maybe (U.Unprocessed ())
+idT (VarF _ (Bound b)) = Just $ U.Unprocessed $ Tag.bvar b
+idT (PtrF _ _ t) = Just t
+idT _ = Nothing
 
 testEvalBasic :: TestTree
 testEvalBasic = testGroup "basic"
