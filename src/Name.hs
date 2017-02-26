@@ -12,8 +12,8 @@ data Name = Name String
 
 toString :: Name -> String
 toString (Name str) = str
-toString DummyBegin= "#"
-toString DummyEnd= "##"
+toString DummyBegin = "#"
+toString DummyEnd = "##"
 
 prettyPrint :: Name -> String
 prettyPrint (Name str) = str
@@ -22,8 +22,8 @@ prettyPrint _ = ""
 fromString :: String -> Name
 fromString str = case str of
     "" -> error "can't have empty name"
-    "#"->DummyBegin
-    "##"-> DummyEnd
+    "#" -> DummyBegin
+    "##" -> DummyEnd
     string -> Name string
 
 letters :: [String]
