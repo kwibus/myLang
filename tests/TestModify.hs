@@ -2,6 +2,7 @@ module TestModify where
 
 import Test.Tasty
 import Test.Tasty.HUnit
+import Data.Bifunctor
 
 import ModificationTags
 import BottumUp
@@ -10,6 +11,7 @@ import BruijnEnvironment
 import BruijnTerm
 import qualified MakeTagedTerm as T
 import MakeTerm
+import TestUtils
 
 testModify :: TestTree
 testModify = testGroup "modifcation tags"
@@ -19,14 +21,24 @@ testModify = testGroup "modifcation tags"
     , testCombined
     ]
 
+testIntermidiats :: String -> T.LamTerm () Bound (Modify ()) -> LamTerm () Bound -> TestTree
+testIntermidiats discription input result =
+    amplify discription
+            (\(inprocess,mtable ) -> proces mtable inprocess @?= result)
+            amplified
+    where
+      amplified = [(Unproc input,empty)
+                  , first Inproc  $ peek empty (Unproc input)
+                  , (New $applyModify input,empty)]
+
 -- TODO fixname
 reorder' :: [Int] -> T.LamTerm () Bound (Modify ()) -> T.LamTerm () Bound (Modify ())
 reorder' = T.Tag . Reorder . map Bound
 
 testApplyModify :: TestTree
 testApplyModify = testGroup "applyModify"
-    [ testCase "\\a.b" $ applyModify (T.lambda "a" $ T.bvar 1) @?= lambda "a" ( bvar 1)
-    , testCase "\\a.a" $ applyModify (T.lambda "a" $ T.bvar 0) @?= lambda "a" ( bvar 0)
+    [ testIntermidiats "\\a.b" (T.lambda "a" $ T.bvar 1) (lambda "a" ( bvar 1))
+    , testIntermidiats "\\a.a" (T.lambda "a" $ T.bvar 0) (lambda "a" ( bvar 0))
     ]
 
 testReorderTag :: TestTree
@@ -71,20 +83,24 @@ sub' = T.Tag . SubstitutT
 
 testsubstituteTag :: TestTree
 testsubstituteTag = testGroup "sub'stitut"
-    [ testCase "[a/b] a= b" $
-        applyModify ((sub' $ T.bvar 0) (T.bvar 0)) @?= bvar 0
-    , testCase "[a/1.0,b/2.0,b/3.0] b = 2" $
-        applyModify (sub' (T.double 3) $ sub' (T.double 2) $ sub' (T.double 1) $ T.bvar 1)
-        @?= double 2
+    [ testIntermidiats "[a/b] a= b"
+        ((sub' $ T.bvar 0) (T.bvar 0))
+        (bvar 0)
+    , testIntermidiats "[a/1.0,b/2.0,b/3.0] b = 2"
+        (sub' (T.double 3) $ sub' (T.double 2) $ sub' (T.double 1) $ T.bvar 1)
+        (double 2)
 
-    , testCase "[a/1.0] \\b.a = \\b.1.0" $
-        applyModify (sub' (T.double 1) (T.lambda "b" $ T.bvar 1 )) @?= lambda "b" (double 1.0)
+    , testIntermidiats "[a/1.0] \\b.a = \\b.1.0"
+        (sub' (T.double 1) (T.lambda "b" $ T.bvar 1 ))
+        (lambda "b" (double 1.0))
 
-    , testCase "([a/1.0]a)a =1.0a" $
-        applyModify (T.appl (sub' (T.double 1) $ T.bvar 0) (T.bvar 0)) @?= appl (double 1) (bvar 0)
+    , testIntermidiats "([a/1.0]a)a =1.0a"
+        (T.appl (sub' (T.double 1) $ T.bvar 0) (T.bvar 0))
+        (appl (double 1) (bvar 0))
 
-    , testCase "[b/1] [a/b] \\c.a = \\b.1.0" $
-        applyModify (sub' (T.double 1) $ sub' (T.bvar 0) (T.lambda "b" $ T.bvar 1 )) @?= lambda "b" (double 1.0)
+    , testIntermidiats "[b/1] [a/b] \\c.a = \\b.1.0"
+        (sub' (T.double 1) $ sub' (T.bvar 0) (T.lambda "b" $ T.bvar 1 ))
+        (lambda "b" (double 1.0))
 
     -- , testCase "[a/\\c.b,b/1,0] a = \\c.1.0" $ --FIXME
     --     let env = bFromList [lambda "c" (bvar 1),double 1]
@@ -94,43 +110,45 @@ testsubstituteTag = testGroup "sub'stitut"
     --     let env = bFromList [bvar 0,bvar 2]
     --     in sub'stituteEnv env  (bvar 1)  @?= bvar 2
 
-    , testCase "[a/c] \\b.a = \\b.c" $
-        applyModify ( sub' (T.bvar 0) (T.lambda "b" $ T.bvar 1)) @?= lambda "b" (bvar 1)
+    , testIntermidiats "[a/c] \\b.a = \\b.c"
+        ( sub' (T.bvar 0) (T.lambda "b" $ T.bvar 1))
+        (lambda "b" (bvar 1))
 
-    , testCase "[a/c] \\b.c = \\b.c" $
-        applyModify ( sub' (T.bvar 0) (T.lambda "b" $ T.bvar 2)) @?= lambda "b" (bvar 1)
+    , testIntermidiats "[a/c] \\b.c = \\b.c"
+        (sub' (T.bvar 0) (T.lambda "b" $ T.bvar 2))
+        (lambda "b" (bvar 1))
 
-    , testCase "[a/c] \\b.d = \\b.d" $
-        applyModify ( sub' (T.bvar 0) (T.lambda "b" $ T.bvar 3)) @?= lambda "b" (bvar 2)
+    , testIntermidiats "[a/c] \\b.d = \\b.d"
+        (sub' (T.bvar 0) (T.lambda "b" $ T.bvar 3))
+        (lambda "b" (bvar 2))
 
-    , testCase "[a/d]\\b.[c/d]ac = \\b.dd" $
-        applyModify (sub' (T.bvar 0) $ T.lambda "b" $ sub' (T.bvar 2 ) $ T.appl (T.bvar 2) (T.bvar 0))
-        @?= lambda "b" ( appl (bvar 1) (bvar 1))
+    , testIntermidiats "[a/d]\\b.[c/d]ac = \\b.dd"
+        (sub' (T.bvar 0) $ T.lambda "b" $ sub' (T.bvar 2 ) $ T.appl (T.bvar 2) (T.bvar 0))
+        (lambda "b" ( appl (bvar 1) (bvar 1)))
 
-    , testCase "[a/d]\\b.[c/e]ac = \\b.de" $
-        applyModify (sub' (T.bvar 0) $ T.lambda "b" $ sub' (T.bvar 3 ) $ T.appl (T.bvar 2) (T.bvar 0))
-        @?= lambda "b" ( appl (bvar 1) (bvar 2))
+    , testIntermidiats "[a/d]\\b.[c/e]ac = \\b.de"
+        (sub' (T.bvar 0) $ T.lambda "b" $ sub' (T.bvar 3 ) $ T.appl (T.bvar 2) (T.bvar 0))
+        (lambda "b" ( appl (bvar 1) (bvar 2)))
 
     ]
 
 testCombined :: TestTree
 testCombined = testGroup "sub'stitut and Reorder combined"
-    [ testCase "[a/true,b/a] [a<->b] b = true" $
-        applyModify (sub' T.true $ sub' (T.bvar 0) $ reorder' [1, 0] $ T.bvar 1 )
-        @?= bvar 0
+    [ testIntermidiats "[a/true,b/a] [a<->b] b = true"
+        (sub' T.true $ sub' (T.bvar 0) $ reorder' [1, 0] $ T.bvar 1 )
+        true
 
-    , testCase "[a/d]\\b. [b<->a] [c/e]ac = \\b.ba" $
-        applyModify (sub' (T.bvar 0) $
+    , testIntermidiats "[a/d]\\b. [b<->a] [c/e]ac = \\b.ba"
+        (sub' (T.bvar 0) $
                 T.lambda "b" $ reorder' [1, 0] $
                 sub' (T.bvar 2) $
                 T.appl (T.bvar 2) (T.bvar 0))
-        @?= lambda "b" ( appl (bvar 0) (bvar 1))
+        (lambda "b" ( appl (bvar 0) (bvar 1)))
 
-
-    , testCase "[a/d]\\b. [b<->a] [c/b]ac = \\b.ba" $
-        applyModify (sub' (T.bvar 0) $
+    , testIntermidiats "[a/d]\\b. [b<->a] [c/b]ac = \\b.ba"
+        (sub' (T.bvar 0) $
                 T.lambda "b" $ reorder' [1, 0] $
                 sub' (T.bvar 0) $
                 T.appl (T.bvar 2) (T.bvar 0))
-        @?= lambda "b" ( appl (bvar 0) (bvar 1))
+        (lambda "b" ( appl (bvar 0) (bvar 1)))
     ]
