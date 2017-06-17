@@ -7,7 +7,7 @@ import BruijnEnvironment
 import BruijnTerm
 import ModificationTags
 
-data Result = NoChange
+data Result = NoChange -- replace Maybe
             | Changed InProcess  --TODO capital P
             -- TODO Maybe at Stop
 
@@ -22,9 +22,9 @@ inc n t@MTable{} = t{getDepth = getDepth t + n}
 remember :: Modify () -> MTable -> MTable
 remember modification s@MTable {getEnv = env} = remember' modification
   where
-    remember' (Reorder order)  = s {getEnv = bReorder env order}
-    remember' (SubstitutT term) = remember  (Substitut $ proces s $ Unproc term) s
-    remember' (Substitut term) = s {getEnv = bInsert (Subst (getDepth s) term) env}
+    remember' (Reorder n order)  = s {getEnv = bReorder env n order} --TODO
+    remember' (SubstitutT n term) = remember  (Substitut n $ proces s $ Unproc term) s
+    remember' (Substitut n term) = s {getEnv = bInsertAt n (Subst (getDepth s) term) env}
 
 -- TODO env rename name , get simbolTabe
 data MTable = MTable
@@ -46,12 +46,6 @@ data Symbol i = Subst Int (BruijnTerm i)
 -- unFT (LambdaF i n t) = Tag.Lambda i n t
 -- -- unFT (VarF i n) = Tag.Var i n
 --
--- fT :: Tag.LamTerm i n t -> LamTermF i n (Tag.LamTerm i n t)
--- fT (Tag.Var i n) = VarF i n
--- fT (Tag.Appl t1 t2) = ApplF t1 t2
--- fT (Tag.Val i v) = ValF i v
--- fT (Tag.Lambda i n t) = LambdaF i n t
--- unFT (VarF i n) = Tag.Var i n
 
 free :: LamTerm i n -> LamTermF i n (LamTerm i n)
 free (Var i n) = VarF i n
@@ -163,6 +157,22 @@ topDownTransM f context modifications = unfoldM go (context, modifications)
       where
         newContext = context --TODO updateContext ast
         (astF,newMod) = peek mod_ ast
+
+deepin :: Tag.LamTerm i n (Modify i)  -> LamTermF i n (Tag.LamTerm i n (Modify i))
+deepin (Tag.Var i n) = VarF i n
+deepin (Tag.Appl t1 t2) = ApplF t1 t2
+deepin (Tag.Val i v) = ValF i v
+deepin (Tag.Lambda i n t) = LambdaF i n t
+deepin (Tag.Tag m t) = (Tag.Tag $ deepinTag(depthChange t) m ) <$> deepin t
+  where
+    deepinTag  :: Int -> Modify i -> Modify i
+    deepinTag n (Reorder d order) = Reorder (d+n) order
+
+    depthChange :: Tag.LamTerm i n (Modify i)  -> Int
+    depthChange (Tag.Tag m t) = depthChange t --could be faster
+    depthChange Tag.Lambda {} = 1
+    depthChange (Tag.Let _ defs _) = length defs
+    depthChange _ = 0
 
 incFree :: Int -> BruijnTerm i -> BruijnTerm i
 incFree = incFreeOfset 0

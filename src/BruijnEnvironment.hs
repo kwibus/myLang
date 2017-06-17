@@ -106,6 +106,11 @@ bSplitAt n b = (b {bruijnDepth = newDepth, bruijnMap = low}, maybeToList pivot +
   where (low, pivot, high) = IM.splitLookup newDepth (bruijnMap b)
         newDepth = bruijnDepth b - n
 
+bInsertAt :: Int -> a -> BruijnEnv a -> BruijnEnv a
+bInsertAt n a env = bInserts (a:right) left
+  where
+       (left,right) = bSplitAt n env
+
 instance Functor BruijnEnv where
     fmap f b = b {bruijnMap = fmap f (bruijnMap b)}
 
@@ -113,6 +118,7 @@ mapWithBound :: (Bound -> a -> b) -> BruijnEnv a -> BruijnEnv b
 mapWithBound f b@BruijnState {bruijnDepth = dept, bruijnMap = m} =
     b {bruijnMap = IM.mapWithKey (\ index a -> f (Bound $! dept - index - 1) a) m}
 
-bReorder :: BruijnEnv a -> [Bound] -> BruijnEnv a
-bReorder env order = foldl go env $ zip order [0 ..]
+-- TODO add comments
+bReorder :: BruijnEnv a -> Int  -> [Bound] -> BruijnEnv a
+bReorder env n order = foldl go env $ zip order [n ..]
   where go envN (bi , j) = bReplace (Bound j) (bLookup bi env) envN

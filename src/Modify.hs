@@ -15,10 +15,10 @@ applyModify :: Tag.LamTerm i Bound (Modify i ) -> Lam.LamTerm i Bound
 applyModify term = evalState (proces (Unprocessed term)) empty
 
 sub :: BruijnTerm i -> Unprocessed i -> Unprocessed i
-sub = addTag . Substitut
+sub = addTag . Substitut 0
 
 reorder :: [Int] -> Unprocessed i -> Unprocessed i
-reorder = addTag . Reorder . map Bound
+reorder = addTag . Reorder 0 . map Bound  --TODO refactor out reorder annd add tage
 
 -- TODO rename remove use reader
 localT :: MonadState (SymbolTable i) m => m a -> m a
@@ -36,12 +36,11 @@ data Symbol i = Subst Int (BruijnTerm i)
 -- FIXME reorder (Keep,substitut) combination does not work
 -- if for some reason a subtree should be reorderd, and it contains refrence outside subtree (keep/substitut)
 -- it will also reorder that part
-
 remember :: Modify i -> SymbolTable i -> SymbolTable i
 remember modification s@SymbolTable {getEnv = env} = remember' modification
   where
-    remember' (Reorder order)  = s {getEnv = bReorder env order}
-    remember' (Substitut term) = s {getEnv = bInsert (Subst (bruijnDepth env + 1) term) env}
+    remember' (Reorder n order)  = s {getEnv = bReorder env n order}
+    remember' (Substitut n term) = s {getEnv = bInsert (Subst (bruijnDepth env + 1) term) env}
 
 -- rename
 insertT :: [Symbol i] -> SymbolTable i -> SymbolTable i

@@ -33,7 +33,7 @@ testIntermidiats discription input result =
 
 -- TODO fixname
 reorder' :: [Int] -> T.LamTerm () Bound (Modify ()) -> T.LamTerm () Bound (Modify ())
-reorder' = T.Tag . Reorder . map Bound
+reorder' = T.Tag . Reorder 0 . map Bound
 
 testApplyModify :: TestTree
 testApplyModify = testGroup "applyModify"
@@ -44,7 +44,7 @@ testApplyModify = testGroup "applyModify"
 testReorderTag :: TestTree
 testReorderTag = testGroup "Reorder"
     [ testCase "remember" $
-        remember (Reorder $ map Bound [1, 0, 2]) (insertT (map Undefined [2, 1, 0] :: [Symbol ()]) empty )
+        remember (Reorder 0 $ map Bound [1, 0, 2]) (insertT (map Undefined [2, 1, 0] :: [Symbol ()]) empty )
         @?= insertT (map Undefined [2, 0, 1]) empty
 
     , testCase "\\a,[] a" $
@@ -79,7 +79,7 @@ testReorderTag = testGroup "Reorder"
     ]
 
 sub' :: T.LamTerm () Bound (Modify ()) -> T.LamTerm () Bound (Modify ()) -> T.LamTerm () Bound (Modify ())
-sub' = T.Tag . SubstitutT
+sub' = T.Tag . SubstitutT 0
 
 testsubstituteTag :: TestTree
 testsubstituteTag = testGroup "sub'stitut"
