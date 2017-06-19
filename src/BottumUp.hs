@@ -7,10 +7,6 @@ import BruijnEnvironment
 import BruijnTerm
 import ModificationTags
 
-data Result = NoChange -- replace Maybe
-            | Changed InProcess  --TODO capital P
-            -- TODO Maybe at Stop
-
 data InProcess = Inproc (LamTermF () Bound InProcess)
               | Unproc (Tag.LamTerm () Bound (Modify()))
               | New (LamTerm () Bound)
@@ -134,26 +130,22 @@ proces = unfold peek
 procesDef :: MTable-> DefF () Bound InProcess -> Def () Bound
 procesDef modifications (DefF i n t) = Def i n (proces modifications t)
 
-topDownTrans :: (context -> MTable-> LamTermF () Bound InProcess -> Result ) -> context -> MTable -> InProcess -> LamTerm () Bound
+topDownTrans :: (context -> MTable-> LamTermF () Bound InProcess -> LamTermF () Bound InProcess ) -> context -> MTable -> InProcess -> LamTerm () Bound
 topDownTrans f context modifications = unfold go (context, modifications)
   where
     -- go :: context -> MTable -> LamTermF () Bound InProcess -> (LamTermF () Bound (LamTermF () Bound InProcess),(context,MTable))
-    go (context_, mod_) ast = case f context_ mod_ astF of
-      NoChange -> (astF,(newContext,newMod))
-      Changed uf -> go (context, mod_) uf
+    go (context_, mod_) ast = (f context_ mod_ astF,(newContext,newMod))
       where
         newContext = context --TODO updateContext ast
         (astF,newMod) = peek mod_ ast
 
-topDownTransM :: Monad m => (context -> MTable-> LamTermF () Bound InProcess ->m Result ) -> context -> MTable -> InProcess -> m (LamTerm () Bound)
+topDownTransM :: Monad m => (context -> MTable-> LamTermF () Bound InProcess -> m (LamTermF () Bound InProcess)) -> context -> MTable -> InProcess -> m (LamTerm () Bound)
 topDownTransM f context modifications = unfoldM go (context, modifications)
   where
     -- go :: context -> MTable -> LamTermF () Bound InProcess -> (LamTermF () Bound (LamTermF () Bound InProcess),(context,MTable))
     go (context_, mod_) ast = do
       result <- f context_ mod_ astF
-      case result of
-        NoChange -> return (astF,(newContext,newMod))
-        Changed uf -> go (context, mod_) uf
+      return (result,(newContext,newMod))
       where
         newContext = context --TODO updateContext ast
         (astF,newMod) = peek mod_ ast
