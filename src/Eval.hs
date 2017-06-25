@@ -1,163 +1,256 @@
-{-# LANGUAGE LambdaCase#-}
+{-# LANGUAGE FlexibleContexts, LambdaCase #-}
 module Eval
-  ( eval
-  , evalSteps
-  , fullEval
-  , applyValue
-  , evalWithEnv
-  , trans
-  , trans'
-  )
+  -- ( eval
+  -- , evalSteps
+  -- , fullEval
+  -- , applyValue
+  -- , evalWithEnv
+  -- , trans
+  -- , trans'
+  -- )
 where
-
-import Control.Monad.Writer
-import Control.Monad.State.Lazy
-import qualified Control.Monad.State.Strict as Strict
+-- import Control.Monad.Writer
+import Control.Monad.State.Strict as Strict
+import Control.Monad.Writer.Lazy
+import Debug.Trace
+import Unprocessed
 import Data.Maybe
 import Data.Bifunctor
-
+-- import BottumUp
 import BruijnTerm
 import Value
 import BruijnEnvironment
 import Type
-import Modify
-import TaggedLambda as Tag
+import ModifiedLambda (MTable, empty,)
+import qualified TaggedLambda as Tag
+-- import TaggedLambda hiding (LamTerm,Def)
+
 import LambdaF
 import Lambda as Lam
-import Unprocessed
 
-type Evaluator a = WriterT [Unprocessed ()] (State (SymbolTable ())) a
+--TODO fix names
 
-trans :: Unprocessed ()
-      -> (LamTermF () Bound (Unprocessed ()) -> Evaluator (Maybe (Unprocessed ())))
-      -> Evaluator (Unprocessed ())
-   --TODO make use maybe easyer
-trans original f = fromMaybe original <$> go original
-  where
-    go :: Unprocessed () -> Evaluator (Maybe (Unprocessed ()))
-    go (Unprocessed (Tag.Tag m t)) = localT $ do
-       modify $ remember m
-       newT <- censor (map $ addTag m) $ go (Unprocessed t)
-       return (addTag m <$> newT)
-    go term = peek term f
-
-trans' :: Unprocessed ()
-      -> (LamTermF () Bound (Unprocessed ()) -> State (SymbolTable ()) (Maybe (Unprocessed ())))
-      -> State (SymbolTable ()) (Maybe (Unprocessed ()))
-trans' original f = go original
-  where
-    go :: Unprocessed () -> State (SymbolTable ()) (Maybe (Unprocessed ()))
-    go (Unprocessed (Tag.Tag m t)) = localT $ do
-       modify $ remember m
-       newT <- go (Unprocessed t)
-       return (addTag m <$> newT)
-    go term = peek term f
-
--- |eval term in accordance with call by value.
--- If a term can't be further be evaluated it will return 'Nothing'
+type Step w a = Writer [w] a
+-- -- |eval term in accordance with call by value.
+-- -- If a term can't be further be evaluated it will return 'Nothing'
 eval :: BruijnTerm () -> Maybe (BruijnTerm ())
 eval = listToMaybe . evalSteps
 
-evalSteps :: BruijnTerm () -> [BruijnTerm ()]
-evalSteps term = map (applyModify . getLambdaT) evaled
-    where
-    evaled = evalState (evalSteps' $ Unprocessed $ Tag.tag term) empty
-
 fullEval :: BruijnTerm () -> BruijnTerm ()
-fullEval term = applyModify $ getLambdaT evaled
-  where
-    evaled = evalState (fullEval' $ Unprocessed $ Tag.tag term) empty
+fullEval = fst . evalStepsW
 
-fullEval' :: Unprocessed () -> State (SymbolTable ()) (Unprocessed ())
-fullEval' orignal = fst <$> runWriterT (evalWithEnv orignal)
+evalSteps :: BruijnTerm () -> [BruijnTerm ()]
+evalSteps ast = snd $ evalStepsW  ast
 
-evalSteps' :: Unprocessed () -> State (SymbolTable ()) [Unprocessed ()]
-evalSteps' orignal = execWriterT (evalWithEnv orignal)
+evalStepsW :: BruijnTerm () -> (BruijnTerm (),[BruijnTerm()])
+evalStepsW term = runWriter $ evalW bEmtyEnv $ Un empty $ Tag.tag term
 
-produce :: Monad m => a -> WriterT [a] m a
-produce a = tell [a] >> return a
-
-evalWithEnv :: Unprocessed () -> WriterT [Unprocessed ()] (State (SymbolTable ())) (Unprocessed ())
-evalWithEnv term = trans term $ \ case
-    (ApplF t1 t2) -> do
-        t2' <- censor (map $ appl t1) $ evalWithEnv t2
-        t1' <- censor (map $ flip appl t2') $ evalWithEnv t1
-        t2'' <- proces t2'
-        result <- unrafel t1' t2''
-        return $ Just result
-      where
-        unrafel function argument = trans function $ \ case
-            (LetF _ defs subFunction) -> do
-                bdefs <- mapM procesDef defs
-                zipWithM_ store (defsBounds defs) $ map implementation bdefs
-                t <- censor (map (mkLet () defs)) $ unrafel subFunction argument
-                peek t $ \ case
-                    (ValF i v) -> Just <$> produce ( val i v)
-                    _ -> return $ Just $ mkLet () defs t
-            f -> do
-                final <- lift $ betaReduction f argument
-                case final of
-                      (Just body) -> tell [body] >> ( Just <$> evalWithEnv body)
-                      Nothing -> return Nothing
-
-    (PtrF _ _ t) -> Just <$> produce t
-    (LetF _ defs t) -> do
-        defs' <- retell (\ defW -> mkLet () defW t) $ evalDefs defs
-        t' <- censor (map (mkLet () defs')) $ evalWithEnv t
-        peek t' $ \ case
-            (ValF i v) -> Just <$> produce ( val i v)
-            _ -> return $ Just $ mkLet () defs' t'
-    _ -> return Nothing
-
-evalDefs :: [DefF () Bound (Unprocessed ())]
-         -> WriterT [[DefF () Bound (Unprocessed ())]]
-                 (State (SymbolTable ()))
-                 [DefF () Bound (Unprocessed ())]
-evalDefs defs = incrementalM evalDef (length defs - 1) defs
-  where
-    evalDef :: Int
-            -> DefF () Bound (Unprocessed ())
-            -> WriterT [DefF () Bound (Unprocessed ())]
-                    (State (SymbolTable ()))
-                    (DefF () Bound (Unprocessed ()), Int )
-    evalDef b (DefF i n t_) = do
-        result <- retell ( DefF i n ) $ evalWithEnv t_
-        findResult <- proces result
-        store (Bound b) findResult
-        return (DefF i n result, b - 1)
-
-incrementalM :: Monad m => (b -> a -> WriterT [a] m (a, b)) -> b -> [a] -> WriterT [[a]] m [a]
-incrementalM _ _ [] = return []
-incrementalM f b [a] = retell (: []) $ (: []) . fst <$> f b a
-incrementalM f b (a : as) = do
-    (newA, newState) <- retell (: as) $ f b a
-    censorMap (newA :) ( incrementalM f newState as)
-
-censorMap :: Monad m => (w -> w) -> WriterT [w] m w -> WriterT [w] m w
+censorMap :: MonadWriter [w] m => (w -> w) -> m w -> m w
 censorMap f = censor (map f) . fmap f
 
-betaReduction :: LamTermF () Bound (Unprocessed ())
-              -> BruijnTerm ()
-              -> State (SymbolTable ()) (Maybe (Unprocessed ()))
-betaReduction function argument = case function of
-    LambdaF _ _ t -> do
-        dropSymbol
-        return $ Just $ sub argument t
+write ::  MonadWriter [w] m => w -> a -> m a
+write w a = tell [w] >> return a
 
-    ValF _ v ->
-        case value argument of
-            Just v2 -> return (Just $ val () $ applyValue v v2)
-            Nothing -> return Nothing
+produce ::  MonadWriter [a] m => a -> m a
+produce a = tell [a] >> return a
 
-    LetF _ defs t -> do
-        bdefs <- mapM procesDef defs
-        zipWithM_ store (defsBounds defs) $ map implementation bdefs
-        fmap (mkLet () defs) <$> trans' t (flip betaReduction argument)
-
-    _ -> return Nothing
-
-retell :: Monad m => (w -> w') -> WriterT [w] m a -> WriterT [w'] m a
+retell :: (w1 -> w2) ->  Step w1 a -> Step w2 a
 retell f = mapWriterT (fmap $ second (map f))
+
+censors ::  MonadWriter [w] m => (w->w) -> m a -> m a
+censors f = censor (map f)
+
+incrementalM :: (b -> a -> Step a (b, a)) -> b -> [a] -> Step [a] b
+incrementalM _ b [] = return b -- error "incrementalM does work on empty list"
+incrementalM f b [a] = fst <$> retell (: []) ( f b a)
+incrementalM f b (a : as) = do
+  (newB,newA) <- retell (:as) $ f b a
+  censors (newA :) $ incrementalM f newB as
+
+type Env = BruijnEnv (Int ,BruijnTerm ())
+
+-- TODO add coment
+maybeExtract ::  Bound -> Env -> Maybe Unprocessed
+maybeExtract b@(Bound n) env = do
+    (ofset,ast) <- bMaybeLookup b env
+    return (reproces $ incFree (n-ofset) ast)
+
+extract :: Bound -> Env -> Unprocessed
+extract b env = fromMaybe  (error "variable not in Env") $ maybeExtract b env
+
+store:: [BruijnTerm ()] -> Env -> Env
+store  terms env = bInserts (zip (fromToZero (length terms - 1)) terms ) env
+
+update :: Bound -> BruijnTerm () -> Env -> Env
+update b t env = bReplace b (ofset,t) env
+  where (ofset,_) =  bLookup b env
+
+--TODO use test from evalStep
+-- fullEval' :: MonadReader MTable m => Env -> Old -> m (BruijnTerm ())
+-- fullEval' env ast = trans ast go
+--   where
+--     -- go :: LamTermF () Bound Old -> m (BruijnTerm ())
+--     go (LambdaF _ n t) = Lambda () n <$> procesM t
+--     go (VarF _ b) = return $ bLookup b env
+--     go (ValF _ v) = return $ Val () v
+--     go (LetF _ defs t) = do
+--         (newEnv,newDefs) <- fullEvalDefs' env defs
+--         newT <-  fullEval' newEnv t
+--         case newT of  -- TODO lazyniss shoue make this fast
+--             (Val () v) -> return $ Val () v
+--             _ -> return $ Let () newDefs newT
+--     go (ApplF t1 t2) = do
+--       newT2 <- fullEval' env t2
+--       trans t1 (\t1' -> case t1' of
+--         (LetF _ defs t) -> do
+--             (newEnv,newDefs) <- fullEvalDefs' env defs
+--             newT <- reduceAndEval newEnv t newT2
+--             case newT of  -- TODO lazyniss shoue make this fast
+--                 (Val () v) -> return $ Val () v
+--                 _ -> return $ Let () newDefs newT
+--         _ ->do
+--           newT1 <-fullEval' env t1
+--           reduceAndReEval env newT1 newT2
+--         )
+--     reduceAndReEval env newT1 newT2= reproces (\t1 -> reduceAndEval env t1 newT2) (Tag.tag newT1)
+--     reduceAndEval env t1 t2= fullEval' env =<< betaReduction t1 t2
+--
+-- betaReduction :: MonadReader MTable m => Old -> BruijnTerm () -> m Old
+-- betaReduction t1 newT2 = peekM t1 $ \case
+--   (LambdaF _ _ t) -> return $substitute newT2 t
+--   (ValF _ v1) -> case newT2  of  -- TODO lazyniss shoue make this fast but could make specialised version
+--       (Val () v2) -> return $ Old $ Tag.tag $ Val () $ applyValue v1 v2
+--       _ -> error $ show newT2 ++ " is not a value"
+--   _ -> error $ "eval is not sound:" ++ show t1
+--
+-- fullEvalDefs' :: MonadReader MTable m => Env -> [DefF () Bound Old] -> m (Env,[Def () Bound])
+-- fullEvalDefs' env defs = do
+--     (_,newEnv,newDefs) <-
+--       foldM (\(b,envN,defsN) (DefF i n t)-> do
+--           vn <- fullEval' envN t
+--           return (b-1,bReplace (Bound b) vn envN, Def i n vn:defsN ))
+--       (nDefs-1,bInsertBlackhole 1 env,[]) -- TODO to many blackholes
+--       defs
+--     return (newEnv,newDefs)
+--   where
+--     nDefs = length defs
+
+evalW :: Env -> Unprocessed -> Step (BruijnTerm()) (BruijnTerm())
+evalW env ast = case peek ast of
+    (LambdaF _ n t) -> return $ Lambda () n $ proces t
+    (VarF _ b) -> case maybeExtract b env of
+        Just v -> produce $ proces v
+        Nothing -> return $ Var () b
+    (ValF _ v) -> return $ Val () v
+    (LetF _ defs t) -> do
+      let t' = proces t
+      (newEnv,newDefs) <- retell (\defs -> Let () defs t') $ evalDefsW env defs
+      newT <-  censors (Let () newDefs) $ evalW newEnv t
+      case newT of  -- TODO lazyniss shoue make this fast
+           (Val () v) -> produce $ Val () v
+           _ -> return $ Let () newDefs newT
+    (ApplF t1 t2) -> do
+      let oldT1 = proces t1
+      newT2 <- censors (Appl oldT1) $ evalW env t2
+      reduce env t1 newT2
+
+  where
+    -- shallowEval :: Env -> Unprocessed -> Step (BruijnTerm ()) Unprocessed
+    -- shallowEval env t = -- traceShow "shallow" $
+    --   case peek t of
+    --     (ApplF t1 t2) -> do
+    --         let oldT1 = proces t1 -- TODO lazyniss shoue make this fast
+    --         newT2 <- censors (Appl oldT1) $ evalW env t2
+    --         shallowReduc env t1 newT2
+    --     (VarF _ b ) ->
+    --       let newTerm = bLookup b env
+    --       in  tell[newTerm] >>
+    --           return (reproces newTerm)
+    --     _ -> return t
+
+    shallowReduc :: Env -> Unprocessed -> BruijnTerm () -> Step (BruijnTerm ()) Unprocessed
+    shallowReduc env t1 newT2 = case peek t1  of
+    --     (LambdaF _ _ t) ->
+    --       let newterm =substitute newT2 t
+    --           t' = proces newterm
+    --       in tell [t']>> shallowEval env newterm
+    --
+    --     (ApplF t11 t12) -> do
+    --         let oldT11 = proces t11 -- TODO lazyniss shoue make this fast
+    --         newT12 <- censors (\t12' -> Appl (Appl oldT11 t12') newT2) $ evalW env t12
+    --         t1' <- censors ( `Appl` newT2) $  shallowReduc env t11 newT12
+    --         shallowReduc env t1' newT2
+        _ -> reproces <$> reduce env t1 newT2
+
+    reduce :: Env -> Unprocessed -> BruijnTerm () -> Step (BruijnTerm ()) (BruijnTerm ())
+    reduce env t1 newT2 =
+      case peek t1 of
+        (LambdaF _ _ t) ->
+          let newterm =substitute newT2 t
+              t' = proces newterm
+          in tell [t']>> evalW env newterm
+
+        (ValF _ v1) -> case newT2  of  -- TODO lazyniss shoue make this fast but could make specialised version
+          (Val () v2) -> do
+            let newTerm =  Val () $ applyValue v1 v2
+            tell [newTerm]
+            return $ newTerm
+          _ -> error $ "applied " ++ show v1 ++ " with " ++ show newT2
+        (ApplF t11 t12) -> do
+            let oldT11 = proces t11 -- TODO lazyniss shoue make this fast
+            newT12 <- censors (\t12' -> Appl (Appl oldT11 t12') newT2) $ evalW env t12
+            t1' <- censors ( `Appl` newT2) $ shallowReduc env t11 newT12
+            reduce env t1' newT2
+        (VarF _ b ) ->
+          let newTerm = extract b env
+          in censors (`Appl`newT2) ( tell[proces newTerm]) >>
+              reduce env newTerm newT2
+
+        (LetF _ defs t12) -> do
+          let t12' = proces t12
+          (newEnv,newDefs) <- retell (\defs ->Appl ( Let () defs t12') newT2) $ evalDefsW env defs
+          newT12 <- censors (\newT12' -> Appl (Let () newDefs newT12') newT2 )$ (reproces <$> evalW newEnv t12)
+
+          case peek newT12 of  -- TODO lazyniss shoue make this fast
+            (ValF () v) ->
+              tell [Appl (Val () v) newT2] >>
+              reduce env newT12 newT2
+            _ -> do
+              newT1 <-censors (Let () newDefs )$ reduce newEnv newT12 newT2
+              case newT1 of
+                  (Val () v) -> produce (Val () v)
+                  _ -> return $ Let () newDefs newT1
+        -- _ -> reduceAndEval env t1 newT2
+
+    -- reduceAndEval :: Env -> Unprocessed -> BruijnTerm () -> Step (BruijnTerm ()) (BruijnTerm ())
+    -- reduceAndEval env t1 t2 = do
+    --     newT <- reduce env t1 t2
+    --     evalW env newT
+
+-- procesEither :: MonadReader MTable m => (Old  -> m a) -> Either Old (BruijnTerm ()) -> m a
+-- procesEither f = either f (reproces f)
+
+--TODO replace
+saveLast :: a  -> [a] -> a
+saveLast a as = last (a:as)
+
+evalDefsW :: Env -> [DefF ()  Bound Unprocessed] ->  Step [Def () Bound ] (Env,[Def () Bound ] )
+evalDefsW env defs = do
+    let procesedDef = map (procesDef) defs
+    let dumyEnv = store (map Lam.implementation procesedDef) env
+    ((_,newEnv),defsS) <-listen $ incrementalM go (nDefs-1,dumyEnv) procesedDef
+    return (newEnv,saveLast procesedDef defsS)
+  where
+    nDefs = length defs
+    go :: (Int,Env) -> Def () Bound -> Step (Def () Bound) ((Int,Env),Def () Bound)
+    go (n,envN) (Def () b t) = do
+      v <- retell (Def () b) $ evalW envN $ reproces t
+      return ((n-1,update (Bound n) v envN),Def () b v)
+
+traceShowIdM :: (Show w, Show a) => Step w a -> Step w a
+traceShowIdM m = do
+  (a,w) <- listen m
+  traceShow (a,w)$ return a
 
 value :: Lam.LamTerm i Bound -> Maybe Value
 value (Lam.Val _ v ) = Just v
@@ -166,9 +259,9 @@ value _ = Nothing -- error $ show t ++ " is not a value"
 -- | applys a build in function to one argument
 --  It crashes if first argument is not a function (It only export to include int test)
 applyValue :: Value -- ^ build in function
-  -> Value -- ^ argument
-  -> Value -- ^ result
+           -> Value -- ^ argument
+           -> Value -- ^ result
 applyValue BuildIn {arrity = 1, evaluator = e, stack = s } v = Strict.evalState e (v : s )
 applyValue v1@BuildIn {arrity = n, stack = s, myType = t } v2 =
     v1 {arrity = n - 1 , stack = v2 : s, myType = dropTypeArg t}
-applyValue _ _ = error "apply value"
+applyValue v _ = error $ show v ++ " apply value"

@@ -6,6 +6,7 @@ module BruijnTerm
   , lam2Bruijn
   , defsBounds
   , pShow
+  , incFree
   ) where
 
 import Control.Monad.Except
@@ -104,3 +105,23 @@ getAt (_ : xs) n = getAt xs (n - 1)
 
 defsBounds :: [a] -> [Bound]
 defsBounds defs = Bound <$> fromToZero (length defs - 1)
+
+incFree :: Int -> BruijnTerm i -> BruijnTerm i
+incFree = incFreeOfset 0
+
+incFreeOfset :: Int -> Int -> BruijnTerm i -> BruijnTerm i
+incFreeOfset _ 0 term = term
+
+incFreeOfset ofset increase term = go ofset term
+  where
+    go :: Int -> BruijnTerm i -> BruijnTerm i
+    go depth (Lambda i n t) = Lambda i n $ go (depth + 1) t
+    go depth (Appl t1 t2) = Appl (go depth t1) (go depth t2)
+    go depth (Var i (Bound n))
+        | n >= depth = Var i $ Bound $ n + increase
+        | otherwise = Var i (Bound n)
+    go depth (Let i defs t) = Let i (fmap incDefs defs) $ go newDepth t
+      where
+        newDepth = depth + length defs
+        incDefs (Def is ns ts) = Def is ns $ go newDepth ts
+    go _ (Val i v) = Val i v

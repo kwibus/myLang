@@ -39,3 +39,4 @@ accumulateArgs :: LamTerm i n -> [LamTerm i n]
 accumulateArgs = go []
   where go accuList (Appl t1 t2 ) = go (t2 : accuList) t1
         go accuList t = t : accuList
+

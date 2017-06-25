@@ -1,31 +1,33 @@
 module Unprocessed where
 
-import TaggedLambda
-import ModificationTags
-import BruijnEnvironment
+import qualified ModifiedLambda as Mod
 import LambdaF
-import Value
-import Name
+import BruijnEnvironment (Bound)
+import BruijnTerm as Lam (Value,BruijnTerm,Def(..))
+import TaggedLambda as Tag
+import ModificationTags
+data Unprocessed = Un Mod.MTable (Mod.LamTerm ()) deriving Show
 
--- | when you walk over tree you have to know wich part have already been modified and which not
--- TODO rename inprogress
-newtype Unprocessed i = Unprocessed (LamTerm i Bound (Modify i)) deriving (Show, Eq)
+peek :: Unprocessed -> LamTermF () Bound Unprocessed
+peek (Un mtable ast) = fmap (Un newMtable ) astF
+  where
+       (astF,newMtable) = Mod.peek mtable ast
 
-addTag :: Modify i -> Unprocessed i -> Unprocessed i
-addTag m (Unprocessed t) = Unprocessed $ Tag m t
+proces :: Unprocessed -> BruijnTerm ()
+proces (Un mtable ast ) = Mod.proces mtable ast
 
-appl :: Unprocessed i -> Unprocessed i -> Unprocessed i
-appl (Unprocessed t1) (Unprocessed t2) = Unprocessed $ Appl t1 t2
+procesDef :: DefF () Bound Unprocessed -> Lam.Def () Bound
+procesDef (DefF i b t) = Lam.Def i b $ proces t
 
--- lambda :: i -> Name -> (Unprocessed i) -> (Unprocessed i)
-mkLet :: i -> [DefF i Bound (Unprocessed i)] -> Unprocessed i -> Unprocessed i
-mkLet i defs (Unprocessed t) = Unprocessed $ Let i ( map unpeekDef defs) t
+reproces :: BruijnTerm () -> Unprocessed
+reproces ast = Un Mod.empty (Tag.tag ast)
 
-unpeekDef :: DefF i Bound (Unprocessed i) -> Def i Bound (Modify i)
-unpeekDef (DefF i n (Unprocessed t)) = Def i n t
+--TODO add val var
+val ::  Value -> Unprocessed
+val v = Un Mod.empty $ Val () v
 
-val :: i -> Value -> Unprocessed i
-val i v = Unprocessed $ Val i v
+var :: Bound -> Unprocessed
+var b = Un Mod.empty  $ Var () b
 
-lambda :: i -> Name -> Unprocessed i -> Unprocessed i
-lambda i n (Unprocessed t) = Unprocessed $ Lambda i n t
+substitute  :: BruijnTerm () -> Unprocessed -> Unprocessed
+substitute sub (Un mtable ast) = Un (Mod.drop 1 mtable) $ Tag.Tag (Substitut 0 sub) ast

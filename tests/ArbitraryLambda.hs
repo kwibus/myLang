@@ -20,7 +20,7 @@ import Name
 import ArbiRef
 
 forAllTypedBruijn :: Testable prop => (BruijnTerm () -> prop) -> Property
-forAllTypedBruijn = forAllShowShrink genTyped BruijnTerm.pShow shrinkTypedBruijn
+forAllTypedBruijn = forAllShowShrink genTyped {-BruijnTerm.pShow-}show shrinkTypedBruijn
 
 forAllUnTypedLambda :: Testable prop => (LamTerm () Name -> prop) -> Property
 forAllUnTypedLambda = forAllShrink genUnTyped shrinkUntypedLambda

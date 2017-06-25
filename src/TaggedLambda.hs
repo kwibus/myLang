@@ -27,3 +27,6 @@ tag = unsafeCoerce
 
 mapImplementation :: (LamTerm i n1 t -> LamTerm i n2 t) -> Def i n1 t -> Def i n2 t
 mapImplementation f (Def i n t) = Def i n (f t)
+
+implementation :: Def i n t -> LamTerm i n t
+implementation (Def _ _ t) = t

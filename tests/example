@@ -1,0 +1,1 @@
+let true=\a b.a; false=\a b.b; if=\p a b.p a b; id a = a in id true false true

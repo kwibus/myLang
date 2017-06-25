@@ -2,10 +2,13 @@ module TestModify where
 
 import Test.Tasty
 import Test.Tasty.HUnit
-import Data.Bifunctor
 
 import ModificationTags
-import BottumUp
+import ModifiedLambda (applyModify,Symbol(..),empty,remember,insertT)
+
+import Inprocess (proces)
+import qualified Inprocess as P
+
 import qualified TaggedLambda as T
 import BruijnEnvironment
 import BruijnTerm
@@ -27,9 +30,9 @@ testIntermidiats discription input result =
             (\(inprocess,mtable ) -> proces mtable inprocess @?= result)
             amplified
     where
-      amplified = [(Unproc input,empty)
-                  , first Inproc  $ peek empty (Unproc input)
-                  , (New $applyModify input,empty)]
+      amplified = [(P.Unproc input,empty)
+                  -- , first Inproc  $ peek empty (Unproc input) -- FIXME
+                  , (P.New $ T.tag $ applyModify input,empty)]
 
 -- TODO fixname
 reorder' :: [Int] -> T.LamTerm () Bound (Modify ()) -> T.LamTerm () Bound (Modify ())

@@ -14,7 +14,7 @@ pop f = do
 popDouble :: State Stack Double
 popDouble = pop (\v -> case v of
     Prim (MyDouble n) -> n
-    _ -> error $ "expeceted doubel on the stack. but got" ++ show v)
+    _ -> error $ "expeceted doubel on the stack. but got " ++ show v)
 
 operators :: [Value]
 operators = [plus, multiply]

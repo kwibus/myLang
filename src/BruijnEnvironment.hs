@@ -1,5 +1,7 @@
 module BruijnEnvironment where
 
+import Debug.Trace
+
 import qualified Data.IntMap as IM
 import Control.Exception.Base
 import Data.Maybe
@@ -73,6 +75,10 @@ bInsert a b@BruijnState {bruijnDepth = depth, bruijnMap = m} =
 bInserts :: [a] -> BruijnEnv a -> BruijnEnv a
 bInserts list env = foldl' (flip bInsert) env list
 
+bInsertBlackhole :: Int  -> BruijnEnv a -> BruijnEnv a
+bInsertBlackhole n env= env{bruijnDepth = bruijnDepth env +n}
+
+
 -- TODO can remove duplcate code by using bInserts
 bFromList :: [a] -> BruijnEnv a
 bFromList = foldl' (flip bInsert) bEmtyEnv
@@ -81,10 +87,10 @@ bFromList = foldl' (flip bInsert) bEmtyEnv
 bToList :: BruijnEnv a -> [(Int, a)]
 bToList BruijnState {bruijnMap = m} = IM.toList m
 
-bReplace :: Bound -> a -> BruijnEnv a -> BruijnEnv a
+bReplace ::  Bound -> a -> BruijnEnv a -> BruijnEnv a
 bReplace (Bound i) a b@BruijnState {bruijnDepth = depth, bruijnMap = m} =
   assert (bMember (Bound i) b)
-  b {bruijnMap = IM.insert (depth - i - 1) a m}
+  b {bruijnMap = IM.insert (depth - i - 1 ) a m}
 
 -- TODO ??? could remove duplecate cate by using bSplitAt
 bDrop :: Int -> BruijnEnv a -> BruijnEnv a

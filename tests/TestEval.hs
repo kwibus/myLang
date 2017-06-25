@@ -19,6 +19,7 @@ import TopologicalSort
 import Eval
 import FreeEnvironment
 import MakeTerm
+import ModifiedLambda
 import qualified MakeTagedTerm as Tag
 import Operator
 import Value
@@ -26,61 +27,16 @@ import ErrorCollector
 import qualified Type as T
 import BruijnEnvironment
 import LambdaF
-import Modify
-import qualified Unprocessed as U
 
 -- TODO test with free variables
 
 testEval :: TestTree
 testEval = testGroup "eval"
-    [ testTrans
-    , testEvalBasic
+    [ testEvalBasic
     , testEvalBuildin
     , testEvalLet
     , testEvalProp
     ]
-
-testTrans :: TestTree
-testTrans = testGroup "trans"
-    [ idempotenceTranc "a = a" (U.Unprocessed $ Tag.bvar 0)
-        empty
-        (bvar 0)
-
-    , idempotenceTranc "[a <-> b] a = b"
-        (reorder [1, 0] $ U.Unprocessed $ Tag.bvar 0)
-        (insertT [Undefined 0, Undefined 1] empty)
-        (bvar 1)
-
-    , idempotenceTranc "[a <-> b] a {a=true,b=a} = b"
-        (reorder [1, 0] $ U.Unprocessed $ Tag.bvar 0)
-        (insertT [Keep 0 2 (bvar 0), Keep 0 2 true ] empty)
-        (bvar 1)
-
-    , idempotenceTranc ""
-        (sub true $ U.Unprocessed $ Tag.bvar 1)
-        empty
-        (bvar 1)
-    ]
-
-idempotenceTranc :: String -> U.Unprocessed () -> SymbolTable () -> BruijnTerm () -> TestTree
-idempotenceTranc description example syms result = testCaseSteps description $ \ step -> do
-    step "f a"
-    evalState (proces . fromJust =<< f example) syms @?= result
-    step "f f a"
-    evalState (do
-        maybeA <- f example
-        case maybeA of
-            Just a -> Just <$> (f a >>= proces . fromJust )
-            Nothing -> return Nothing
-      ) syms
-     @?= Just result
-  where f :: U.Unprocessed () -> State (SymbolTable ()) (Maybe (U.Unprocessed ()))
-        f a = trans' a (return . idT)
-
-idT :: LamTermF () Bound (U.Unprocessed ()) -> Maybe (U.Unprocessed ())
-idT (VarF _ (Bound b)) = Just $ U.Unprocessed $ Tag.bvar b
-idT (PtrF _ _ t) = Just t
-idT _ = Nothing
 
 testEvalBasic :: TestTree
 testEvalBasic = testGroup "basic"
@@ -146,6 +102,12 @@ testEvalBasic = testGroup "basic"
   , testCase "(\\a b.a) true false" $
     evalSteps (appl (appl (lambda "a" $ lambda "b" $ bvar 1 ) true) false)
     @?= [ appl (lambda "b" true ) false
+        , true
+        ]
+
+  , testCase "(\\a (\\b.a)a) true " $
+    evalSteps (appl (lambda "a" $ appl (lambda "b" $bvar 1 )(bvar 0)) true)
+    @?= [ appl (lambda "b" true )true
         , true
         ]
   ]
@@ -349,16 +311,6 @@ testEvalLet = testGroup "let"
             , double 1
             ]
 
-  , testCase "let f = \\a.f 1 in f 2 " $
-        take 4 (evalSteps (mkLet [("f", lambda "a" $ appl (bvar 1) (double 1))] $ appl (bvar 0) (double 2)))
-        @?= [ mkLet [("f", lambda "a" $ appl (bvar 1) (double 1))] $
-                    appl (lambda "a" $ appl (bvar 1) (double 1)) $ double 2
-            , mkLet [("f", lambda "a" $ appl (bvar 1) (double 1))] $ appl (bvar 0) (double 1)
-            , mkLet [("f", lambda "a" $ appl (bvar 1) (double 1))] $
-                    appl (lambda "a" $ appl (bvar 1) (double 1)) $ double 1
-            , mkLet [("f", lambda "a" $ appl (bvar 1) (double 1))] $ appl (bvar 0) (double 1)
-            ]
-
 
   , testCase "let f = \\a.id 1; id = id in f 2 " $
         evalSteps (mkLet [("f", lambda "a" $ appl (bvar 1) (double 1)), ("id", B.id)] $
@@ -382,6 +334,23 @@ testEvalLet = testGroup "let"
                  , mkLet [("a", true), ("b", true )] true
                  , true
                  ]
+    -- is not totaly corect
+  , testCase "let a = a in a" $
+      evalSteps (mkLet [("a",bvar 0)] $ bvar 0)
+          @?= [mkLet [("a",bvar 0)] $ bvar 0
+              ,mkLet [("a",bvar 0)] $ bvar 0
+              ]
+
+  , testCase "let f = \\a.f 1 in f 2 " $
+        take 4 (evalSteps (mkLet [("f", lambda "a" $ appl (bvar 1) (double 1))] $ appl (bvar 0) (double 2)))
+        @?= [ mkLet [("f", lambda "a" $ appl (bvar 1) (double 1))] $
+                    appl (lambda "a" $ appl (bvar 1) (double 1)) $ double 2
+            , mkLet [("f", lambda "a" $ appl (bvar 1) (double 1))] $ appl (bvar 0) (double 1)
+            , mkLet [("f", lambda "a" $ appl (bvar 1) (double 1))] $
+                    appl (lambda "a" $ appl (bvar 1) (double 1)) $ double 1
+            , mkLet [("f", lambda "a" $ appl (bvar 1) (double 1))] $ appl (bvar 0) (double 1)
+            ]
+
   , testCase "(let f a = f a in f) True" $
         take 4 ( evalSteps (appl (mkLet [("f", lambda "a" $ appl (bvar 1) (bvar 0))] $ bvar 0) true))
         @?= [ appl (mkLet [("f", lambda "a" $ appl (bvar 1) (bvar 0))] $
@@ -391,6 +360,42 @@ testEvalLet = testGroup "let"
                 appl (lambda "a" $ appl (bvar 1) (bvar 0)) true
             , mkLet [("f", lambda "a" $ appl (bvar 1) (bvar 0))] $ appl (bvar 0) true
             ]
+
+  , testCase "let f a = f a in f *" $
+      take 4 ( evalSteps (mkLet [("f",lambda "a" $ appl (bvar 1) (bvar 0))] $ appl (bvar 0 ) (val multiply)))
+      @?= [mkLet [("f",lambda "a" $ appl (bvar 1) (bvar 0))] $ appl (lambda "a" $ appl (bvar 1) (bvar 0)) (val multiply)
+          ,mkLet [("f",lambda "a" $ appl (bvar 1) (bvar 0))] $ appl (bvar 0) $ val multiply
+          ,mkLet [("f",lambda "a" $ appl (bvar 1) (bvar 0))] $ appl (lambda "a" $ appl (bvar 1) (bvar 0)) (val multiply)
+          ,mkLet [("f",lambda "a" $ appl (bvar 1) (bvar 0))] $ appl (bvar 0) $ val multiply
+          ]
+
+        -- Let () [Def () (Name "g") (Val () True)] (Let () [Def () (Name "a") (Let () [Def () (Name "c") (Val () plus)] (Lambda () (Name "e") (Var () (Bound 3))))] (Let () [Def () (Name "x") (Val () multiply)] (Appl (Var () (Bound 1)) (Val () multiply))))
+  , testCase "let g = true in let a = let c = + in \\e.g in let x = * in a (*)" $
+      evalSteps (mkLet [("g",true)] $ mkLet [("a",mkLet [("c",val plus)] $ lambda "e"$ bvar 3 )]$ mkLet [("x", val multiply)] $ appl (bvar 1)(val multiply ))
+      @?= [mkLet [("g",true)] $ mkLet [("a",mkLet [("c",val plus)] $ lambda "e" $ bvar 3 )] $ mkLet [("x", val multiply)] $ appl (mkLet [("c", val plus)] $ lambda "e" $ bvar 4)(val multiply )
+          ,mkLet [("g",true)] $ mkLet [("a",mkLet [("c",val plus)] $ lambda "e" $ bvar 3 )] $ mkLet [("x", val multiply)] $ mkLet [("c", val plus)] $ bvar 3
+          ,mkLet [("g",true)] $ mkLet [("a",mkLet [("c",val plus)] $ lambda "e" $ bvar 3 )] $ mkLet [("x", val multiply)] $ mkLet [("c", val plus)] true
+          ,mkLet [("g",true)] $ mkLet [("a",mkLet [("c",val plus)] $ lambda "e" $ bvar 3 )] $ mkLet [("x", val multiply)] true
+          ,mkLet [("g",true)] $ mkLet [("a",mkLet [("c",val plus)] $ lambda "e" $ bvar 3 )] true
+          ,mkLet [("g",true)] true
+          ,true
+      ]
+  -- , testCase "let t m = t (( \\l . 1.0) (*)) in let x = 2.0  in t" $
+  --     take 4 ( evalSteps ( mkLet [("t", lambda "m" $ appl (bvar 1 ) $ appl (lambda "l" $ double 1 ) (val multiply))] $
+  --                                mkLet [("x", double 2)] $ bvar 1))
+  --     @?= []
+-- Let () [Def () (Name "t") (Lambda () (Name "m") (Appl (Var () (Bound 1)) (Appl (Lambda () (Name "l") (Val () (MyDouble ( -9.145859826465555)))) (Val () multiply))))]
+--         (Let () [Def () (Name "x") (Val () (MyDouble ( 5.540948973274531)))]
+--         (Var () (Bound 1)))
+
+  -- , testCase "let f a = f a in (let g = f in g ) *"$
+  --     take 4 ( evalSteps (mkLet [("f",lambda "a" $ appl (bvar 1) (bvar 0))] $ appl (mkLet [("o",true),("p",bvar 2),("g",bvar 3)] $bvar 0) (val multiply)))
+  --     @?= [
+  --       -- mkLet [("f",lambda "a" $ appl (bvar 1) (bvar 0))] $ appl (lambda "a" $ appl (bvar 1) (bvar 0)) (val multiply)
+  --       --   ,mkLet [("f",lambda "a" $ appl (bvar 1) (bvar 0))] $ appl (bvar 0) $ val multiply
+  --       --   ,mkLet [("f",lambda "a" $ appl (bvar 1) (bvar 0))] $ appl (lambda "a" $ appl (bvar 1) (bvar 0)) (val multiply)
+  --       --   ,mkLet [("f",lambda "a" $ appl (bvar 1) (bvar 0))] $ appl (bvar 0) $ val multiply
+  --         ]
 
   , testCase "(\\a. let f b = a in f) true" $
         evalSteps (appl (lambda "a" $ mkLet [("f", lambda "b" $ bvar 2)] $ bvar 0) true)
@@ -405,10 +410,52 @@ testEvalLet = testGroup "let"
         @?= double 3
 
   , testCase "let a = true in (\\b c.a) (false)" $
-        evalSteps (mkLet [("a", true)] $ appl (lambda "b" $ lambda "c" $ bvar 2) false)
-        @?= [ mkLet [("a", true)] $ lambda "c" $ bvar 1]
+      evalSteps (mkLet [("a", true)] $ appl (lambda "b" $ lambda "c" $ bvar 2) false)
+      @?= [ mkLet [("a", true)] $ lambda "c" $ bvar 1]
 
+  , testCase "(let a = b; b = * in +) 1" $
+      evalSteps (appl (mkLet [("a",bvar 0),("b",val multiply)] $val plus)(double 1))
+      @?= [ appl (mkLet [("a",val multiply),("b",val multiply)] $val plus)(double 1)
+          , appl ( val plus)(double 1)
+          , plus1 ]
+
+  , testCase "let id' = let a =1 in \\\\b.b in id' true" $
+      evalSteps (mkLet [("id'",mkLet [("a",double 1)] $ lambda "b" $bvar 0)] $appl (bvar 0) true )
+      @?= [ mkLet [("id'",mkLet [("a",double 1)] $ lambda "b" $bvar 0)] $ appl (mkLet [("a",double 1)]$ lambda "b" $ bvar 0) true
+
+          , mkLet [("id'",mkLet [("a",double 1)] $ lambda "b" $bvar 0)] $ mkLet [("a",double 1)] true
+          , mkLet [("id'",mkLet [("a",double 1)] $ lambda "b" $bvar 0)] true
+          , true
+          ]
+
+  , testCase "id let b = true; c = b in \\d.c" $
+      evalSteps (appl B.id (mkLet [("b",true),("c",bvar 1)] $ lambda "d" $ bvar 1))
+      @?= [ appl B.id (mkLet [("b",true),("c",true)] $ lambda "d" $ bvar 1)
+          , mkLet [("b",true),("c",true)] $ lambda "d" $ bvar 1
+          ]
+  , testCase "(let a = true in (\\b.+)a) 1.0" $
+      evalSteps (appl (mkLet [("a",val plus )] $ appl (lambda "b" $ bvar 1)$ bvar 0)(double 1))
+      @?= [appl (mkLet [("a",val plus)] $ appl (lambda "b" $ bvar 1) $ val plus)(double 1)
+          ,appl (mkLet [("a",val plus)] $ bvar 0)(double 1)
+          ,appl (mkLet [("a",val plus)] $ val plus)(double 1)
+          ,appl (val plus)(double 1)
+          ,plus1
+          ]
+
+  , testCase "(let id = \\a.a in (let b =false in \\c.id)1.0) true" $
+      evalSteps (appl(mkLet [("id",B.id)] $ appl (mkLet [("b",false)] $ lambda "c" $ bvar 2) $ double 1)true)
+      @?= [ appl (mkLet [("id",B.id)] $ mkLet [("b",false)] $ bvar 1) true
+          , appl (mkLet [("id",B.id)] $ mkLet [("b",false)] $ lambda "a" $ bvar 0) true
+          , mkLet [("id",B.id)] $ mkLet [("b",false)] true
+          , mkLet [("id",B.id)] true
+          , true
+          ]
+  -- , testCase "" $
+  --     evalSteps (mkLet [("a", appl (bvar 0)(val plus)),("b",lambda "c" $ mkLet [("d",val plus)] $ appl(bvar 2) (bvar 0))] $ bvar 0)
+  --     @?= [
+  --         ]
   ]
+
 testEvalProp :: TestTree
 testEvalProp = testGroup "propertys" $
   let forAllNonCiculair prop = forAllTypedBruijn $ \ e -> case sortTerm e of
@@ -437,10 +484,10 @@ testEvalProp = testGroup "propertys" $
                     t2 <- solver expr2
                     t1 <- solver e
                     return $ counterexample (
-                          "\neval:" ++ show expr2 ++
-                        "\n\npShow     : " ++ pShow e ++
+                          "\neval\n:" ++ show expr2 ++
+                        "\n\npShow:\n " ++ pShow e ++
                           "\n\t::" ++ T.pShow t1 ++
-                         "\n\npShow eval: " ++ pShow expr2 ++
+                         "\n\npShow eval:\n" ++ pShow expr2 ++
                           "\n\t::" ++ T.pShow t2)
                         $ unifys t1
                                  (T.mapVar (\ (Free i) -> Free (i + 10000)) t2)

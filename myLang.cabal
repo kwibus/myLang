@@ -31,6 +31,8 @@ library
 
   exposed-modules:     Lambda
                       ,LambdaF
+                      ,ModifiedLambda
+                      ,Inprocess
                       ,BottumUp
                       ,TaggedLambda
                       ,TopologicalSort
@@ -53,7 +55,6 @@ library
                       ,Name
                       ,Associativity
                       ,ModificationTags
-                      ,Modify
                       ,Unprocessed
   Ghc-Options:          -Wall -fno-ignore-asserts
   default-language:    Haskell2010
