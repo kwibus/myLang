@@ -4,7 +4,6 @@ dist-newstyle/
 cabal.sandbox.config
 cabal.project.local
 .cabal-sandbox
-stack.yaml
 .stack-work
 *.tix
 .hpc

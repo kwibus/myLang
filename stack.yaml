@@ -1,0 +1,8 @@
+---
+packages:
+- '.'
+extra-deps:
+- parsec-numbers-0.1.0
+- assert-failure-0.1.1.0
+
+resolver: lts-8.0
