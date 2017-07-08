@@ -9,8 +9,10 @@ import BruijnEnvironment
 import qualified Lambda as Lam  (Def(..))
 import BruijnTerm (BruijnTerm)
 import ModificationTags
+import MTable
 import ModifiedLambda
 import Control.Monad.Trans.Cont
+
 newtype Old = Old (LamTerm ()) deriving Show
 type BtUp a = Reader MTable a
 
@@ -90,8 +92,8 @@ bottumUpWithContext :: MTable
           -> LamTerm ()
           -> LamTerm ()
 
-bottumUpWithContext mod  updateContext f context ast = f context $ fmap (bottumUpWithContext newModifications updateContext  f newContext) astF
+bottumUpWithContext modifications  updateContext f context ast = f context $ fmap (bottumUpWithContext newModifications updateContext  f newContext) astF
   where
     newContext = updateContext context astF
-    (astF,newModifications) = peek mod ast
+    (astF,newModifications) = peek modifications ast
 

@@ -1,7 +1,5 @@
 module BruijnEnvironment where
 
-import Debug.Trace
-
 import qualified Data.IntMap as IM
 import Control.Exception.Base
 import Data.Maybe

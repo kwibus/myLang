@@ -2,14 +2,12 @@ module LambdaF where
 
 import Name
 import Value
-import BruijnEnvironment
 import Lambda as Lam
 
 data LamTermF i n a = LambdaF i Name a
             | ApplF a a
             | VarF i n
             | ValF i Value
-            | PtrF i Bound a --FIXME remove
             | LetF i [DefF i n a] a
             deriving (Eq, Show)
 

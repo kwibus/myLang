@@ -6,6 +6,7 @@ module ModificationTags where
 import BruijnEnvironment
 import BruijnTerm
 import TaggedLambda as Tag
+
 data Modify i = Reorder Int [Bound] -- ^ @[1, 0, 2]@ will make bound 0 -> 1, 1 -> 0 2 -> 2
               | SubstitutT Int (Tag.LamTerm () Bound (Modify())) -- ^ wil Substitut Bound 0 term. If higher index if deeper
               | Substitut Int (BruijnTerm i) -- ^ wil Substitut Bound 0 term. If higher index if deeper

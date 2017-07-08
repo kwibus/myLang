@@ -7,7 +7,6 @@ import Test.Tasty.HUnit
 import Test.Tasty.QuickCheck
 import Data.Maybe
 import Data.List
-import Control.Monad.State
 
 import TypeCheck
 import BruijnTerm
@@ -20,13 +19,10 @@ import Eval
 import FreeEnvironment
 import MakeTerm
 import ModifiedLambda
-import qualified MakeTagedTerm as Tag
 import Operator
 import Value
 import ErrorCollector
 import qualified Type as T
-import BruijnEnvironment
-import LambdaF
 
 -- TODO test with free variables
 

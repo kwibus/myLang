@@ -1,7 +1,7 @@
 module Inprocess where
 
 import Data.Bifunctor
-import ModifiedLambda (MTable,empty)
+import MTable (MTable,empty)
 import qualified ModifiedLambda
 
 import qualified BruijnTerm as Lam
@@ -38,9 +38,6 @@ appl t1 t2 = Inproc $ App t1 t2
 mkLet :: [DefF () Bound InProcess ] -> InProcess -> InProcess
 mkLet defs t = Inproc $ Let defs t
 
--- unpeekDef :: DefF i Bound (InProcess) -> Def i Bound (Modify i) --FIXME rename
--- unpeekDef (DefF i n (Inproc t)) = Def i n t
-
 var :: Bound -> InProcess
 var b = New $ Tag.Var () b
 
@@ -58,9 +55,9 @@ peek modification (Inproc term)= case term of
   (App t1 t2) -> (ApplF t1 t2,modification)
   (Lambda n t) -> (LambdaF () n t,modification)
   (Let defs t) -> (LetF () defs t,modification)
-  (Tag m t) ->error  "Doom"--FIXME
+  Tag {}  ->error  "Doom"--FIXME
 peek _ (New term) = peek empty $ Unproc term
-peek mod (Unproc term) =first (fmap Unproc) $  ModifiedLambda.peek mod term
+peek modifications (Unproc term) =first (fmap Unproc) $  ModifiedLambda.peek modifications term
 
 proces ::  MTable  -> InProcess -> Lam.BruijnTerm ()
 proces = unfold peek

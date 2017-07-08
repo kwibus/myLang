@@ -4,8 +4,8 @@ import Test.Tasty
 import Test.Tasty.HUnit
 
 import ModificationTags
-import ModifiedLambda (applyModify,Symbol(..),empty,remember,insertT)
-
+import MTable
+import ModifiedLambda (applyModify,remember)
 import Inprocess (proces)
 import qualified Inprocess as P
 
