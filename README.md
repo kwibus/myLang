@@ -5,7 +5,8 @@ the language is now similar to typed lambda calculus, and has only a interpreter
 But i have a lot of plans:
 
  - [x] using bruijn index (don't know if its the best, but cool concept)
- - [x] using strict evaluation
+ - [x] using strict evaluation  (only interpreter)
+ - [x] Hinley Milner type checker interference
  - [ ] opt-in laziness
  - [ ] compile via llvm
  - [ ] row polymorfisme
