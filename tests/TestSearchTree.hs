@@ -52,10 +52,10 @@ testBackSteps = testCase "backsteps" $ pruneI 3 2
             ]
         , return (Just 3)
         ] )  @?=  [3:: Int]
+
 testBackSteps2 :: TestTree
 testBackSteps2 = testProperty "prune is same as found if purine nothing" $
-    \s -> foundI s === pruneI 1000000000 100 (s :: SearchTree Identity Int)
-
+    \s -> foundI s === pruneI 1000000000 1 (s :: SearchTree Identity Int)
 
 testLimitBacksteps :: TestTree
 testLimitBacksteps = testCase "limitBackSteps" $
@@ -153,8 +153,11 @@ testArbiSearchTree = testProperty "check size Arbitrary SearchTree" $
 
 checkRules :: TestTree
 checkRules = testGroup "test TypeClass Rules"
-    [
-    checkBatch $ monad (undefined :: SearchTree Identity (Int,Bool,Double))
+    [ -- the check for monad associativiy is slow, you get same if you run it with listT
+      -- the bottleneck is in generation of arbitrary data
+      -- this just makes size of arbitrary smaller so it will not blow up
+      adjustOption (\(QuickCheckMaxSize i) -> QuickCheckMaxSize i`div`4) $
+        checkBatch $ monad (undefined :: SearchTree Identity (Int,Bool,Double))
     ,
     checkBatch $ monadFunctor (undefined :: SearchTree Identity (Int,Bool))
     , checkBatch $ monadApplicative (undefined :: SearchTree Identity (Int,Bool))
