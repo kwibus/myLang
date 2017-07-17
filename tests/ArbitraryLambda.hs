@@ -143,7 +143,7 @@ arbitraryTerm n mabeytype maxlist s
                       , arbitraryLet n mabeytype maxlist s
                       ]
 
--- TODO fix also genarate var Empty
+-- TODO fix also genarate var Empty/Free
 arbitraryVar :: ArbiRef n => Maybe Type -> GenState n -> Generater (LamTerm () n)
 arbitraryVar t s = do
   (n, f) <- refFromState s
@@ -203,11 +203,14 @@ arbitraryLet size t maxlist state =
             term <- arbitraryTerm resultSize t newmaxlist newState
             defs <- mapM (\ (v, name, sizeTerm) -> do
                          -- TODO remove self from maxlist
+                         -- TODO dont make self refrence values
                         termN <- arbitraryTerm sizeTerm (fmap (const (TVar v)) t) maxlist newState
                         return $ Def () name termN
-                        ) $ zip3 vars (map Name varNames) varSize
+                        ) $ zip3 vars (map Name varNames) $ sort varSize
+           -- TODO maybe shuffle  but expensive  with BruijnTerm and would it make a difference
             return $ Let () defs term
 
+--TODO should be a fold
 makeVars :: ArbiRef n => GenState n -> [Free] -> Gen ([String], GenState n)
 makeVars state [] = return ([], state)
 makeVars state (f : fs) = do
