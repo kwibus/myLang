@@ -218,6 +218,7 @@ makeVars state (f : fs) = do
     (resetVar , finalState) <- makeVars newState fs
     return (newVar : resetVar, finalState)
 
+-- TODO explain
 uniformBucket :: Int -> Int -> Gen [Int]
 uniformBucket buckets totaal = do
     randomList <- replicateM (buckets - 1) $ choose (0, totaal) :: Gen [Int]

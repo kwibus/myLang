@@ -34,7 +34,7 @@ runGenerartor :: Generater a -> SearchTree Gen a
 runGenerartor g = evalStateT g (fEmtyEnv, 0)
 
 generateGen :: Generater a -> Gen (Maybe a)
-generateGen g = listToMaybe <$> pruneT 1000 4 ( runGenerartor g)
+generateGen g = listToMaybe <$> pruneT 10 ( runGenerartor g)
 
 generateList :: Generater a -> Gen [a]
 generateList = foundT . runGenerartor
@@ -59,6 +59,7 @@ newFreeVar = do
     put (env , i + 1)
     return $ Free i
 
+--TODO remove
 getMax :: Generater Int
 getMax = do
     (_, i) <- get

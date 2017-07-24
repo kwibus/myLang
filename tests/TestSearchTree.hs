@@ -14,8 +14,8 @@ import Logic
 import SearchTree
 import Control.Monad.Identity
 
-pruneI :: Int -> Int -> SearchTree Identity a -> [a]
-pruneI maxfail stepBacks = runIdentity . pruneT maxfail stepBacks
+pruneI :: Int -> SearchTree Identity a -> [a]
+pruneI maxfail = runIdentity . pruneT maxfail
 
 foundI :: SearchTree Identity a -> [a]
 foundI = runIdentity . foundT
@@ -25,21 +25,22 @@ testSearchTree= testGroup "SearchTree" [testBacktrack,testSplit,testArbiSearchTr
 
 -- if there are max  n failures in a row return True
 failures :: Int -> SearchTree Identity a -> Bool
-failures n tree = null (pruneI n 10000 succes) && not ( null  (pruneI (n+1)  1000 succes))
+failures n tree = null (pruneI n succes) && not ( null  (pruneI (n+1)  succes))
     where succes = mplus tree (return undefined)
 
 testBacktrack :: TestTree
 testBacktrack = testGroup "backtrack"
-  [ testBackSteps
+  [ testBackJumps
   , testBackSteps2
   , testLimitBacksteps
   , testSetSearchTree
   , nestedMzero
   , stopMzero
   ]
-
-testBackSteps :: TestTree
-testBackSteps = testCase "backsteps" $ pruneI 3 2
+-- TODO reworth backseps backjumps
+testBackJumps :: TestTree
+testBackJumps = testGroup "backjumps"
+  [ testCase "backjump" $ pruneI 3
     (Search $ TreeT $ Identity $ Node
         [ Node
             [ Node
@@ -51,17 +52,61 @@ testBackSteps = testCase "backsteps" $ pruneI 3 2
             , return (Just 2)
             ]
         , return (Just 3)
+        ] )  @?=  [2,3:: Int]
+
+  , testCase "backjumps 2 time" $ pruneI 3
+    (Search $ TreeT $ Identity $ Node
+        [ Node
+            [ Node
+                [ Leaf Nothing
+                , Leaf Nothing
+                , Leaf Nothing
+                , return (Just 1)
+                ]
+
+            , Leaf Nothing
+            , Leaf Nothing
+            , Leaf Nothing
+            , return (Just 2)
+            ]
+        , return (Just 3)
         ] )  @?=  [3:: Int]
 
+  , testCase "early fail" $ pruneI 3
+    (Search $ TreeT $ Identity $ Node
+
+        [ Node
+            [ Leaf Nothing
+            , Leaf Nothing
+            , Leaf Nothing]
+        , Node
+            [ Node
+                [ Leaf Nothing
+                , return (Just 1)
+                ]
+            , Leaf Nothing
+            , return (Just 2)
+            ]
+        , return (Just 3)
+        ] )  @?=  [1,2,3:: Int]
+  -- , testCase "failure" $ pruneI 3
+  --   (Search $ TreeT $ Identity $
+  --      let failure = Node [Leaf Nothing,failure]
+  --      in failure
+  --   )  @?= ([] :: [Int])
+
+  ]
+
 testBackSteps2 :: TestTree
-testBackSteps2 = testProperty "prune is same as found if purine nothing" $
-    \s -> foundI s === pruneI 1000000000 1 (s :: SearchTree Identity Int)
+testBackSteps2 = testProperty "prune is same as found" $
+    \s -> foundI s === pruneI 1000000000 (s :: SearchTree Identity Int)
 
 testLimitBacksteps :: TestTree
 testLimitBacksteps = testCase "limitBackSteps" $
-   let f y = if y >= 0
-        then tryM (map f [0 .. y - 1]):: SearchTree Identity Int else mzero
-   in pruneI 3 4 ( f =<< try [0 :: Int, 1,2,3,4,5,undefined ] ) @?= []
+   let g _ = f  (5::Int)
+       f y = if y >= 0
+             then tryM (map f [0 .. y - 1]):: SearchTree Identity Int else mzero
+   in pruneI 3 ( g =<< try [0 :: Int, 1,2,3,4,5,6,7,8,9,10,undefined ] ) @?= []
 
 -- assertFail :: String -> a -> String -> TestTree
 -- assertFail nameTest a exception = testCase nameTest $

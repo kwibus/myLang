@@ -1,4 +1,4 @@
-{-# LANGUAGE UndecidableInstances, FlexibleContexts#-}
+{-# LANGUAGE UndecidableInstances, FlexibleContexts, MultiWayIf #-}
 module SearchTree where
 
 import Control.Monad
@@ -105,23 +105,37 @@ instance Monad m => MonadPlus (SearchTree m ) where
 foundT :: Functor m => SearchTree m a -> m [a]
 foundT tree = catMaybes <$> toListT ( search tree)
 
-pruneT :: Functor m => Int -> Int -> SearchTree m a -> m [a]
-pruneT maxfailures stepBacks = fmap (prune maxfailures stepBacks) . run . search
+pruneT :: Functor m => Int -> SearchTree m a -> m [a]
+pruneT maxfailures = fmap (prune maxfailures ) . run . search
 
-prune :: Int -> Int -> Tree (Maybe a) -> [a]
-prune maxfailures stepBacks = go [] 0
+-- try redo depth search from lowest depth upward
+-- try till a number of fails, then jumpback
+-- if depth > highest depth then jump to depth - 1
+-- if previous jumpback depth > depth  jump to depth - 1
+-- otherwise  jump back to previous jumpback point - 1
+prune :: Int -> Tree (Maybe a ) -> [a]
+prune maxfailures = go [] 0 (100000000,10000000000)
   where
-    failure :: [Tree (Maybe a)] -> Int -> [a]
-    failure stack failures
-        | failures + 1 >= maxfailures = moveBack (drop stepBacks stack) 0
-        | otherwise = moveBack stack (failures + 1)
 
-    moveBack [] _ = []
-    moveBack (nextTry : rest) failures = go rest failures nextTry
+    failure :: [Tree (Maybe a)] -> Int ->(Int,Int) -> [a]
+    failure stack failures bounds@(previousDepth,highestDepth) =
+      let depth = length stack
+      in if  failures + 1 >= maxfailures
+         then if
+          |depth >= highestDepth  -> jumpback 1 stack (highestDepth,highestDepth)
+          |depth <= previousDepth -> jumpback 1 stack (depth       ,highestDepth)
+          |otherwise -> jumpback  (depth - previousDepth -1 ) stack (depth,highestDepth)
+         else next stack (failures + 1) bounds
 
-    go :: [Tree (Maybe a)] -> Int -> Tree (Maybe a) -> [a]
-    go stack failures tree = case tree of
-        (Leaf Nothing) -> failure stack failures
-        (Leaf (Just a)) -> a : moveBack stack 0
-        (Node []) -> moveBack stack failures
-        (Node (l : ls)) -> go (Node ls : stack) failures l
+    jumpback :: Int -> [Tree (Maybe a)] -> (Int, Int) -> [a]
+    jumpback jumps stack bounds = next (drop jumps stack) 0 bounds
+
+    next [] _ _ = []
+    next (nextTry : rest) failures bounds = go rest failures bounds nextTry
+
+    go :: [Tree (Maybe a)] -> Int ->  (Int,Int) -> Tree (Maybe a) -> [a]
+    go stack failures bounds tree = case tree of
+        (Leaf Nothing) -> failure stack failures bounds
+        (Leaf (Just a)) -> a : next stack 0 bounds
+        (Node []) -> next stack failures  bounds
+        (Node (l : ls)) -> go (Node ls : stack) failures  bounds l

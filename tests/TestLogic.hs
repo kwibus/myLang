@@ -16,16 +16,16 @@ testLogic = testGroup "Logic"
     -- , allJust "tryM is lazy" $ whenBacksteps (const False) (tryM $ map return [(1 :: Int) ..]) (return 1)
 
     [ allJust "elementsLogic" $ do
-        i <- elementsLogic [1 .. 100 :: Int]
-        if i < 90 then mzero else return i
+        i <- elementsLogic [1 .. 10 :: Int]
+        if i < 9 then mzero else return i
 
     , allJust "choseLogic" $ do
-        i <- chooseLogic (1, 100 :: Int)
-        if i < 90 then mzero else return i
+        i <- chooseLogic (1, 10 :: Int)
+        if i < 9 then mzero else return i
 
     , allJust "oneOfLogic" $ do
-        i <- oneOfLogic $ replicate 90 mzero ++ map return [1 .. 10 :: Int]
-        if i < 9 then mzero else return i
+        i <- oneOfLogic $ replicate 5 mzero ++ map return [1 .. 5 :: Int]
+        if i < 4 then mzero else return i
 
     , allJust "oneofLogic nested" $ do
         i <- oneOfLogic [elementsLogic [], return 1, return (10 :: Int)]
