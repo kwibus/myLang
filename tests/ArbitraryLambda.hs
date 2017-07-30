@@ -200,15 +200,17 @@ arbitraryLet size t maxlist state =
             vars <- replicateM (numberDefs - 1) newFreeVar
             (varNames, newState) <- lift $ lift $ makeVars state vars
             let newmaxlist = maxlist ++ map TVar vars
+            let (mkSmalDefsArgs,mkBigDefsArgs) = partition (\(_,_,defSize) -> defSize< resultSize) $ zip3 vars (map Name varNames) $ sort varSize
+            let mkDefs (v,name,sizeTerm)= do
+                    -- TODO remove self from maxlist
+                    -- TODO dont make self refrence values
+                    termN <- arbitraryTerm sizeTerm (fmap (const (TVar v)) t) maxlist newState
+                    return $ Def () name termN
+            smalDefs <- mapM mkDefs mkSmalDefsArgs
             term <- arbitraryTerm resultSize t newmaxlist newState
-            defs <- mapM (\ (v, name, sizeTerm) -> do
-                         -- TODO remove self from maxlist
-                         -- TODO dont make self refrence values
-                        termN <- arbitraryTerm sizeTerm (fmap (const (TVar v)) t) maxlist newState
-                        return $ Def () name termN
-                        ) $ zip3 vars (map Name varNames) $ sort varSize
+            bigDefs <- mapM mkDefs mkBigDefsArgs
            -- TODO maybe shuffle  but expensive  with BruijnTerm and would it make a difference
-            return $ Let () defs term
+            return $ Let () (smalDefs++ bigDefs) term
 
 --TODO should be a fold
 makeVars :: ArbiRef n => GenState n -> [Free] -> Gen ([String], GenState n)
