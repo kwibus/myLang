@@ -78,22 +78,73 @@ testBackJumps = testGroup "backjumps"
         [ Node
             [ Leaf Nothing
             , Leaf Nothing
-            , Leaf Nothing]
+            , Leaf Nothing
+            , return (Just 0)
+            ]
+
         , Node
             [ Node
                 [ Leaf Nothing
+                , Leaf Nothing
+                , Leaf Nothing
                 , return (Just 1)
                 ]
             , Leaf Nothing
             , return (Just 2)
             ]
         , return (Just 3)
-        ] )  @?=  [1,2,3:: Int]
-  -- , testCase "failure" $ pruneI 3
-  --   (Search $ TreeT $ Identity $
-  --      let failure = Node [Leaf Nothing,failure]
-  --      in failure
-  --   )  @?= ([] :: [Int])
+        ] )  @?=  [2,3:: Int]
+
+  , testCase "late fail" $ pruneI 3
+    (Search $ TreeT $ Identity $ Node
+
+        [ Node
+            [ Node
+                [ Leaf Nothing
+                , Leaf Nothing
+                , Leaf Nothing
+                , return (Just 1)
+                ]
+
+            , Node
+                [ Leaf Nothing
+                , Leaf Nothing
+                , Leaf Nothing
+                , return (Just 2)
+                ]
+            , return (Just 3)
+            ]
+        , return (Just 4)
+        ] )  @?=  [4:: Int]
+
+  , testCase "moved up " $ pruneI 3
+    (Search $ TreeT $ Identity $ Node
+
+        [ Node
+            [ Node
+                [ Leaf Nothing
+                , Leaf Nothing
+                , Leaf Nothing
+                , return (Just 1)
+                ]
+            , Leaf Nothing
+            ]
+        , Leaf Nothing
+        , Leaf Nothing
+        , return (Just 3)
+      ])
+    @?=  [3:: Int]
+
+  , testCase "repeat fail" $ pruneI 3
+    (Search $ TreeT $ Identity $ Node $
+      repeat $Leaf Nothing)
+  @?=  ([] :: [Int])
+
+  , testCase "failure" $ pruneI 3
+    (Search $ TreeT $ Identity $
+       let failure = Node [Leaf Nothing,failure]
+       in failure
+    )  @?= ([] :: [Int])
 
   ]
 

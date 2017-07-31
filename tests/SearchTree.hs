@@ -114,17 +114,18 @@ pruneT maxfailures = fmap (prune maxfailures ) . run . search
 -- if previous jumpback depth > depth  jump to depth - 1
 -- otherwise  jump back to previous jumpback point - 1
 prune :: Int -> Tree (Maybe a ) -> [a]
-prune maxfailures = go [] 0 (100000000,10000000000)
+prune maxfailures = go [] 0 (100000000,0)
   where
 
     failure :: [Tree (Maybe a)] -> Int ->(Int,Int) -> [a]
-    failure stack failures bounds@(previousDepth,highestDepth) =
+    failure stack failures bounds@(previousJumpDepth,highestDepth) =
       let depth = length stack
       in if  failures + 1 >= maxfailures
          then if
-          |depth >= highestDepth  -> jumpback 1 stack (highestDepth,highestDepth)
-          |depth <= previousDepth -> jumpback 1 stack (depth       ,highestDepth)
-          |otherwise -> jumpback  (depth - previousDepth -1 ) stack (depth,highestDepth)
+          |depth > highestDepth  -> jumpback 1 stack (depth-1 ,depth)
+          -- |depth < previousJumpDepth -> jumpback 1 stack (depth-1 ,depth)
+          -- this already happend because a negative jumpback is a next
+          |otherwise -> jumpback  (depth - previousJumpDepth +1 ) stack (previousJumpDepth-1,highestDepth)
          else next stack (failures + 1) bounds
 
     jumpback :: Int -> [Tree (Maybe a)] -> (Int, Int) -> [a]

@@ -34,7 +34,7 @@ runGenerartor :: Generater a -> SearchTree Gen a
 runGenerartor g = evalStateT g (fEmtyEnv, 0)
 
 generateGen :: Generater a -> Gen (Maybe a)
-generateGen g = listToMaybe <$> pruneT 40 ( runGenerartor g)
+generateGen g = listToMaybe <$> pruneT 200 ( runGenerartor g)
 
 generateList :: Generater a -> Gen [a]
 generateList = foundT . runGenerartor
