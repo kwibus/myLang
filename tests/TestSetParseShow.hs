@@ -40,6 +40,8 @@ letSet =
 
   , ("let b = 1.0;" ++
    "\nin + (+)", mkLet [("b", double 1.0)] $ lambda "#" $ appl (appl (val plus)(var "#"))(val plus))
+  , ("\\a.let b = False;"++
+     "\n   in 1.0",lambda "a" $ mkLet [("b",false)] $ double 1)
   ]
 
 math :: [(String, LamTerm () Name)]

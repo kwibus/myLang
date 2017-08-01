@@ -62,10 +62,9 @@ pShow = show . go True lowPrec
     in parensIf (not topLeft) $lambda <> go True lowPrec nextTerm
 
   go topLeft _ (Let _ defs term) = parensIf (not topLeft ) $
-                    text "let" <+>
-                    align (vcat $ map showDefs defs) <$$>
-                    text "in" <+>
-                    go True lowPrec  term
+                    align
+                      (text "let" <+> align (vcat $ map showDefs defs) <$$>
+                       text "in" <+> go True lowPrec  term)
     where showDefs (Def _ n t) = text (
              unwords (map toString (n : args)) ++
               " = ")
