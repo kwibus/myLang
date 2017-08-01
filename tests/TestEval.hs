@@ -118,13 +118,17 @@ testEvalBuildin = testGroup "Buildin"
       eval (appl (appl (val plus) ( double 1.0)) (double 2.0))
       @?= return (appl plus1 (double 2.0) )
   , testCase "1+2*3" $
-      fullEval (appl (appl (val plus)
+      evalSteps (appl (appl (val plus)
+                           (double 1.0))
                            (appl (appl (val multiply )
                                        (double 2.0))
                                        (double 3.0))
                            )
-                           (double 1.0))
-      @?= double 7.0
+      @?= [ appl (appl (val plus) (double 1)) (appl (val $ applyValue multiply (Prim $ MyDouble 2)) (double 3))
+          , appl (appl (val plus) (double 1)) (double 6)
+          , appl plus1 (double 6)
+          , double 7
+          ]
   ]
 plus1 :: BruijnTerm ()
 plus1 = val $ applyValue plus (Prim $ MyDouble 1)
@@ -446,10 +450,13 @@ testEvalLet = testGroup "let"
           , mkLet [("id",B.id)] true
           , true
           ]
-  -- , testCase "" $
-  --     evalSteps (mkLet [("a", appl (bvar 0)(val plus)),("b",lambda "c" $ mkLet [("d",val plus)] $ appl(bvar 2) (bvar 0))] $ bvar 0)
-  --     @?= [
-  --         ]
+  , testCase "(let a = false in let b = + in b)1" $
+      evalSteps (appl (mkLet [("a",false)] $ mkLet [("b",val plus)] $ bvar 0) $ double 1)
+      @?= [ appl (mkLet [("a",false)] $ mkLet [("b",val plus)] $ val plus) (double 1)
+          , appl (mkLet [("a",false)] $ val plus) (double 1)
+          , appl (val plus) (double 1)
+          , plus1
+          ]
   ]
 
 testEvalProp :: TestTree

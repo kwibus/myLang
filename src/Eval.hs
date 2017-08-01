@@ -117,6 +117,9 @@ shallowEval env t =
         let oldT1 = proces t1 -- TODO lazyniss shoue make this fast
         newT2 <- censors (Appl oldT1) $ evalW env t2
         shallowReduc env t1 newT2
+
+    LetF {} -> reproces <$> evalW env t -- ugly and lose benefit
+
     (VarF _ b ) ->
       let newTerm = extract b env
       in  tell[proces newTerm] >>
