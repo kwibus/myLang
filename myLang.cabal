@@ -42,6 +42,7 @@ library
                       ,Value
                       ,BruijnTerm
                       ,Eval
+                      ,SimpleEval
                       ,Operator
                       ,PrettyPrint
                       ,Type
