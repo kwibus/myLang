@@ -2,7 +2,6 @@
 module Eval
 where
 
-import Control.Monad.State.Strict as Strict
 import Control.Monad.Writer.Lazy
 import Data.Maybe
 import Data.Bifunctor
@@ -11,7 +10,6 @@ import Unprocessed
 import BruijnTerm
 import Value
 import BruijnEnvironment
-import Type
 import MTable (empty)
 import qualified TaggedLambda as Tag
 
@@ -196,17 +194,3 @@ evalDefsW env defs = do
     go (n,envN) (Def () b t) = do
       v <- retell (Def () b) $ evalW envN $ reproces t
       return ((n-1,update (Bound n) v envN),Def () b v)
-
-value :: Lam.LamTerm i Bound -> Maybe Value
-value (Lam.Val _ v ) = Just v
-value _ = Nothing -- error $ show t ++ " is not a value"
-
--- | applys a build in function to one argument
---  It crashes if first argument is not a function (It only export to include int test)
-applyValue :: Value -- ^ build in function
-           -> Value -- ^ argument
-           -> Value -- ^ result
-applyValue BuildIn {arrity = 1, evaluator = e, stack = s } v = Strict.evalState e (v : s )
-applyValue v1@BuildIn {arrity = n, stack = s, myType = t } v2 =
-    v1 {arrity = n - 1 , stack = v2 : s, myType = dropTypeArg t}
-applyValue v _ = error $ show v ++ " apply value"

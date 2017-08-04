@@ -1,7 +1,7 @@
 module Value where
 
 import Control.Monad.State.Strict
-import Type (Type)
+import Type (Type,dropTypeArg)
 import MakeType
 import Associativity
 
@@ -62,3 +62,14 @@ instance Eq Primative where
     (==) (MyDouble a) (MyDouble b) = abs (a - b) < 0.0001 -- TODO make more precise
     (==) (MyBool a) (MyBool b) = a == b
     (==) _ _ = False
+
+
+-- | applys a build in function to one argument
+--  It crashes if first argument is not a function (It only export to include int test)
+applyValue :: Value -- ^ build in function
+           -> Value -- ^ argument
+           -> Value -- ^ result
+applyValue BuildIn {arrity = 1, evaluator = e, stack = s } v = evalState e (v : s )
+applyValue v1@BuildIn {arrity = n, stack = s, myType = t } v2 =
+    v1 {arrity = n - 1 , stack = v2 : s, myType = dropTypeArg t}
+applyValue v _ = error $ show v ++ " apply value"
