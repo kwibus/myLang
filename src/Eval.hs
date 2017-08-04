@@ -132,6 +132,7 @@ shallowReduc env t1 newT2 = case peek t1  of
       in tell [t']>> shallowEval env newterm
 
     (ApplF t11 t12) -> do
+        -- TODO repetition of shallowEval appl
         let oldT11 = proces t11 -- TODO lazyniss shoue make this fast
         newT12 <- censors (\t12' -> Appl (Appl oldT11 t12') newT2) $ evalW env t12
         t1' <- censors ( `Appl` newT2) $  shallowReduc env t11 newT12
@@ -153,6 +154,7 @@ reduce env t1 newT2 =
         return newTerm
       _ -> error $ "applied " ++ show v1 ++ " with " ++ show newT2
     (ApplF t11 t12) -> do
+        -- TODO repetition of Eval appl
         let oldT11 = proces t11 -- TODO lazyniss shoue make this fast
         newT12 <- censors (\t12' -> Appl (Appl oldT11 t12') newT2) $ evalW env t12
         t1' <- censors ( `Appl` newT2) $ shallowReduc env t11 newT12

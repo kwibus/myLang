@@ -16,7 +16,7 @@ fullEval' :: BruijnTerm () -> BruijnTerm ()
 fullEval' = toExpresion . fullEval bEmtyEnv
 
 toExpresion :: ValR -> BruijnTerm ()
-toExpresion (Closure _ v) = error "result with closure are not yet supported"
+toExpresion (Closure _ _) = error "result with closure are not yet supported"
 toExpresion (Result v) = v
 
 fullEval :: Env -> BruijnTerm () -> ValR

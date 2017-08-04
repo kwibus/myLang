@@ -35,7 +35,7 @@ data UndefinedVar i n = UndefinedVar i n -- ^ i is extra information (location o
     deriving (Show, Eq)
 
 pShow :: BruijnTerm () -> String
-pShow = either show Lambda.pShow . bruijn2Lam
+pShow a = either (const (show a)) Lambda.pShow $ bruijn2Lam a
 
 -- | Converts 'BruijnTerm' to a 'LambTerm'
 --
