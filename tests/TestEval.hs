@@ -157,7 +157,7 @@ testEvalLet = testGroup "let"
           , double 3.0]
 
   , testCase "let c = 1; a = let b = c in b in a" $
-      fullEval (mkLet [("c", double 1), ("a", mkLet [("b", bvar 1)] $ bvar 0)] $ bvar 1)
+      fullEval (mkLet [("c", double 1), ("a", mkLet [("b", bvar 2)] $ bvar 0)] $ bvar 1)
       @?= double 1
 
   , testCase "let b = 1.0; a = b in a " $
