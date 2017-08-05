@@ -66,7 +66,7 @@ testEvalSteps = testGroup "evalSteps"
 testconvergentSteps :: TestTree
 testconvergentSteps = testGroup "convergent" $ map test convergingSet
   where
-  test (input,expected)= testCase (removeNewLines $ pShow input) $ (take (length output) $evalSteps input) @?= expected
+  test (input,expected)= testCase (removeNewLines $ pShow input) $ (take (length expected) $ evalSteps input) @?= expected
 
 basicSet :: [(BruijnTerm () , [BruijnTerm ()])]
 basicSet =
