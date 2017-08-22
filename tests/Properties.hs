@@ -32,8 +32,7 @@ welFormdType = go
 size :: LamTerm a i -> Int
 size (Lambda _ _ e ) = size e + 1
 size (Appl e1 e2) = size e1 + size e2 + 1
-size (Let _ defs term) =sum (map sizeDefs  defs) + size term + 1
-    where sizeDefs (Def _ _ t) = size t
+size (Let _ defs term) =sum (map (size.implementation) defs) + size term + 1
 size _ = 1
 
 isCirculair :: BruijnTerm i -> Bool

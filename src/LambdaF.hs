@@ -8,7 +8,7 @@ data LamTermF i n a = LambdaF i Name a
             | ApplF a a
             | VarF i n
             | ValF i Value
-            | LetF i [DefF i n a] a
+            | LetF i [Def i a] a
             deriving (Eq, Show)
 
 instance Functor (LamTermF i n) where
@@ -19,14 +19,6 @@ instance Functor (LamTermF i n) where
     -- fmap f (PtrF i b t) = PtrF i b (f t)
     fmap f (LetF i defs t ) = LetF i (map (fmap f) defs) $ f t
 
-  -- TODO mabe use this one for ever kind of Def
-data DefF i n a = DefF i Name a deriving (Eq, Show)
-
-instance Functor (DefF i n) where
-    fmap f (DefF i_ n_ t_) = DefF i_ n_ $ f t_
-
-instance Traversable (DefF i n) where
-  traverse f (DefF i n t) = DefF i n <$> f t
 
 instance Traversable (LamTermF i n) where
   traverse _ (VarF i b) = pure (VarF i b)
@@ -35,18 +27,12 @@ instance Traversable (LamTermF i n) where
   traverse f (ApplF t1 t2) = ApplF  <$> f t1 <*> f t2
   traverse f (LetF i defs tn) = LetF i <$> traverse (traverse f ) defs <*> f tn
 
-instance Foldable (DefF i n) where
-  foldr f b (DefF _ _ a) = f a b
-
 instance Foldable (LamTermF i n) where
   foldr _ b VarF {} = b
   foldr _ b ValF {} = b
   foldr f b (LambdaF _ _ a) = f a b
   foldr f b (ApplF a1 a2) = f a1 (f a2 b )
   foldr f b (LetF _ defs an) = foldr (flip (foldr f) ) (f an b) defs
-
-unFDef :: DefF i n (LamTerm i n) -> Def i n
-unFDef (DefF i n t) = Def i n t
 
 -- fold :: (b -> LamTermF i n a-> (a,b)) -> b -> a -> LamTerm i n
 --FIXME rename
@@ -57,7 +43,7 @@ unfold f b a = case f b a of
     (LambdaF i n t1, b1) -> Lam.Lambda i n (unfold f b1 t1)
     (ApplF t1 t2, b1)  -> Lam.Appl (unfold f b1 t1) (unfold f b1 t2)
     (LetF i defs t, b1) -> Lam.Let i (map unfoldDef defs) (unfold f b1 t)
-      where unfoldDef (DefF i_ n_ t_) = Lam.Def i_ n_ (unfold f b1 t_)
+      where unfoldDef (Def i_ n_ t_) = Lam.Def i_ n_ (unfold f b1 t_)
 
 --FIXME rename
 unfoldM :: Monad m => (b -> a -> m (LamTermF i n a,b)) -> b -> a -> m (LamTerm i n)
@@ -68,5 +54,4 @@ unfoldM f b a = do
     (ValF i v,_) -> return $ Lam.Val i v
     (LambdaF i n t1, b1) -> Lam.Lambda i n <$> unfoldM f b1 t1
     (ApplF t1 t2, b1) -> Lam.Appl <$> unfoldM f b1 t1 <*> unfoldM f b1 t2
-    (LetF i defs t, b1) -> Lam.Let i <$> mapM unfoldDefM defs <*> unfoldM f b1 t
-      where unfoldDefM (DefF i_ n_ t_) = Def i_ n_ <$> unfoldM f b1 t_
+    (LetF i defs t, b1) -> Lam.Let i <$> mapM (mapM$ unfoldM f b1)defs <*> unfoldM f b1 t

@@ -116,7 +116,7 @@ pLet = do
   term <- pLambdaTerm
   return $ Lambda.Let pos defs term
 
-pDefinition :: Parser (Def SourcePos Name)
+pDefinition :: Parser (Def SourcePos Expresion )
 pDefinition = do
   pos <- PS.getPosition
   str <- pIdentifier

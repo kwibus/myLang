@@ -5,14 +5,12 @@ where
 
 import LambdaF
 import MTable
-import qualified BruijnTerm as Lam
 import BruijnTerm (BruijnTerm,incFree)
 import ModificationTags
 import qualified TaggedLambda  as Tag
 import BruijnEnvironment
 
 type LamTerm i = Tag.LamTerm i Bound (Modify i)
-type Def i = Tag.Def i Bound (Modify i)
 
 remember :: Modify () -> MTable -> MTable
 remember modification s@MTable {getEnv = env} = remember' modification
@@ -28,12 +26,11 @@ peek modifications term = case term of
   Tag.Var _ b -> peekVar modifications b
   Tag.Appl t1 t2 -> (ApplF t1 t2,modifications)
   Tag.Lambda i n t -> (LambdaF i n t,insertT [Undefined depth] modifications)
-  Tag.Let i defs t -> ( LetF i (map peekDef defs) t,insertT (map Undefined [depth .. depth + nDefs-1]) modifications )
+  Tag.Let i defs t -> ( LetF i defs t,insertT (map Undefined [depth .. depth + nDefs-1]) modifications )
     where
       nDefs = length defs
   where
     depth = getDepth modifications
-    peekDef (Tag.Def i_ n_ t_) = DefF i_ n_ t_ --TODO can replaced if DefF is deafaul
 
 peekVar :: MTable -> Bound -> (LamTermF () Bound (LamTerm ()),MTable)
 peekVar modifications b@(Bound n) =
@@ -54,18 +51,13 @@ applyModify term = proces empty term
 proces ::  MTable  -> LamTerm () -> BruijnTerm ()
 proces = unfold peek
 
-procesDef :: MTable -> DefF () Bound (LamTerm ())  -> Lam.Def () Bound
-procesDef modifications (DefF i n t) = Lam.Def i n (proces modifications t) -- TODO can replaced if DefF is deafaul
-
 deepin :: LamTerm ()  -> LamTermF () Bound (LamTerm())
 deepin (Tag.Var i n) = VarF i n
 deepin (Tag.Appl t1 t2) = ApplF t1 t2
 deepin (Tag.Val i v) = ValF i v
 deepin (Tag.Lambda i n t) = LambdaF i n t
 deepin (Tag.Tag m t) = deepinTags [m] t
-deepin (Tag.Let i defs t) = LetF i (fmap deepinDef defs) t
-  where
-    deepinDef (Tag.Def i_ n_ t_) = DefF i_ n_ t_
+deepin (Tag.Let i defs t) = LetF i defs t
 
 deepinTags :: [Modify ()] -> LamTerm ()  -> LamTermF () Bound (LamTerm())
 deepinTags tags (Tag.Tag m t) = deepinTags (m:tags) t

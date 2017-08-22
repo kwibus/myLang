@@ -13,19 +13,22 @@ data LamTerm i n = Lambda i Name (LamTerm i n)
             | Appl (LamTerm i n) (LamTerm i n)
             | Var i n
             | Val i Value
-            | Let i [Def i n] (LamTerm i n)
+            | Let i [Def i (LamTerm i n)] (LamTerm i n)
             deriving (Eq, Show)
 
-data Def i n = Def i Name (LamTerm i n) deriving (Eq, Show)
+data Def i t = Def i Name t deriving (Eq, Show)
 
-implementation :: Def i n-> LamTerm i n
+instance Functor (Def i) where
+  fmap f (Def i n t) = Def i n $ f t
+
+instance Traversable (Def i) where
+  traverse f (Def i n t) = Def i n <$> f t
+
+instance Foldable (Def i) where
+  foldr f b (Def _ _ a) = f a b
+
+implementation :: Def i t-> t
 implementation (Def _ _ t) = t
-
-mapImplementation :: (LamTerm i n1 -> LamTerm i n2) -> Def i n1 -> Def i n2
-mapImplementation f (Def i n t) = Def i n (f t)
-
-mapMImplementation :: Functor m => (LamTerm i n1 -> m (LamTerm i n2)) -> Def i n1 -> m (Def i n2)
-mapMImplementation f (Def i n t) = Def i n <$> f t
 
 isInfix :: LamTerm i Name -> Bool
 isInfix (Val _ v ) = Value.isInfix v

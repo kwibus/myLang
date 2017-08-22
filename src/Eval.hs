@@ -183,16 +183,16 @@ reduce env t1 newT2 =
 saveLast :: a  -> [a] -> a
 saveLast a as = last (a:as)
 
-evalDefsW :: Env -> [DefF ()  Bound Unprocessed] ->  Step [Def () Bound ] (Env,[Def () Bound ] )
+evalDefsW :: Env -> [Def () Unprocessed] ->  Step [Def () (BruijnTerm ())] (Env,[Def () (BruijnTerm ())] )
 evalDefsW env defs = do
-    let procesedDef = map procesDef defs
+    let procesedDef = map (fmap proces) defs
     let dumyEnv = store (map Lam.implementation procesedDef) env
       --this only works because if somthing is writen then the last writen is equal to resutl in this use case
     ((_,newEnv),defsS) <-listen $ incrementalM go (nDefs-1,dumyEnv) procesedDef
     return (newEnv,saveLast procesedDef defsS)
   where
     nDefs = length defs
-    go :: (Int,Env) -> Def () Bound -> Step (Def () Bound) ((Int,Env),Def () Bound)
+    go :: (Int,Env) -> Def () (BruijnTerm ()) -> Step (Def () (BruijnTerm ())) ((Int,Env),Def () (BruijnTerm ()))
     go (n,envN) (Def () b t) = do
       v <- retell (Def () b) $ evalW envN $ reproces t
       return ((n-1,update (Bound n) v envN),Def () b v)

@@ -6,7 +6,6 @@ import Control.Monad.Reader
 import qualified TaggedLambda as Tag
 import LambdaF
 import BruijnEnvironment
-import qualified Lambda as Lam  (Def(..))
 import BruijnTerm (BruijnTerm)
 import ModificationTags
 import MTable
@@ -20,10 +19,6 @@ procesM :: MonadReader MTable m => Old -> m (BruijnTerm ())
 procesM (Old term ) = do
   m <- ask
   return $ proces m term
-
--- TODO can be remove if all def is defF
-procesDefM :: MonadReader MTable m => DefF () Bound Old -> m (Lam.Def () Bound)
-procesDefM (DefF i b t) = Lam.Def i b <$> procesM t
 
 -- could it make drop read
 reproces :: MonadReader MTable m => (Old-> m a) -> LamTerm () -> m a

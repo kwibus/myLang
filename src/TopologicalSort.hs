@@ -81,7 +81,7 @@ sortTerm term = fst <$> go 0 term
         let (funcDef, valDep) = partitionWith (isFunction . Lam.implementation) depencys defs
         newOrder <- first (makeDataCycle (Lam.Let i defs t)) $ topologicalSort valDep funcDef
         let reorderTerm = Tag.Tag $ Reorder 0 $ order2Permutation newOrder --TODO replace with funciton
-        let sortedDefs = map (Tag.mapImplementation reorderTerm . (\ b -> bLookup b $ bFromList defs')) newOrder
+        let sortedDefs = map (fmap reorderTerm . (\ b -> bLookup b $ bFromList defs')) newOrder
         return (Tag.Let i sortedDefs $ reorderTerm t', Set.unions (removeOutScope depth freeT : newFrees))
 
 -- | given current depth add bruijen variable to set of freevarabls

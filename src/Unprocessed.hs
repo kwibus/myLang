@@ -4,7 +4,7 @@ import MTable
 import qualified ModifiedLambda as Mod
 import LambdaF
 import BruijnEnvironment (Bound)
-import BruijnTerm as Lam (Value,BruijnTerm,Def(..))
+import BruijnTerm as Lam (Value,BruijnTerm)
 import TaggedLambda as Tag
 import ModificationTags
 
@@ -17,9 +17,6 @@ peek (Un mtable ast) = fmap (Un newMtable ) astF
 
 proces :: Unprocessed -> BruijnTerm ()
 proces (Un mtable ast ) = Mod.proces mtable ast
-
-procesDef :: DefF () Bound Unprocessed -> Lam.Def () Bound
-procesDef (DefF i b t) = Lam.Def i b $ proces t
 
 reproces :: BruijnTerm () -> Unprocessed
 reproces ast = Un empty (Tag.tag ast)

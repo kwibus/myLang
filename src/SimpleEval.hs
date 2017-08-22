@@ -41,7 +41,7 @@ reduce env t1 v2 = case fullEval env t1 of
     Result v1 -> reduce env v1 v2
     (Closure newEnv v1) -> reduce newEnv v1 v2
 
-fullEvalDefs :: Env -> [Def () Bound]  -> Env
+fullEvalDefs :: Env -> [Def () (BruijnTerm ())]  -> Env
 fullEvalDefs env defs = snd $ foldl
     (\(b,envN) (Def _ _ t)->
         let vn = fullEval envN t

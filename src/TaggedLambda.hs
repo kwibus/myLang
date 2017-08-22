@@ -1,19 +1,21 @@
-module TaggedLambda where
+module TaggedLambda
+  ( module TaggedLambda
+  ,Def (..)
+  )
+where
 
 import Name
 import Value
 import qualified Lambda as Lam
 import Unsafe.Coerce
-
+import Lambda (Def(..))
 data LamTerm i n t = Lambda i Name (LamTerm i n t)
             | Appl (LamTerm i n t) (LamTerm i n t)
             | Var i n
             | Val i Value
-            | Let i [Def i n t] (LamTerm i n t)
+            | Let i [Def i (LamTerm i n t)] (LamTerm i n t)
             | Tag t (LamTerm i n t)
             deriving (Eq, Show)
-
-data Def i n t = Def i Name (LamTerm i n t) deriving (Eq, Show)
 
 tag :: Lam.LamTerm i n -> LamTerm i n t
 tag = unsafeCoerce
@@ -25,8 +27,3 @@ tag = unsafeCoerce
 --   where
 --     tagDef (Lam.Def  i' n' t')  = Def i' n' $ tag t'
 
-mapImplementation :: (LamTerm i n1 t -> LamTerm i n2 t) -> Def i n1 t -> Def i n2 t
-mapImplementation f (Def i n t) = Def i n (f t)
-
-implementation :: Def i n t -> LamTerm i n t
-implementation (Def _ _ t) = t

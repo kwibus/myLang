@@ -5,6 +5,7 @@ import MTable (MTable,empty)
 import qualified ModifiedLambda
 
 import qualified BruijnTerm as Lam
+import TaggedLambda (Def(..))
 import qualified TaggedLambda as Tag
 import ModificationTags
 import BruijnEnvironment
@@ -16,7 +17,7 @@ import Name
 
 data LamTermFT = App InProcess InProcess
                | Lambda Name InProcess
-               | Let [ DefF () Bound InProcess ] InProcess
+               | Let [ Def () InProcess ] InProcess
                | Tag (Modify ()) InProcess
                deriving Show
 
@@ -35,7 +36,7 @@ appl (New t1) (New t2) = New $ Tag.Appl t1 t2
 appl (Unproc t1) (Unproc t2) = Unproc $ Tag.Appl t1 t2
 appl t1 t2 = Inproc $ App t1 t2
 
-mkLet :: [DefF () Bound InProcess ] -> InProcess -> InProcess
+mkLet :: [Def () InProcess ] -> InProcess -> InProcess
 mkLet defs t = Inproc $ Let defs t
 
 var :: Bound -> InProcess
@@ -61,6 +62,3 @@ peek modifications (Unproc term) =first (fmap Unproc) $  ModifiedLambda.peek mod
 
 proces ::  MTable  -> InProcess -> Lam.BruijnTerm ()
 proces = unfold peek
-
-procesDef :: MTable-> DefF () Bound InProcess -> Lam.Def () Bound
-procesDef modifications (DefF i n t) = Lam.Def i n (proces modifications t)
