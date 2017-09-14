@@ -21,7 +21,7 @@ empty = MTable 0 bEmtyEnv
 
 drop :: Int -> MTable -> MTable
 drop n m = m{getDepth = getDepth m - n
-          ,getEnv = bDrop n $ getEnv m}
+            ,getEnv = bDrop n $ getEnv m}
 
 -- TODO rename
 insertT :: [Symbol ()] -> MTable -> MTable

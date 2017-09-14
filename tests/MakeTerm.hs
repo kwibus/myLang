@@ -31,3 +31,6 @@ appl = Appl
 
 mkLet :: [(String, LamTerm () n)] -> LamTerm () n -> LamTerm () n
 mkLet tupleDef = Let () (map (uncurry (Def (). Name )) tupleDef)
+
+def :: String -> t -> Def () t
+def = Def () . Name

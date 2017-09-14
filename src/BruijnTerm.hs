@@ -7,6 +7,7 @@ module BruijnTerm
   , defsBounds
   , pShow
   , incFree
+  , incFreeOfset
   ) where
 
 import Control.Monad.Except
@@ -120,8 +121,7 @@ incFreeOfset ofset increase term = go ofset term
     go depth (Var i (Bound n))
         | n >= depth = Var i $ Bound $ n + increase
         | otherwise = Var i (Bound n)
-    go depth (Let i defs t) = Let i (fmap incDefs defs) $ go newDepth t
+    go depth (Let i defs t) = Let i (map (fmap $ go newDepth) defs) $ go newDepth t
       where
         newDepth = depth + length defs
-        incDefs (Def is ns ts) = Def is ns $ go newDepth ts
     go _ (Val i v) = Val i v

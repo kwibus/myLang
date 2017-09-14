@@ -222,6 +222,7 @@ makeVars state (f : fs) = do
 
 -- TODO explain
 uniformBucket :: Int -> Int -> Gen [Int]
+uniformBucket 0 _ = return []
 uniformBucket buckets totaal = do
     randomList <- replicateM (buckets - 1) $ choose (0, totaal) :: Gen [Int]
     return $ diff $ 0 : (sort randomList ++ [totaal])

@@ -25,6 +25,7 @@ library
                       ,parsec
                       ,parsec-numbers
                       ,mtl
+                      ,dlist
                       ,transformers
                       ,ansi-wl-pprint
                       ,assert-failure
@@ -115,6 +116,7 @@ test-suite tests
                       ,parsec
                       ,parsec-numbers
                       ,ansi-wl-pprint
+                      ,dlist
 
   other-modules:      ArbiRef
                       ,ArbitraryLambda

@@ -27,3 +27,7 @@ tag = unsafeCoerce
 --   where
 --     tagDef (Lam.Def  i' n' t')  = Def i' n' $ tag t'
 
+getVal :: LamTerm i n t-> Maybe Value
+getVal (Tag _ t) = getVal t
+getVal (Val _ v) = Just v
+getVal _ = Nothing
