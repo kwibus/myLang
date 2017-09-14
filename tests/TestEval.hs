@@ -18,7 +18,7 @@ import TopologicalSort
 import Eval
 import FreeEnvironment
 import MakeTerm
-import ModifiedLambda
+import ModificationTags (applyModify)
 import Operator
 import Value
 import ErrorCollector

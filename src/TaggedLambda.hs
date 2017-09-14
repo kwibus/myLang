@@ -9,6 +9,7 @@ import Value
 import qualified Lambda as Lam
 import Unsafe.Coerce
 import Lambda (Def(..))
+
 data LamTerm i n t = Lambda i Name (LamTerm i n t)
             | Appl (LamTerm i n t) (LamTerm i n t)
             | Var i n

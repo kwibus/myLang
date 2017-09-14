@@ -7,7 +7,7 @@ import BruijnEnvironment
 import MakeTerm
 import TopologicalSort
 import BruijnTerm
-import ModifiedLambda
+import ModificationTags
 import Properties
 import TestUtils
 

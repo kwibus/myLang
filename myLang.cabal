@@ -33,7 +33,6 @@ library
   exposed-modules:     Lambda
                       ,LambdaF
                       ,MTable
-                      ,ModifiedLambda
                       ,Inprocess
                       ,BottumUp
                       ,TaggedLambda

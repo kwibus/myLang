@@ -4,6 +4,7 @@ module TopologicalSort
     , sortTerm
     , DataCycle (..)
     ) where
+
 import Data.List (sortBy)
 import Data.Ord
 import Control.Monad.State

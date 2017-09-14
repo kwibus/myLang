@@ -1,7 +1,7 @@
 module Unprocessed where
 
 import MTable
-import qualified ModifiedLambda as Mod
+import qualified ModificationTags as Mod
 import LambdaF
 import BruijnEnvironment (Bound(..))
 import BruijnTerm as Lam (Value,BruijnTerm)

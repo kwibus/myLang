@@ -5,9 +5,8 @@ import Test.Tasty.HUnit
 import Test.Tasty.QuickCheck
 
 import ArbitraryLambda
-import ModificationTags
 import MTable
-import ModifiedLambda (applyModify,remember)
+import ModificationTags (applyModify,remember,Modify(..))
 import Inprocess (proces)
 import qualified Inprocess as P
 

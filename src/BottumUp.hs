@@ -9,7 +9,6 @@ import BruijnEnvironment
 import BruijnTerm (BruijnTerm)
 import ModificationTags
 import MTable
-import ModifiedLambda
 import Control.Monad.Trans.Cont
 
 newtype Old = Old (LamTerm ()) deriving Show

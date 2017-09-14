@@ -2,12 +2,12 @@ module Inprocess where
 
 import Data.Bifunctor
 import MTable (MTable,empty)
-import qualified ModifiedLambda
 
 import qualified BruijnTerm as Lam
 import TaggedLambda (Def(..))
-import qualified TaggedLambda as Tag
-import ModificationTags
+import qualified TaggedLambda as Tag hiding (LamTerm)
+import ModificationTags (Modify)
+import qualified ModificationTags as Tag
 import BruijnEnvironment
 import LambdaF
 import Value
@@ -22,8 +22,8 @@ data LamTermFT = App InProcess InProcess
                deriving Show
 
 data InProcess = Inproc LamTermFT
-              | Unproc (Tag.LamTerm () Bound (Modify()))
-              | New (Tag.LamTerm () Bound (Modify()))
+              | Unproc (Tag.LamTerm ())
+              | New (Tag.LamTerm ())
               deriving Show
 
 addTag :: Modify () -> InProcess -> InProcess
@@ -58,7 +58,7 @@ peek modification (Inproc term)= case term of
   (Let defs t) -> (LetF () defs t,modification)
   Tag {}  ->error  "Doom"--FIXME
 peek _ (New term) = peek empty $ Unproc term
-peek modifications (Unproc term) =first (fmap Unproc) $  ModifiedLambda.peek modifications term
+peek modifications (Unproc term) =first (fmap Unproc) $  Tag.peek modifications term
 
 proces ::  MTable  -> InProcess -> Lam.BruijnTerm ()
 proces = unfold peek
