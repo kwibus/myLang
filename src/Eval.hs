@@ -68,7 +68,9 @@ maybeExtract ::  Bound -> Env -> Maybe D
 maybeExtract b@(Bound n) env = do
     (ofset,D1 defs term) <- bMaybeLookup b env
     return $ D (map (map $ fmap $ incFreeD1 (n-ofset)) defs) $
-               reproces $ incFreeOfset (length $ concat defs) (n-ofset) term
+               -- reproces $ incFreeOfset (length $ concat defs) (n-ofset) term
+               -- TODO works bit is bit of a hack. better implement/use incFreeOfset for mtable
+               insertUndefined (length ( concat defs)) $ Unprocessed.incFree (n-ofset) $ reproces term
 
 -- TODO write test for this
 incFreeD1 :: Int -> D1 -> D1

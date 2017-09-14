@@ -21,7 +21,6 @@ instance Functor (LamTermF i n) where
     -- fmap f (PtrF i b t) = PtrF i b (f t)
     fmap f (LetF i defs t ) = LetF i (map (fmap f) defs) $ f t
 
-
 instance Traversable (LamTermF i n) where
   traverse _ (VarF i b) = pure (VarF i b)
   traverse _ (ValF i v) = pure (ValF i v)
