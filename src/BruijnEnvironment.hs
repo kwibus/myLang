@@ -5,6 +5,7 @@ import Control.Exception.Base
 import Data.Maybe
 import Data.List
 
+-- add some test
 -- TODO remove b prefix and give beter names
 
 -- TODO consistend inuative order in BruijnEnv
@@ -69,13 +70,13 @@ bInsert :: a -> BruijnEnv a -> BruijnEnv a
 bInsert a b@BruijnState {bruijnDepth = depth, bruijnMap = m} =
      b {bruijnDepth = depth + 1, bruijnMap = IM.insert depth a m }
 
+-- TODO test (bInserts [a] == bInsert a)
 -- when env= bInserts [1,2,3] bEmtyEnv  then bLookup Bound 0 will be 3; Bruij counts left to righ
 bInserts :: [a] -> BruijnEnv a -> BruijnEnv a
 bInserts list env = foldl' (flip bInsert) env list
 
 bInsertBlackhole :: Int  -> BruijnEnv a -> BruijnEnv a
 bInsertBlackhole n env= env{bruijnDepth = bruijnDepth env +n}
-
 
 -- TODO can remove duplcate code by using bInserts
 bFromList :: [a] -> BruijnEnv a
@@ -110,6 +111,8 @@ bSplitAt n b = (b {bruijnDepth = newDepth, bruijnMap = low}, maybeToList pivot +
   where (low, pivot, high) = IM.splitLookup newDepth (bruijnMap b)
         newDepth = bruijnDepth b - n
 
+-- TODO test (bInsertAt 0  == bInsert)
+-- TODO maybe use Bound
 bInsertAt :: Int -> a -> BruijnEnv a -> BruijnEnv a
 bInsertAt n a env = bInserts (a:right) left
   where

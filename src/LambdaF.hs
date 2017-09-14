@@ -4,6 +4,8 @@ import Name
 import Value
 import Lambda as Lam
 
+-- TODO i is always () maybe remove
+
 data LamTermF i n a = LambdaF i Name a
             | ApplF a a
             | VarF i n

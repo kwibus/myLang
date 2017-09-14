@@ -78,7 +78,7 @@ incFreeD1ofset :: Int -> Int -> D1 -> D1
 incFreeD1ofset ofset n (D1 defs t) = D1 newDefs$ incFreeOfset (ofset+dept) n t
   where
      (dept,newDefs) = foldr
-         (\def (depth,old) -> let newDepth = depth+length def
+         (\def (depth,old) -> let newDepth = depth + length def:: Int
                               in (newDepth, map (fmap $ incFreeD1ofset (ofset+newDepth) n) def : old))
          (0,[])
          defs

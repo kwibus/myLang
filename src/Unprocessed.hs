@@ -3,7 +3,7 @@ module Unprocessed where
 import MTable
 import qualified ModifiedLambda as Mod
 import LambdaF
-import BruijnEnvironment (Bound,bInsert)
+import BruijnEnvironment (Bound(..))
 import BruijnTerm as Lam (Value,BruijnTerm)
 import TaggedLambda as Tag
 
@@ -29,13 +29,6 @@ var b = Un empty  $ Var () b
 getVal :: Unprocessed -> Maybe Value
 getVal (Un _ t) = Tag.getVal t
 
-substitute  ::Int->  BruijnTerm () -> Unprocessed -> Unprocessed
--- TODO roundabout way
-substitute n sub (Un mtable ast) =  Un (MTable depth (bInsert (Subst (depth-n) sub) env) )  ast
-  where
-    (MTable depth env ) = MTable.drop 1 mtable
 
-insertUndefined :: Int -> Unprocessed -> Unprocessed
-insertUndefined n (Un m t) = Un (insertT (map Undefined  [depth .. depth+n-1]) m) t
-  where
-    depth = getDepth m
+substitute  ::Int->  BruijnTerm () -> Unprocessed -> Unprocessed
+substitute n sub (Un mtable ast) =  Un (MTable.substitute (Bound 0) n sub $ MTable.drop 1 mtable) ast

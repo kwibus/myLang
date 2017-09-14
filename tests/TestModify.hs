@@ -2,7 +2,9 @@ module TestModify where
 
 import Test.Tasty
 import Test.Tasty.HUnit
+import Test.Tasty.QuickCheck
 
+import ArbitraryLambda
 import ModificationTags
 import MTable
 import ModifiedLambda (applyModify,remember)
@@ -16,11 +18,14 @@ import qualified MakeTagedTerm as T
 import MakeTerm
 import TestUtils
 
+-- TODO consider testing (table,ast) instead of taged ast
+
 testModify :: TestTree
 testModify = testGroup "modifcation tags"
     [ testApplyModify
     , testReorderTag
     , testsubstituteTag
+    , testIncFreeTag
     , testCombined
     ]
 
@@ -79,6 +84,20 @@ testReorderTag = testGroup "Reorder"
     -- , testCase "reorder' non existent" $
     --     applyModify (T.lambda "a" $ reorder' [1,0] $ T.bvar 0)
     --     @?= lambda "a" ( bvar 1)
+    ]
+
+incFree' :: Int -> T.LamTerm () Bound (Modify ()) -> T.LamTerm () Bound (Modify ())
+incFree' = T.Tag . IncFree 0
+
+testIncFreeTag :: TestTree
+testIncFreeTag = testGroup "incfree"
+    [ -- TODO  other ast are not tested (Unprocessed inprogross ..)
+        testProperty "applyModify tag-incfree  ast == BruijnTerm.incfree n ast " $
+        forAllUnTypedBruijn $ \ t ->
+        applyModify (incFree' 5 $ T.tag t) === BruijnTerm.incFree 5 t
+    , testIntermidiats "incfree \\a.ab"
+        (incFree' 5 $ T.lambda "a" $ T.appl (T.bvar 0) (T.bvar 1))
+        (lambda "a" $ appl (bvar 0) (bvar 6))
     ]
 
 sub' :: T.LamTerm () Bound (Modify ()) -> T.LamTerm () Bound (Modify ()) -> T.LamTerm () Bound (Modify ())

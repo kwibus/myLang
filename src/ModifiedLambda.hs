@@ -5,7 +5,7 @@ where
 
 import LambdaF
 import MTable
-import BruijnTerm (BruijnTerm,incFree)
+import BruijnTerm (BruijnTerm)
 import ModificationTags
 import qualified TaggedLambda  as Tag
 import BruijnEnvironment
@@ -16,8 +16,10 @@ remember :: Modify () -> MTable -> MTable
 remember modification s@MTable {getEnv = env} = remember' modification
   where
     remember' (Reorder n order)  = s {getEnv = bReorder env n order}
-    remember' (Substitut n term) = s {getEnv = bInsertAt n (Subst (getDepth s) term) env}
+    remember' (Substitut n term) = substitute (Bound n) 0 term s
     remember' (SubstitutT n term) = remember  (Substitut n $ proces s term) s
+    -- TODO implement ofset
+    remember'  (IncFree 0 inc ) = incFree inc s
 
 peek :: MTable -> LamTerm () -> (LamTermF () Bound (LamTerm ()), MTable)
 peek modifications term = case term of
@@ -38,10 +40,8 @@ peekVar modifications b@(Bound n) =
   in case bMaybeLookup b table of
     Just (Undefined depthDefined) -> (VarF () $ Bound $ depth- depthDefined - 1,modifications)
     Just (Subst depthDefined t2) ->
-          -- TODO incfree can be fast with tag? /or modifyed mod
-        peek empty $ Tag.tag $ incFree (depth - depthDefined) t2
-      --TODO nsubst can be memorize wordt it ?
-    Nothing -> ( VarF () (Bound $ n - nsubst table),modifications)
+        peek (incFree (depth - depthDefined)empty) $ Tag.tag t2
+    Nothing -> ( VarF () (Bound $ n + incFreeFromStart modifications),modifications)
   where
     depth = getDepth modifications
 
