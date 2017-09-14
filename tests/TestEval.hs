@@ -409,6 +409,40 @@ letSet =
         , appl (val plus) (double 1)
         , plus1
         ])
+
+  , (mkLet [("y", lambda "b" $ lambda "c" $ val multiply)
+           ,("l",mkLet [("p",val plus)]
+                       $ lambda "i"$ bvar 1)
+           ] $ mkLet [("u",val plus)
+                     ,("x", double 1)] $
+                     bvar 2
+    ,[mkLet [("y", lambda "b" $ lambda "c" $ val multiply)
+           ,("l",mkLet [("p",val plus)]
+                       $ lambda "i"$ bvar 1)
+           ] $ mkLet [("u",val plus)
+                     ,("x", double 1)] $
+                     mkLet [("p",val plus)] $
+                           lambda "i"$ bvar 1
+    ])
+  , (mkLet [("a", lambda "b" $ val multiply)] $
+           appl (mkLet [("c",val multiply)] B.id)
+                (lambda "d"$ bvar 1)
+    , [mkLet [("a", lambda "b" $ val multiply)] $
+           mkLet [("c",val multiply)] (lambda "d"$ bvar 2)
+      ])
+
+  , (appl (appl (mkLet [("id",B.id)] $ bvar 0)(lambda "b" $ val plus)) true
+    ,[ appl (appl (mkLet [("id",B.id)] B.id)(lambda "b" $ val plus)) true
+     , appl (mkLet [("id",B.id)] $ lambda "b" $ val plus) true
+     , mkLet [("id",B.id)] $ val plus
+     , val plus
+     ])
+
+  ,(appl (lambda "a" $ appl (mkLet [("b",true)] $ lambda "c" $ bvar 2)(bvar 0)) (val multiply)
+   ,[ appl (mkLet [("b",true)] $ lambda "c" $ val multiply)(val multiply)
+    , mkLet [("b",true)] $ val multiply
+    , val multiply
+    ])
   ]
 
 convergingSet :: [(BruijnTerm () , [BruijnTerm ()])]
