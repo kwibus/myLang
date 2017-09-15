@@ -28,13 +28,11 @@ data Modify i = Reorder Int [Bound] -- ^ @[1, 0, 2]@ will make bound 0 -> 1, 1 -
 type LamTerm i = Tag.LamTerm i Bound (Modify i)
 
 remember :: Modify () -> MTable -> MTable
-remember modification s@MTable {getEnv = env} = remember' modification
-  where
-    remember' (Reorder n order)  = s {getEnv = bReorder env n order}
-    remember' (Substitut n term) = substitute (Bound n) 0 term s
-    remember' (SubstitutT n term) = remember  (Substitut n $ proces s term) s
-    -- TODO implement ofset
-    remember'  (IncFree 0 inc ) = incFree inc s
+remember (Reorder n order) mtable = reorder n order mtable
+remember (Substitut n term) mtable = substitute (Bound n) 0 term mtable
+remember (SubstitutT n term) mtable = remember  (Substitut n $ proces mtable term) mtable
+-- TODO implement ofset
+remember  (IncFree 0 inc ) mtable = incFree inc mtable
 
 peek :: MTable -> LamTerm () -> (LamTermF () Bound (LamTerm ()), MTable)
 peek modifications term = case term of

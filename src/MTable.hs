@@ -1,4 +1,4 @@
-{-# LANGUAGE LambdaCase #-}
+{-# LANGUAGE LambdaCase, TupleSections #-}
 module MTable where
 
 import BruijnTerm (BruijnTerm)
@@ -16,21 +16,21 @@ import BruijnEnvironment
 data MTable = MTable
             { getDepth :: Int
             , incFreeFromStart :: Int
-            , getEnv :: BruijnEnv (Symbol ())
+            , getEnv :: BruijnEnv (Int,Symbol ())
             } deriving (Eq, Show)
 
 peekVar :: MTable -> Bound -> (Either Bound (BruijnTerm ()),MTable)
 peekVar modifications b@(Bound n) =
   let table = getEnv modifications
   in case bMaybeLookup b table of
-    Just (Undefined depthDefined) -> (Left $ Bound $ depth- depthDefined - 1,modifications)
-    Just (Subst depthDefined t2) -> (Right t2, incFree (depth - depthDefined) empty)
+    Just (depthDefined, Undefined) -> (Left $ Bound $ depth- depthDefined - 1,modifications)
+    Just (depthDefined, Subst t2) -> (Right t2, incFree (depth - depthDefined) empty)
     Nothing -> ( Left $ Bound $ n + incFreeFromStart modifications,modifications)
   where
     depth = getDepth modifications
 
-data Symbol i = Subst Int (BruijnTerm i)
-           | Undefined Int
+data Symbol i = Subst (BruijnTerm i)
+           | Undefined
            deriving (Show, Eq)
 
 incFree :: Int -> MTable -> MTable
@@ -43,16 +43,18 @@ drop :: Int -> MTable -> MTable
 drop n m = m{getDepth = getDepth m - n
             ,getEnv = bDrop n $ getEnv m}
 
+reorder :: Int -> [Bound] -> MTable -> MTable
+reorder n order s@MTable{getEnv = env} = s {getEnv = bReorder env n order}
+
 substitute  :: Bound -> Int ->  BruijnTerm () -> MTable -> MTable
 substitute (Bound n) depthDiff sub m =
  m{ incFreeFromStart = incFreeFromStart m -1
-  , getEnv = bInsertAt n (Subst (getDepth m -depthDiff ) sub )(getEnv m)}
+  , getEnv = bInsertAt n (getDepth m -depthDiff,Subst sub)(getEnv m)}
 
 insertUndefined :: Int -> MTable -> MTable
-insertUndefined n m = m { getEnv = bInserts (map Undefined  [depth .. depth+n-1]) (getEnv m)
-                        , getDepth = depth + n}
-  where
-    depth = getDepth m
+insertUndefined n m@MTable{getDepth = depth} =
+    m { getEnv = bInserts (map (,Undefined )[depth .. depth+n-1]) (getEnv m)
+      , getDepth = depth + n}
 
 --TODO remove or use in test for  incFreeFromStart == nsubst
 -- nsubst :: BruijnEnv (Symbol i) -> Int
