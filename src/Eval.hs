@@ -117,6 +117,10 @@ update b (D defs t) env = bReplace b (ofset,D1 defs $ proces t) env
 --      Unprocessed  = (MTable,  BruijnTerm)
 --      this could short circuit proces if there are no modifications
 
+-- you might think that Reader monad for env mtable might be a good idea
+-- this does not work well with incrementalM
+-- and makes it easy to exedenaly peekM with not match MTable
+
 evalW :: Env -> Unprocessed -> Step (BruijnTerm()) D
 evalW env ast = case peek ast of
     (LambdaF _ n t) -> return $ D [] ast
