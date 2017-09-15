@@ -40,23 +40,14 @@ peek :: MTable -> LamTerm () -> (LamTermF () Bound (LamTerm ()), MTable)
 peek modifications term = case term of
   Tag.Tag m t -> peek (remember m modifications ) t
   Tag.Val i v -> (ValF i v,modifications)
-  Tag.Var _ b -> peekVar modifications b
+  Tag.Var _ b -> case peekVar modifications b of
+    (Left newB,newM) -> (VarF () newB,newM)
+    (Right t,newM) -> peek newM $ Tag.tag t
   Tag.Appl t1 t2 -> (ApplF t1 t2,modifications)
   Tag.Lambda i n t -> (LambdaF i n t,insertT [Undefined depth] modifications)
   Tag.Let i defs t -> ( LetF i defs t,insertT (map Undefined [depth .. depth + nDefs-1]) modifications )
     where
       nDefs = length defs
-  where
-    depth = getDepth modifications
-
-peekVar :: MTable -> Bound -> (LamTermF () Bound (LamTerm ()),MTable)
-peekVar modifications b@(Bound n) =
-  let table = getEnv modifications
-  in case bMaybeLookup b table of
-    Just (Undefined depthDefined) -> (VarF () $ Bound $ depth- depthDefined - 1,modifications)
-    Just (Subst depthDefined t2) ->
-        peek (incFree (depth - depthDefined)empty) $ Tag.tag t2
-    Nothing -> ( VarF () (Bound $ n + incFreeFromStart modifications),modifications)
   where
     depth = getDepth modifications
 
@@ -76,10 +67,15 @@ deepin (Tag.Let i defs t) = LetF i defs t
 
 deepinTags :: [Modify ()] -> LamTerm ()  -> LamTermF () Bound (LamTerm())
 deepinTags tags (Tag.Tag m t) = deepinTags (m:tags) t
-deepinTags tags (Tag.Var _ b) = fst $ peekVar(foldr remember empty tags) b
+deepinTags tags (Tag.Var _ b) = case fst $ peekVar (foldr remember empty tags) b of
+  (Left newB) -> VarF () newB
+  (Right t) -> deepinTags tags $ Tag.tag t
+
 deepinTags _ (Tag.Val i v) = ValF i v
-deepinTags tags t = let newTags = map (deepinTag (depthChange t)) tags
-                in fmap (\subT -> foldr Tag.Tag subT newTags) (deepin t)
+deepinTags tags t = fmap addNewTags (deepin t)
+  where
+    newTags = map (deepinTag (depthChange t)) tags
+    addNewTags subT = foldr Tag.Tag subT newTags
 
 deepinTag :: Int -> Modify i -> Modify i
 deepinTag n (Reorder d order) = Reorder (d+n) order

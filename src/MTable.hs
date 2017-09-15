@@ -5,15 +5,29 @@ import BruijnTerm (BruijnTerm)
 import BruijnEnvironment
 
 -- TODO add comments
+
 -- TODO add store
+--      store should only be used if you only need info about current var
+--      if you need to look up for different variables you should make your own env
+--      to use own Env you have to track depth
+--      so make it easy to get depth from mtable
 
 -- TODO env rename name , get simbolTabe
 data MTable = MTable
             { getDepth :: Int
             , incFreeFromStart :: Int
             , getEnv :: BruijnEnv (Symbol ())
-            }
-              deriving (Eq, Show)
+            } deriving (Eq, Show)
+
+peekVar :: MTable -> Bound -> (Either Bound (BruijnTerm ()),MTable)
+peekVar modifications b@(Bound n) =
+  let table = getEnv modifications
+  in case bMaybeLookup b table of
+    Just (Undefined depthDefined) -> (Left $ Bound $ depth- depthDefined - 1,modifications)
+    Just (Subst depthDefined t2) -> (Right t2, incFree (depth - depthDefined) empty)
+    Nothing -> ( Left $ Bound $ n + incFreeFromStart modifications,modifications)
+  where
+    depth = getDepth modifications
 
 data Symbol i = Subst Int (BruijnTerm i)
            | Undefined Int

@@ -155,7 +155,7 @@ reduce env (D defs t1) newT2 = do
           tell [newTerm]
           return $ D defs $ reproces newTerm
         Nothing -> error $ "applied " ++ show v1 ++ " with " ++ show newT2
-      _ -> error "val can't be applied to lets" -- TODO
+      _ -> error "val can't be applied to lets"
     _ -> error ( "reduced a non denotatial value:\n" ++ show ( proces t1))
   shrink (addDefs defs d)
 
