@@ -2,7 +2,6 @@ module MakeTerm where
 
 import BruijnTerm
 import Value
-import BruijnEnvironment
 import Name
 
 val :: Value -> LamTerm () n

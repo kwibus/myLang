@@ -4,7 +4,6 @@ import Data.Either
 
 import Lambda
 import BruijnTerm
-import BruijnEnvironment
 import FreeEnvironment
 import TopologicalSort
 import Type

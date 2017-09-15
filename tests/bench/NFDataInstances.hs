@@ -19,7 +19,6 @@ import Associativity
 import InfixFix
 import Info
 import BruijnTerm
-import BruijnEnvironment
 import TypeError
 import ErrorCollector
 
