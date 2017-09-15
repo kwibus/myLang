@@ -48,11 +48,11 @@ substitute (Bound n) depthDiff sub m =
  m{ incFreeFromStart = incFreeFromStart m -1
   , getEnv = bInsertAt n (Subst (getDepth m -depthDiff ) sub )(getEnv m)}
 
--- TODO rename/remove
-insertT :: [Symbol ()] -> MTable -> MTable
-insertT refs s@MTable {getEnv = env, getDepth = depth}
-    = s {getEnv = bInserts refs env
-        , getDepth = depth + length refs}
+insertUndefined :: Int -> MTable -> MTable
+insertUndefined n m = m { getEnv = bInserts (map Undefined  [depth .. depth+n-1]) (getEnv m)
+                        , getDepth = depth + n}
+  where
+    depth = getDepth m
 
 --TODO remove or use in test for  incFreeFromStart == nsubst
 -- nsubst :: BruijnEnv (Symbol i) -> Int

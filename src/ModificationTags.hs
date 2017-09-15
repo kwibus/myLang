@@ -44,12 +44,8 @@ peek modifications term = case term of
     (Left newB,newM) -> (VarF () newB,newM)
     (Right t,newM) -> peek newM $ Tag.tag t
   Tag.Appl t1 t2 -> (ApplF t1 t2,modifications)
-  Tag.Lambda i n t -> (LambdaF i n t,insertT [Undefined depth] modifications)
-  Tag.Let i defs t -> ( LetF i defs t,insertT (map Undefined [depth .. depth + nDefs-1]) modifications )
-    where
-      nDefs = length defs
-  where
-    depth = getDepth modifications
+  Tag.Lambda i n t -> (LambdaF i n t,insertUndefined 1  modifications)
+  Tag.Let i defs t -> ( LetF i defs t,insertUndefined (length defs) modifications )
 
 applyModify :: LamTerm () -> BruijnTerm ()
 applyModify term = proces empty term

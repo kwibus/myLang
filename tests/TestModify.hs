@@ -51,8 +51,8 @@ testApplyModify = testGroup "applyModify"
 testReorderTag :: TestTree
 testReorderTag = testGroup "Reorder"
     [ testCase "remember" $
-        remember (Reorder 0 $ map Bound [1, 0, 2]) (insertT (map Undefined [2, 1, 0] :: [Symbol ()]) empty )
-        @?= insertT (map Undefined [2, 0, 1]) empty
+        remember (Reorder 0 $ map Bound [1, 0, 2]) (insertUndefined  3 empty )
+        @?= MTable {getDepth = 3, incFreeFromStart = 0, getEnv = bFromList (map Undefined [0, 2, 1])}
 
     , testCase "\\a,[] a" $
         applyModify (T.lambda "a" $ reorder' [0] $ T.bvar 0)
