@@ -27,7 +27,7 @@ peekVar modifications b@(Bound n) =
   let table = getEnv modifications
   in case getLevel b table of
     Just (level ,Undefined) -> (Left $ Bound $ depth - level -1,modifications)
-    Just (level ,Subst t) -> (Right t, incFree (depth - level) empty)
+    Just (level ,Subst t) -> (Right t, mTable depth (depth - level))
     Nothing -> (Left $ Bound $ n + incFreeFromStart modifications,modifications)
   where
     depth = getDepth modifications
@@ -48,7 +48,10 @@ incFree :: Int -> MTable -> MTable
 incFree n (MTable depth inc env) = MTable (depth +n) (inc+n) env
 
 empty :: MTable
-empty = MTable 0 0 bEmtyEnv
+empty = mTable 0 0
+
+mTable :: Int -> Int -> MTable
+mTable depth inc = MTable depth inc bEmtyEnv
 
 drop :: Int -> MTable -> MTable
 drop n m = m{getDepth = getDepth m - n
