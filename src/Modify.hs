@@ -13,8 +13,8 @@ peek modifications term = case term of
     (Left newB,newM) -> (VarF () newB,newM)
     (Right t,newM) -> peek newM t
   Appl t1 t2 -> (ApplF t1 t2,modifications)
-  Lambda i n t -> (LambdaF i n t,insertUndefined 1 modifications)
-  Let i defs t -> ( LetF i defs t,insertUndefined (length defs) modifications )
+  Lambda i n t -> (LambdaF i n t,extraSparceInsertUndefind 1 modifications)
+  Let i defs t -> (LetF i defs t,extraSparceInsertUndefind (length defs) modifications )
 
 proces ::  MTable  -> BruijnTerm ()-> BruijnTerm ()
 proces = unfold peek

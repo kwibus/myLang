@@ -66,6 +66,12 @@ bMaybeLookup :: Bound -> BruijnEnv a -> Maybe a
 bMaybeLookup (Bound i) BruijnState {bruijnDepth = depth, bruijnMap = m} =
     IM.lookup (depth - i - 1) m
 
+bLookupLT :: Bound -> BruijnEnv a -> Maybe (Bound, a)
+bLookupLT (Bound i) BruijnState {bruijnDepth = depth, bruijnMap = m} =
+    case IM.lookupLE (depth -i -1) m of
+      Just (ik,a ) -> Just (Bound (depth-1-ik),a)
+      Nothing -> Nothing
+
 bInsert :: a -> BruijnEnv a -> BruijnEnv a
 bInsert a b@BruijnState {bruijnDepth = depth, bruijnMap = m} =
      b {bruijnDepth = depth + 1, bruijnMap = IM.insert depth a m }
@@ -76,7 +82,9 @@ bInserts :: [a] -> BruijnEnv a -> BruijnEnv a
 bInserts list env = foldl' (flip bInsert) env list
 
 bInsertBlackhole :: Int  -> BruijnEnv a -> BruijnEnv a
-bInsertBlackhole n env= env{bruijnDepth = bruijnDepth env +n}
+bInsertBlackhole n env =
+  assert (n >= 0) $
+  env{bruijnDepth = bruijnDepth env +n}
 
 -- TODO can remove duplcate code by using bInserts
 bFromList :: [a] -> BruijnEnv a
@@ -88,7 +96,7 @@ bToList BruijnState {bruijnMap = m} = IM.toList m
 
 bReplace ::  Bound -> a -> BruijnEnv a -> BruijnEnv a
 bReplace (Bound i) a b@BruijnState {bruijnDepth = depth, bruijnMap = m} =
-  assert (bMember (Bound i) b)
+  assert (i < depth) $
   b {bruijnMap = IM.insert (depth - i - 1 ) a m}
 
 -- TODO ??? could remove duplecate cate by using bSplitAt

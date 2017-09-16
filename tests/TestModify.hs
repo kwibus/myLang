@@ -1,4 +1,3 @@
-{-#LANGUAGE TupleSections#-}
 module TestModify where
 
 import Test.Tasty
@@ -53,7 +52,7 @@ testReorderTag :: TestTree
 testReorderTag = testGroup "Reorder"
     [ testCase "remember" $
         remember (Reorder 0 $ map Bound [1, 0, 2]) (insertUndefined  3 empty )
-        @?= MTable {getDepth = 3, incFreeFromStart = 0, getEnv = bFromList (map (,Undefined) [0, 2, 1])}
+        @?= MTable {getDepth = 3, incFreeFromStart = 0, getEnv = bFromList (map (\d ->(d,Undefined)) [0, 2, 1])}
 
     , testCase "\\a,[] a" $
         applyModify (T.lambda "a" $ reorder' [0] $ T.bvar 0)
@@ -95,9 +94,20 @@ testIncFreeTag = testGroup "incfree"
         testProperty "applyModify tag-incfree  ast == BruijnTerm.incfree n ast " $
         forAllUnTypedBruijn $ \ t ->
         applyModify (incFree' 5 $ T.tag t) === BruijnTerm.incFree 5 t
-    , testIntermidiats "incfree \\a.ab"
+
+    , testIntermidiats "\\a.ab"
         (incFree' 5 $ T.lambda "a" $ T.appl (T.bvar 0) (T.bvar 1))
         (lambda "a" $ appl (bvar 0) (bvar 6))
+
+    , testIntermidiats "\\b\\a.abc"
+        (incFree' 5 $ T.lambda "b" $ T.lambda "a" $ T.appl (T.appl (T.bvar 0) (T.bvar 1)) (T.bvar 2))
+        (lambda "b" $ lambda "a" $ appl (appl (bvar 0) (bvar 1)) (bvar 7))
+
+    , let abc = T.bvar 1 `T.appl` T.bvar 0 `T.appl` T.bvar 2
+          abc' = bvar 1 `appl` bvar 0 `appl` bvar 7
+      in testIntermidiats "let a = abc; b= abc in abc"
+        (incFree' 5 $ T.mkLet [("a",abc),("b",abc)] abc)
+        (mkLet [("a",abc'),("b",abc')] abc')
     ]
 
 sub' :: T.LamTerm () Bound (Modify ()) -> T.LamTerm () Bound (Modify ()) -> T.LamTerm () Bound (Modify ())
