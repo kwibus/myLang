@@ -1,5 +1,17 @@
-{-# LANGUAGE LambdaCase #-}
-module MTable where
+module MTable
+  ( MTable(_env)
+  , Symbol (Undefined) -- TODO these 2 are export for test but should not be used
+  , peekVar
+  , incFree
+  , mTable
+  , empty
+  , reorder
+  , MTable.drop
+  , substitute
+  , extraSparceInsertUndefind
+  , insertUndefined
+  )
+where
 
 import Control.Exception.Base
 import BruijnTerm (BruijnTerm)
@@ -14,23 +26,22 @@ import BruijnEnvironment
 --      so make it easy to get depth from mtable
 --
 -- TODO levels range is [0.. depth-1]  maybe is easyer if it was [1..depth]
---
--- TODO env rename name
+
 data MTable = MTable
-            { getDepth :: Int
-            , incFreeFromStart :: Int
-            , getEnv :: BruijnEnv (Int,Symbol)
+            { _depth :: Int
+            , _incFreeFromStart :: Int
+            , _env :: BruijnEnv (Int,Symbol)
             } deriving (Eq, Show)
 
 peekVar :: MTable -> Bound -> (Either Bound (BruijnTerm ()),MTable)
 peekVar modifications b@(Bound n) =
-  let table = getEnv modifications
-  in case getLevel b table of
+  case getLevel b table of
     Just (level ,Undefined) -> (Left $ Bound $ depth - level -1,modifications)
     Just (level ,Subst t) -> (Right t, mTable depth (depth - level))
-    Nothing -> (Left $ Bound $ n + incFreeFromStart modifications,modifications)
+    Nothing -> (Left $ Bound $ n + _incFreeFromStart modifications,modifications)
   where
-    depth = getDepth modifications
+    depth = _depth modifications
+    table = _env modifications
 
 getLevel :: Bound -> BruijnEnv (Int,Symbol)-> Maybe (Int,Symbol)
 getLevel b@(Bound n) env =
@@ -54,11 +65,11 @@ mTable :: Int -> Int -> MTable
 mTable depth inc = MTable depth inc bEmtyEnv
 
 drop :: Int -> MTable -> MTable
-drop n m = m{getDepth = getDepth m - n
-            ,getEnv = bDrop n $ getEnv m}
+drop n m = m{_depth = _depth m - n
+            ,_env = bDrop n $ _env m}
 
 reorder :: Int -> [Bound] -> MTable ->MTable
-reorder n order s@ MTable{getEnv=env} = s {getEnv=newEnv}
+reorder n order s@ MTable{_env=env} = s {_env=newEnv}
   where
     newEnv  = foldl go env $ zip order [n ..]
     go envN (bi, j) = case getLevel bi env of
@@ -67,19 +78,19 @@ reorder n order s@ MTable{getEnv=env} = s {getEnv=newEnv}
 
 substitute  :: Bound -> Int ->  BruijnTerm () -> MTable -> MTable
 substitute (Bound n) depthDiff sub m =
- m{ incFreeFromStart = incFreeFromStart m -1
+ m{ _incFreeFromStart = _incFreeFromStart m -1
   -- TODO does bInsertAt n  work if it is past a subscription or incfree
-  , getEnv = bInsertAt n (depth -depthDiff ,Subst sub)(getEnv m)}
+  , _env = bInsertAt n (depth -depthDiff ,Subst sub)(_env m)}
   where
-    depth = getDepth m
+    depth = _depth m
 
 extraSparceInsertUndefind :: Int -> MTable -> MTable
-extraSparceInsertUndefind n m@MTable{getDepth = depth,getEnv=env} = case getLevel (Bound 0) env of
-  Just (level, _) | level == depth - 1-> m {getDepth = depth + n, getEnv = bInsertBlackhole n env}
+extraSparceInsertUndefind n m@MTable{_depth = depth,_env=env} = case getLevel (Bound 0) env of
+  Just (level, _) | level == depth - 1-> m {_depth = depth + n, _env = bInsertBlackhole n env}
   _ -> insertUndefined n m
 
 insertUndefined :: Int -> MTable -> MTable
 insertUndefined 0 m = m
-insertUndefined n m@MTable{getDepth = depth,getEnv=env} = assert (n >= 1)
-    m { getEnv = bInsertBlackhole (n-1 ) $ bInsert (depth, Undefined ) env
-      , getDepth = depth + n}
+insertUndefined n m@MTable{_depth = depth,_env=env} = assert (n >= 1)
+    m { _env = bInsertBlackhole (n-1 ) $ bInsert (depth, Undefined ) env
+      , _depth = depth + n}

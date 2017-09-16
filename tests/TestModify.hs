@@ -52,7 +52,7 @@ testReorderTag :: TestTree
 testReorderTag = testGroup "Reorder"
     [ testCase "remember" $
         remember (Reorder 0 $ map Bound [1, 0, 2]) (insertUndefined  3 empty )
-        @?= MTable {getDepth = 3, incFreeFromStart = 0, getEnv = bFromList (map (\d ->(d,Undefined)) [0, 2, 1])}
+        @?= (mTable 3 0){ _env = bFromList (map (\d ->(d,Undefined)) [0, 2, 1])}
 
     , testCase "\\a,[] a" $
         applyModify (T.lambda "a" $ reorder' [0] $ T.bvar 0)
