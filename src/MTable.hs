@@ -65,6 +65,7 @@ reorder n order s@ MTable{getEnv=env} = s {getEnv=newEnv}
 substitute  :: Bound -> Int ->  BruijnTerm () -> MTable -> MTable
 substitute (Bound n) depthDiff sub m =
  m{ incFreeFromStart = incFreeFromStart m -1
+  -- TODO does bInsertAt n  work if it is past a subscription or incfree
   , getEnv = bInsertAt n (depth -depthDiff ,Subst sub)(getEnv m)}
   where
     depth = getDepth m

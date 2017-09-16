@@ -16,5 +16,6 @@ peek modifications term = case term of
   Lambda i n t -> (LambdaF i n t,extraSparceInsertUndefind 1 modifications)
   Let i defs t -> (LetF i defs t,extraSparceInsertUndefind (length defs) modifications )
 
+-- TODO you could make this shortcircui
 proces ::  MTable  -> BruijnTerm ()-> BruijnTerm ()
 proces = unfold peek

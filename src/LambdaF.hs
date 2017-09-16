@@ -18,7 +18,6 @@ instance Functor (LamTermF i n) where
     fmap f (ApplF t1 t2) = ApplF (f t1) (f t2)
     fmap _ (VarF i n) = VarF i n
     fmap _ (ValF i v) = ValF i v
-    -- fmap f (PtrF i b t) = PtrF i b (f t)
     fmap f (LetF i defs t ) = LetF i (map (fmap f) defs) $ f t
 
 instance Traversable (LamTermF i n) where
@@ -43,8 +42,7 @@ unfold f b a = case f b a of
     (ValF i v,_) -> Lam.Val i v
     (LambdaF i n t1, b1) -> Lam.Lambda i n (unfold f b1 t1)
     (ApplF t1 t2, b1)  -> Lam.Appl (unfold f b1 t1) (unfold f b1 t2)
-    (LetF i defs t, b1) -> Lam.Let i (map unfoldDef defs) (unfold f b1 t)
-      where unfoldDef (Def i_ n_ t_) = Lam.Def i_ n_ (unfold f b1 t_)
+    (LetF i defs t, b1) -> Lam.Let i (map (fmap $ unfold f b1) defs) (unfold f b1 t)
 
 --FIXME rename
 unfoldM :: Monad m => (b -> a -> m (LamTermF i n a,b)) -> b -> a -> m (LamTerm i n)
