@@ -15,12 +15,14 @@ import Properties
 import ArbitraryLambda
 
 import TopologicalSort
-import Eval
+import Eval hiding (Free)
+import qualified Eval
 import FreeEnvironment
 import MakeTerm
 import ModificationTags (applyModify)
 import Operator
 import Value
+import Name
 import ErrorCollector
 import TestUtils
 import qualified Type as T
@@ -39,19 +41,23 @@ testEval = testGroup "eval"
 genD1 :: Gen D1
 genD1= sized go
   where
-    go n | n <= 4 = D [] <$> genTyped
+    gen1s = [DVal <$> elements ((Prim $ MyDouble 1): (Prim $ MyBool True):operators)
+            ,Eval.Free . Bound <$>choose (100000,100010) ]
+    genNames = Name . return <$> choose ('a','z')
+    go n | n <= 1 = oneof gen1s
+         | n <= 4 = oneof $ (Closure [] <$> genNames <*> genTyped ):gen1s
          | otherwise = do
       nLets <- choose (1, min n 3)
       sizeLets<- uniformBucket nLets (n-1)
       defs <- mapM (\sizeLet-> do
-          nDefs <- choose (1,min sizeLet 3)
+          nDefs <- max 1 <$> choose (1,min sizeLet 3)
           sizeDefs <- uniformBucket (nDefs::Int) sizeLet
-          mapM (\sizeDef -> resize sizeDef arbitraryDefs ) sizeDefs
+          mapM (\sizeDef -> resize sizeDef arbitraryDefs) sizeDefs
           ) sizeLets
-      D defs <$> genUnTyped
+      Closure defs <$> genNames <*> genUnTyped
 
     arbitraryDefs :: Gen (Def () D1)
-    arbitraryDefs = def  <$> (return <$> elements ['a' ..'f']) <*> scale (subtract1To0) genD1
+    arbitraryDefs = def  <$> (return <$> elements ['a' ..'f']) <*> scale subtract1To0 genD1
 
     subtract1To0 :: Int -> Int
     subtract1To0 n | n > 0 = n - 1
@@ -63,10 +69,15 @@ testEvalUtils = testGroup "eval utils"
       forAll genD1 $ \d1 ->
       d1ToBruijn (incFreeD1 5 (d1::D1)) === incFree 5 (d1ToBruijn d1)
 
+  , testProperty "test GenD1" $
+      forAll genD1 $ \d1 ->
+      case d1 of
+        (Closure defs _ _) -> all (\d -> 0 <length d )defs
+        _ -> True
   , testCase "incFreeD1 5 (D1 [[01234,1234][01234,01234]] 01234)" $
     let app1234 = bvar 0 `appl`  bvar 1 `appl` bvar 2 `appl`  bvar 3 `appl` bvar 4
-        d1app1234 = D [] app1234
-        d1 = D [[def "a" d1app1234, def "b" d1app1234],[def "c" d1app1234,def "d" d1app1234]] app1234
+        d1app1234 = Closure [] (Name "a") app1234
+        d1 = Closure [[def "a" d1app1234, def "b" d1app1234],[def "c" d1app1234,def "d" d1app1234]] (Name "a")app1234
     in d1ToBruijn (incFreeD1 5 d1 ) @?= incFree 5 ( d1ToBruijn d1)
 
   ]
@@ -96,6 +107,7 @@ testEvalSteps = testGroup "evalSteps"
   [ testGroup "basic" (map testEvalStepsExample basicSet)
   , testGroup "buildin" (map testEvalStepsExample buildinSet)
   , testGroup "let" (map testEvalStepsExample letSet)
+  , testGroup "free" (map testEvalStepsExample freeSet )
   , testconvergentSteps
   , testEvalProp
   ]
@@ -118,13 +130,6 @@ basicSet =
       ,lambda "z" (appl B.id (bvar 0)) ])
 
   , (appl B.id B.id, [B.id])
-
-  , (bvar 0, [])
-
-  , (appl (lambda "b" $ lambda "c" $ bvar 1) (lambda "d" $ bvar 1)
-      , [lambda "c" $ lambda "d" $ bvar 2])
-
-  , (lambda "z" (appl B.id (bvar 1)), [])
 
   , (appl (lambda "a" (appl (bvar 0) true)) (lambda "b" $ double 1.0)
       , [ appl (lambda "b" $ double 1) true
@@ -182,6 +187,21 @@ buildinSet =
         , double 7
         ])
   ]
+
+freeSet :: [(BruijnTerm () , [BruijnTerm ()])]
+freeSet =
+  [ (bvar 0, [])
+
+  , (appl (lambda "b" $ lambda "c" $ bvar 1) (lambda "d" $ bvar 1)
+      , [lambda "c" $ lambda "d" $ bvar 2])
+
+  , (lambda "z" (appl B.id (bvar 1)), [])
+
+
+  , (mkLet [("a", double 1.0) ] (bvar 1)
+      , [bvar 0])
+  ]
+
 plus1 :: BruijnTerm ()
 plus1 = val $ applyValue plus (Prim $ MyDouble 1)
 
@@ -191,9 +211,6 @@ letSet =
   [ (mkLet [("a", double 1) ] (bvar 0)
       , [ mkLet [("a", double 1) ] (double 1)
         , double 1.0])
-
-  , (mkLet [("a", double 1.0) ] (bvar 1)
-      , [])
 
   , (mkLet [("a", double 1) ] $ lambda "b" $ bvar 1
       , [])
@@ -406,8 +423,8 @@ letSet =
   , (mkLet [("a", true)] $ appl (lambda "b" $ lambda "c" $ bvar 2) false
       ,[ mkLet [("a", true)] $ lambda "c" $ bvar 1])
 
-  , (appl (mkLet [("a",bvar 0),("b",val multiply)] $val plus)(double 1)
-      , [ appl (mkLet [("a",val multiply),("b",val multiply)] $val plus)(double 1)
+  , (appl (mkLet [("b",val multiply), ("a",bvar 1)] $val plus)(double 1)
+      , [ appl (mkLet [("b",val multiply), ("a",val multiply)] $val plus)(double 1)
         , appl ( val plus)(double 1)
         , plus1 ])
 

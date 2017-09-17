@@ -19,8 +19,15 @@ import qualified Data.DList as DList
 type Step w a = Writer [w] a
 
 --TODO fix names
-data DenotationValue t = D [[ Def () D1]] t
+data DenotationValue t = Closure [[ Def () D1]] Name t
+                       | Free Bound
+                       | DVal Value
   deriving (Show,Eq)
+
+instance Functor DenotationValue where
+  fmap f (Closure defs n t) = Closure defs n $ f t
+  fmap _ (Free b) = Free b
+  fmap _ (DVal v) = DVal v
 
 type D = DenotationValue Unprocessed
 type D1 = DenotationValue (BruijnTerm ())
@@ -34,16 +41,18 @@ fullEval :: BruijnTerm () -> BruijnTerm ()
 fullEval = dToBruijn .fst . evalStepsW
 
 dToBruijn ::  D -> BruijnTerm ()
-dToBruijn (D defs t) = d1ToBruijn (D defs $ proces t)
+dToBruijn = d1ToBruijn . dToD1
 
 d1ToBruijn :: D1 -> BruijnTerm ()
-d1ToBruijn (D defs t) = addPrefix defs t
+d1ToBruijn (Closure defs name t) = addPrefixLets defs $ Lambda () name t
+d1ToBruijn (Free b) = Var () b
+d1ToBruijn (DVal v) = Val () v
 
-addPrefix :: [[Def () D1]] -> BruijnTerm () -> BruijnTerm ()
-addPrefix defss t = foldl (\t_ defs_ -> Let () (map (fmap d1ToBruijn) defs_) t_) t defss
+addPrefixLets :: [[Def () D1]] -> BruijnTerm () -> BruijnTerm ()
+addPrefixLets defss t = foldl (\t_ defs_ -> Let () (map (fmap d1ToBruijn) defs_) t_) t defss
 
 dToD1 :: D -> D1
-dToD1 (D defs t) = D defs (proces t)
+dToD1 = fmap proces
 
 evalSteps :: BruijnTerm () -> [BruijnTerm ()]
 evalSteps ast = snd $ evalStepsW  ast
@@ -66,22 +75,34 @@ type Env = BruijnEnv (Int, D1)
 -- TODO add coment
 maybeExtract ::  Bound -> Env -> Maybe D
 maybeExtract b@(Bound n) env = do
-    (ofset,D defs term) <- bMaybeLookup b env
-    return $ D (map (map $ fmap $ incFreeD1 (n-ofset)) defs) $
-               -- reproces $ incFreeOfset (length $ concat defs) (n-ofset) term
-               -- TODO works bit is bit of a hack. better implement/use incFreeOfset for mtable
-               insertUndefined (length ( concat defs)) $ Unprocessed.incFree (n-ofset) $ reproces term
+    (ofset,v) <- bMaybeLookup b env
+    Just $ incFreeD (n - ofset) $ fmap reproces v
+    -- TODO this incfree is need because v change depth/level
+    --      there are ways to avoid this (see SimpleEval)
+    --      or we could delay/acumulate thile printing
 
--- TODO write test for this
+incFreeD ::  Int -> D -> D
+incFreeD  _ v@DVal {} = v
+incFreeD inc (Free (Bound n)) = Free $ Bound $ n + inc
+incFreeD inc (Closure defs name t) = Closure newDefs name newT
+  where
+    (depthDiff,newDefs) = incFreeOfsetDefs 0 inc defs
+    newT = insertUndefined (depthDiff+1) $ Unprocessed.incFree inc t
+
 incFreeD1 :: Int -> D1 -> D1
 incFreeD1 = incFreeD1ofset 0
 
 incFreeD1ofset :: Int -> Int -> D1 -> D1
-incFreeD1ofset ofset n (D defs t) = D newDefs$ incFreeOfset (ofset+dept) n t
-  where
-     (dept,newDefs) = foldr
+incFreeD1ofset _ _ v@DVal {} = v
+incFreeD1ofset _ inc (Free (Bound n)) = Free $ Bound $ n + inc
+incFreeD1ofset ofset inc (Closure  defs name t) = Closure newDefs name $ incFreeOfset (ofset+depthDiff+1) inc t
+ where
+    (depthDiff,newDefs) = incFreeOfsetDefs ofset inc defs
+
+incFreeOfsetDefs :: Int -> Int -> [[Def () D1]] -> (Int,[[Def () D1]])
+incFreeOfsetDefs ofset inc defs = foldr
          (\def (depth,old) -> let newDepth = depth + length def:: Int
-                              in (newDepth, map (fmap $ incFreeD1ofset (ofset+newDepth) n) def : old))
+                              in (newDepth, map (fmap $ incFreeD1ofset (ofset+newDepth) inc) def : old))
          (0,[])
          defs
 
@@ -92,7 +113,7 @@ store:: [D1] -> Env -> Env
 store terms env = bInserts (zip (fromToZero (length terms - 1)) terms ) env
 
 update :: Bound -> D -> Env -> Env
-update b (D defs t) env = bReplace b (ofset,D defs $ proces t) env
+update b v env = bReplace b (ofset,dToD1 v) env
   where (ofset, _) =  bLookup b env
 
 -- TODO
@@ -109,7 +130,7 @@ update b (D defs t) env = bReplace b (ofset,D defs $ proces t) env
 --      no real reason to pass around 2 "env"
 --          this opens the possibilty to store D and incFree instead of substitute
 --          this removes the need for reEval defs
---          and might make mtable opsoute /simple
+--          and might make mtable overkill
 --
 --      Unprocessed is now (Mtable , Taged Lambda)
 --      but tages are only used top level
@@ -123,56 +144,61 @@ update b (D defs t) env = bReplace b (ofset,D defs $ proces t) env
 
 evalW :: Env -> Unprocessed -> Step (BruijnTerm()) D
 evalW env ast = case peek ast of
-    (LambdaF _ n t) -> return $ D [] ast
+    (LambdaF _ n t) -> return $ Closure [] n t
     (VarF _ b) -> case maybeExtract b env of
         Just v -> tell [dToBruijn v] >> return v
-        Nothing -> return $ D []  ast
-    (ValF _ v) -> return $ D [] $ val v
+        Nothing -> return $ Free b
+    (ValF _ v) -> return $ DVal v
     (LetF _ oldDefs t) -> do
       (newEnv,newDefs) <- retell (\defs -> Let () defs (proces t)) $ evalDefsW env oldDefs
       newT <- censors (Let () $ map (fmap d1ToBruijn) newDefs) $ evalW newEnv t
-      shrink $ addDefs [newDefs] newT
+      shrink [newDefs] newT
     (ApplF t1 t2) -> do
       newT2 <- censors (Appl (proces t1)) $ evalW env t2
-      newT1@(D defs _) <- censors (`Appl` dToBruijn newT2) $ evalW env t1
-      reduce (foldr (store.map implementation) env defs) newT1 newT2
-
-addDefs :: [[Def () D1]] -> D -> D
-addDefs oldDefs (D newDefs t) = D (newDefs ++ oldDefs) t
+      newT1 <- censors (`Appl` dToBruijn newT2) $ evalW env t1
+      reduce env newT1 newT2
 
 reduce :: Env -> D -> D -> Step (BruijnTerm ()) D
-reduce env (D defs t1) newT2 = do
-  d <- censors (addPrefix defs) $ case peek t1 of
-    (LambdaF _ _ t) ->
-      let newterm =  substitute depthdiff (dToBruijn newT2)t
-          depthdiff = length $ concat defs
-      in tell [proces newterm] >> evalW env newterm
+reduce env d1 d2 = case d1 of
+  (Closure  defs _ t) ->
+    let  depthdiff = length $ concat defs
+         newterm =  substitute depthdiff (dToBruijn d2)t
+         -- a alternative method for getting newEnv is to store it in closure
+         -- reduce should then no longer need env
+         newEnv = foldr (store.map implementation) env defs
+    in do newD <- censors (addPrefixLets defs) $ do
+              tell [proces newterm]
+              evalW newEnv newterm
+          shrink defs newD
+  (DVal v1) -> case d2 of
+      (DVal v2) -> do
+          let newV =  applyValue v1 v2
+          tell [Val () newV]
+          return $ DVal newV
+      _ -> error $ "applied " ++ show v1 ++ " with " ++ show d2
+  Free {} -> error "apply a free variable. This is not implemented"
+  -- shrink (addDefs defs d)
 
-    (ValF _ v1) -> case newT2  of
-      (D [] t) -> case getVal t of
-        (Just  v2) -> do
-          let newTerm =  Val () $ applyValue v1 v2
-          tell [newTerm]
-          return $ D defs $ reproces newTerm
-        Nothing -> error $ "applied " ++ show v1 ++ " with " ++ show newT2
-      _ -> error "val can't be applied to lets"
-    _ -> error ( "reduced a non denotatial value:\n" ++ show ( proces t1))
-  shrink (addDefs defs d)
+shrink :: [[Def () D1]] -> D -> Step (BruijnTerm ()) D
+shrink oldDefs (Closure newDefs name t) = return $ Closure (newDefs ++ oldDefs) name t
+shrink def d  = go def
+  where
+    go [] = return d
+    go (dropDefs:defs_) = do
+        -- this incFreeD is ony over Dval/Free so should not be expesive
+        tell [addPrefixLets defs_ $ dToBruijn $ incFreeD (negate $ length dropDefs) d]
+        go  defs_
 
-shrink :: D -> Step (BruijnTerm ()) D
-shrink d@(D [] _) = return d
-shrink d@(D defs t) = case getVal t of
-  (Just v) -> go defs
-    where
-        go [] = return ( D [] (val v))
-        go (_:defs_) = tell [d1ToBruijn $ D defs_ $ Val () v] >> go  defs_
-  Nothing -> return d
-
-evalDefsW :: Env -> [Def () Unprocessed] ->  Step [Def () (BruijnTerm ())] (Env,[Def () D1 ] )
+evalDefsW :: Env -> [Def () Unprocessed] ->  Step [Def () (BruijnTerm ())] (Env,[Def () D1] )
 evalDefsW env defs = do
-    -- TODO make dumy env only insert functions
     let procesedDef = map (fmap proces) defs
-        dumyEnv = store (map (\(Def _ _ t) -> ( D []  t)) procesedDef) env
+
+        dumyEnv = store (map (convert . implementation) procesedDef) env
+
+        convert :: BruijnTerm () -> D1
+        convert (Lambda () name t) = Closure [] name t
+        convert _ = error "depency on not yet evaluated defention"
+
     ((_,newEnv),defsS) <- incrementalM go (nDefs-1,dumyEnv) procesedDef
     return (newEnv,map (fmap dToD1) defsS)
   where

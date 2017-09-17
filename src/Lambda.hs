@@ -43,3 +43,6 @@ accumulateArgs = go []
   where go accuList (Appl t1 t2 ) = go (t2 : accuList) t1
         go accuList t = t : accuList
 
+unsafeGetVal :: LamTerm i n -> Value
+unsafeGetVal (Val _ v) = v
+unsafeGetVal _ = error "was not a vallue"
