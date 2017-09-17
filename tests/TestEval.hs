@@ -36,34 +36,37 @@ testEval = testGroup "eval"
     ]
 
 -- TODO remove or make nices/faster
--- TODO maybe replace Arbitrary instance with Gen  and use forall
-instance Arbitrary D1 where
-  arbitrary = sized go
-    where
-      go n | n <= 4 = D1 [] <$> resize 10 genTyped
-           | otherwise = do
-        nLets <- choose (1, min n 3)
-        sizeLets<- uniformBucket nLets (n-1)
-        defs <- mapM (\sizeLet-> do
-            nDefs <- choose (1,min sizeLet 3)
-            sizeDefs <- uniformBucket (nDefs::Int) sizeLet
-            mapM (\sizeDef -> resize sizeDef arbitraryDefs ) sizeDefs
-            ) sizeLets
-        D1 defs <$> genUnTyped
+genD1 :: Gen D1
+genD1= sized go
+  where
+    go n | n <= 4 = D [] <$> genTyped
+         | otherwise = do
+      nLets <- choose (1, min n 3)
+      sizeLets<- uniformBucket nLets (n-1)
+      defs <- mapM (\sizeLet-> do
+          nDefs <- choose (1,min sizeLet 3)
+          sizeDefs <- uniformBucket (nDefs::Int) sizeLet
+          mapM (\sizeDef -> resize sizeDef arbitraryDefs ) sizeDefs
+          ) sizeLets
+      D defs <$> genUnTyped
 
-      arbitraryDefs :: Gen (Def () D1)
-      arbitraryDefs = def  <$> (return <$> elements ['a' ..'f']) <*> arbitrary
+    arbitraryDefs :: Gen (Def () D1)
+    arbitraryDefs = def  <$> (return <$> elements ['a' ..'f']) <*> scale (subtract1To0) genD1
 
+    subtract1To0 :: Int -> Int
+    subtract1To0 n | n > 0 = n - 1
+                   | otherwise = 0
 testEvalUtils :: TestTree
 testEvalUtils = testGroup "eval utils"
 
   [ testProperty "d1ToBruijnl (incFreeD1 5 d1) == incFreeOfset 5 (d1ToBruijn d1)" $
-      \d1 -> d1ToBruijn (incFreeD1 5 (d1::D1)) === incFree 5 (d1ToBruijn d1)
+      forAll genD1 $ \d1 ->
+      d1ToBruijn (incFreeD1 5 (d1::D1)) === incFree 5 (d1ToBruijn d1)
 
   , testCase "incFreeD1 5 (D1 [[01234,1234][01234,01234]] 01234)" $
     let app1234 = bvar 0 `appl`  bvar 1 `appl` bvar 2 `appl`  bvar 3 `appl` bvar 4
-        d1app1234 = D1 [] app1234
-        d1 =D1 [[def "a" d1app1234, def "b" d1app1234],[def "c" d1app1234,def "d" d1app1234]] app1234
+        d1app1234 = D [] app1234
+        d1 = D [[def "a" d1app1234, def "b" d1app1234],[def "c" d1app1234,def "d" d1app1234]] app1234
     in d1ToBruijn (incFreeD1 5 d1 ) @?= incFree 5 ( d1ToBruijn d1)
 
   ]

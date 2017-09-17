@@ -19,11 +19,11 @@ import qualified Data.DList as DList
 type Step w a = Writer [w] a
 
 --TODO fix names
-data D = D [[ Def () D1]] Unprocessed
-         deriving Show
+data DenotationValue t = D [[ Def () D1]] t
+  deriving (Show,Eq)
 
-data D1 = D1 [[ Def () D1]] (BruijnTerm ())
-        deriving (Show,Eq)
+type D = DenotationValue Unprocessed
+type D1 = DenotationValue (BruijnTerm ())
 
 -- |eval term in accordance with call by value.
 -- If a term can't be further be evaluated it will return 'Nothing'
@@ -34,16 +34,16 @@ fullEval :: BruijnTerm () -> BruijnTerm ()
 fullEval = dToBruijn .fst . evalStepsW
 
 dToBruijn ::  D -> BruijnTerm ()
-dToBruijn (D defs t) = d1ToBruijn (D1 defs $proces t)
+dToBruijn (D defs t) = d1ToBruijn (D defs $ proces t)
 
 d1ToBruijn :: D1 -> BruijnTerm ()
-d1ToBruijn (D1 defs t) = addPrefix defs t
+d1ToBruijn (D defs t) = addPrefix defs t
 
 addPrefix :: [[Def () D1]] -> BruijnTerm () -> BruijnTerm ()
 addPrefix defss t = foldl (\t_ defs_ -> Let () (map (fmap d1ToBruijn) defs_) t_) t defss
 
 dToD1 :: D -> D1
-dToD1 (D defs t) = D1 defs (proces t)
+dToD1 (D defs t) = D defs (proces t)
 
 evalSteps :: BruijnTerm () -> [BruijnTerm ()]
 evalSteps ast = snd $ evalStepsW  ast
@@ -66,7 +66,7 @@ type Env = BruijnEnv (Int, D1)
 -- TODO add coment
 maybeExtract ::  Bound -> Env -> Maybe D
 maybeExtract b@(Bound n) env = do
-    (ofset,D1 defs term) <- bMaybeLookup b env
+    (ofset,D defs term) <- bMaybeLookup b env
     return $ D (map (map $ fmap $ incFreeD1 (n-ofset)) defs) $
                -- reproces $ incFreeOfset (length $ concat defs) (n-ofset) term
                -- TODO works bit is bit of a hack. better implement/use incFreeOfset for mtable
@@ -77,7 +77,7 @@ incFreeD1 :: Int -> D1 -> D1
 incFreeD1 = incFreeD1ofset 0
 
 incFreeD1ofset :: Int -> Int -> D1 -> D1
-incFreeD1ofset ofset n (D1 defs t) = D1 newDefs$ incFreeOfset (ofset+dept) n t
+incFreeD1ofset ofset n (D defs t) = D newDefs$ incFreeOfset (ofset+dept) n t
   where
      (dept,newDefs) = foldr
          (\def (depth,old) -> let newDepth = depth + length def:: Int
@@ -89,10 +89,10 @@ extract :: Bound -> Env -> D
 extract b env = fromMaybe  (error "variable not in Env") $ maybeExtract b env
 
 store:: [D1] -> Env -> Env
-store terms env = bInserts (zip  (fromToZero (length terms - 1)) terms ) env
+store terms env = bInserts (zip (fromToZero (length terms - 1)) terms ) env
 
 update :: Bound -> D -> Env -> Env
-update b (D defs t) env = bReplace b (ofset,D1 defs $ proces t) env
+update b (D defs t) env = bReplace b (ofset,D defs $ proces t) env
   where (ofset, _) =  bLookup b env
 
 -- TODO
@@ -165,14 +165,14 @@ shrink d@(D defs t) = case getVal t of
   (Just v) -> go defs
     where
         go [] = return ( D [] (val v))
-        go (_:defs_) = tell [d1ToBruijn $ D1 defs_ $ Val () v] >> go  defs_
+        go (_:defs_) = tell [d1ToBruijn $ D defs_ $ Val () v] >> go  defs_
   Nothing -> return d
 
 evalDefsW :: Env -> [Def () Unprocessed] ->  Step [Def () (BruijnTerm ())] (Env,[Def () D1 ] )
 evalDefsW env defs = do
     -- TODO make dumy env only insert functions
     let procesedDef = map (fmap proces) defs
-        dumyEnv = store (map (\(Def _ _ t) -> ( D1 []  t)) procesedDef) env
+        dumyEnv = store (map (\(Def _ _ t) -> ( D []  t)) procesedDef) env
     ((_,newEnv),defsS) <- incrementalM go (nDefs-1,dumyEnv) procesedDef
     return (newEnv,map (fmap dToD1) defsS)
   where

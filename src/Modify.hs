@@ -5,7 +5,7 @@ import BruijnTerm hiding (incFree)
 import LambdaF
 
 -- TODO make test
-
+-- TODO switch result around
 peek :: MTable -> BruijnTerm ()-> (LamTermF () Bound (BruijnTerm ()), MTable)
 peek modifications term = case term of
   Val i v -> (ValF i v,modifications)
