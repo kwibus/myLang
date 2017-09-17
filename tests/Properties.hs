@@ -8,9 +8,11 @@ import FreeEnvironment
 import TopologicalSort
 import Type
 
+-- TODO rename/remove
 normalised :: Eq i => BruijnTerm i -> Bool
 normalised t = fmap lam2Bruijn (bruijn2Lam t) == return ( return t)
 
+-- TODO rename closed
 welFormd :: BruijnTerm i -> Bool
 welFormd t0 = go t0 0
     where go (Lambda _ _ t) dept = go t (dept + 1)
@@ -20,7 +22,7 @@ welFormd t0 = go t0 0
           go (Let _ defs term) dept = all (welFormdDef (dept + length defs)) defs  && go term (dept +length defs)
           welFormdDef i (Def _ _ t)  = go t i
 
--- TODO uneeded check
+-- TODO uneeded check. Rename
 welFormdType :: Type -> Bool
 welFormdType = go
     where go (TAppl t1 t2) = go t1 && go t2

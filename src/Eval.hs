@@ -1,4 +1,16 @@
 {-# LANGUAGE FlexibleContexts #-}
+
+-- | This Module implementats eval by value for "BruijnTerm"
+-- it's used in the "Interper.Main", but its more a prove of concept.
+-- it purpose is:
+--
+-- * flesh out the denotatial semantics of the Language
+--
+-- * and testing how usefull MTable is.
+--
+-- eval could be made more efficient because it put some work in keeping free variables consistend
+-- while it will crash if it applys a free variable
+
 module Eval
 where
 
@@ -16,105 +28,25 @@ import qualified TaggedLambda as Tag
 import LambdaF
 import qualified Data.DList as DList
 
-type Step w a = Writer [w] a
-
---TODO fix names
-data DenotationValue t = Closure [[ Def () D1]] Name t
-                       | Free Bound
-                       | DVal Value
-  deriving (Show,Eq)
-
-instance Functor DenotationValue where
-  fmap f (Closure defs n t) = Closure defs n $ f t
-  fmap _ (Free b) = Free b
-  fmap _ (DVal v) = DVal v
-
-type D = DenotationValue Unprocessed
-type D1 = DenotationValue (BruijnTerm ())
-
 -- |eval term in accordance with call by value.
 -- If a term can't be further be evaluated it will return 'Nothing'
 eval :: BruijnTerm () -> Maybe (BruijnTerm ())
 eval = listToMaybe . evalSteps
 
+-- | Big stap semantics for eval by value.
+--
+--  can diverg
 fullEval :: BruijnTerm () -> BruijnTerm ()
 fullEval = dToBruijn .fst . evalStepsW
 
-dToBruijn ::  D -> BruijnTerm ()
-dToBruijn = d1ToBruijn . dToD1
-
-d1ToBruijn :: D1 -> BruijnTerm ()
-d1ToBruijn (Closure defs name t) = addPrefixLets defs $ Lambda () name t
-d1ToBruijn (Free b) = Var () b
-d1ToBruijn (DVal v) = Val () v
-
-addPrefixLets :: [[Def () D1]] -> BruijnTerm () -> BruijnTerm ()
-addPrefixLets defss t = foldl (\t_ defs_ -> Let () (map (fmap d1ToBruijn) defs_) t_) t defss
-
-dToD1 :: D -> D1
-dToD1 = fmap proces
-
+-- | Small step semantics for eval
+--
+-- If evaluation is convergent the list is infinit
 evalSteps :: BruijnTerm () -> [BruijnTerm ()]
 evalSteps ast = snd $ evalStepsW  ast
 
 evalStepsW :: BruijnTerm () -> (D,[BruijnTerm()])
 evalStepsW term = runWriter $ evalW bEmtyEnv $ Un empty $ Tag.tag term
-
-retell :: (w1 -> w2) ->  Step w1 a -> Step w2 a
-retell f = mapWriterT (fmap $ second (map f))
-
-censors ::  MonadWriter [w] m => (w->w) -> m a -> m a
-censors f = censor (map f)
-
--- TODO  Int is used to calculated depth differnce
---       what is needed for inlining
---       this leaks the abstraction about Bruijnindexs
---       maybe always store depth defined
-type Env = BruijnEnv (Int, D1)
-
--- TODO add coment
-maybeExtract ::  Bound -> Env -> Maybe D
-maybeExtract b@(Bound n) env = do
-    (ofset,v) <- bMaybeLookup b env
-    Just $ incFreeD (n - ofset) $ fmap reproces v
-    -- TODO this incfree is need because v change depth/level
-    --      there are ways to avoid this (see SimpleEval)
-    --      or we could delay/acumulate thile printing
-
-incFreeD ::  Int -> D -> D
-incFreeD  _ v@DVal {} = v
-incFreeD inc (Free (Bound n)) = Free $ Bound $ n + inc
-incFreeD inc (Closure defs name t) = Closure newDefs name newT
-  where
-    (depthDiff,newDefs) = incFreeOfsetDefs 0 inc defs
-    newT = insertUndefined (depthDiff+1) $ Unprocessed.incFree inc t
-
-incFreeD1 :: Int -> D1 -> D1
-incFreeD1 = incFreeD1ofset 0
-
-incFreeD1ofset :: Int -> Int -> D1 -> D1
-incFreeD1ofset _ _ v@DVal {} = v
-incFreeD1ofset _ inc (Free (Bound n)) = Free $ Bound $ n + inc
-incFreeD1ofset ofset inc (Closure  defs name t) = Closure newDefs name $ incFreeOfset (ofset+depthDiff+1) inc t
- where
-    (depthDiff,newDefs) = incFreeOfsetDefs ofset inc defs
-
-incFreeOfsetDefs :: Int -> Int -> [[Def () D1]] -> (Int,[[Def () D1]])
-incFreeOfsetDefs ofset inc defs = foldr
-         (\def (depth,old) -> let newDepth = depth + length def:: Int
-                              in (newDepth, map (fmap $ incFreeD1ofset (ofset+newDepth) inc) def : old))
-         (0,[])
-         defs
-
-extract :: Bound -> Env -> D
-extract b env = fromMaybe  (error "variable not in Env") $ maybeExtract b env
-
-store:: [D1] -> Env -> Env
-store terms env = bInserts (zip (fromToZero (length terms - 1)) terms ) env
-
-update :: Bound -> D -> Env -> Env
-update b v env = bReplace b (ofset,dToD1 v) env
-  where (ofset, _) =  bLookup b env
 
 -- TODO
 --      it is possibel to chage, to make denotatial value more explict
@@ -208,6 +140,9 @@ evalDefsW env defs = do
       v <- retell (Def () b) $ evalW envN $ reproces t
       return ((n-1,update (Bound n) v envN),Def () b v)
 
+-- |  this function executes incremental with the 'Step' over a list
+-- it will preserver serounding contect of the elemts is is executing
+-- so it will prepend already fully executed \"results\" and append not yet executed elemnts from the list
 incrementalM :: (b -> a -> Step a (b, c)) -> b -> [a] -> Step [a] (b,[c])
 incrementalM f b0 list = go b0 DList.empty DList.empty list
   where
@@ -221,6 +156,100 @@ incrementalM f b0 list = go b0 DList.empty DList.empty list
         tell (map (\a'-> DList.apply previousA ( a':future)) newAs)
         go newB (DList.snoc previousA  (saveLast a newAs)) (DList.snoc previousC newC ) future
 
---TODO replace
+--TODO replace could be from save package
 saveLast :: a  -> [a] -> a
 saveLast a as = last (a:as)
+-- | Denotation values or the values you get after evaluation
+-- it makes sure you cant have 'Appl' or 'Let' result of eval
+--
+-- it is parameterised over ast to use in closure
+data DenotationValue t = Closure [[ Def () D1]] Name t -- ^ coresponds toLambda/Function with all definitions it could refer to that are no longer in scope. The definitions are grouped the same as in let definitions. so the corresponding 'BruijnTerm' can be recreated. they are stored from new to old
+                       | Free Bound
+                       | DVal Value
+  deriving (Show,Eq)
+
+instance Functor DenotationValue where
+  fmap f (Closure defs n t) = Closure defs n $ f t
+  fmap _ (Free b) = Free b
+  fmap _ (DVal v) = DVal v
+
+--TODO fix names
+type D = DenotationValue Unprocessed -- ^ short for Unprocessed DenotationValue
+type D1 = DenotationValue (BruijnTerm ()) -- ^ short for DenotationValue BruijnTerm
+
+dToBruijn ::  D -> BruijnTerm ()
+dToBruijn = d1ToBruijn . dToD1
+
+d1ToBruijn :: D1 -> BruijnTerm ()
+d1ToBruijn (Closure defs name t) = addPrefixLets defs $ Lambda () name t
+d1ToBruijn (Free b) = Var () b
+d1ToBruijn (DVal v) = Val () v
+
+-- | used to create 'BruijnTerm' from 'DenotationValue'
+addPrefixLets :: [[Def () D1]] -> BruijnTerm () -> BruijnTerm ()
+addPrefixLets defss t = foldl (\t_ defs_ -> Let () (map (fmap d1ToBruijn) defs_) t_) t defss
+
+dToD1 :: D -> D1
+dToD1 = fmap proces
+
+incFreeD ::  Int -> D -> D
+incFreeD  _ v@DVal {} = v
+incFreeD inc (Free (Bound n)) = Free $ Bound $ n + inc
+incFreeD inc (Closure defs name t) = Closure newDefs name newT
+  where
+    (depthDiff,newDefs) = incFreeOfsetDefs 0 inc defs
+    newT = insertUndefined (depthDiff+1) $ Unprocessed.incFree inc t
+
+incFreeD1 :: Int -> D1 -> D1
+incFreeD1 = incFreeD1ofset 0
+
+incFreeD1ofset :: Int -> Int -> D1 -> D1
+incFreeD1ofset _ _ v@DVal {} = v
+incFreeD1ofset _ inc (Free (Bound n)) = Free $ Bound $ n + inc
+incFreeD1ofset ofset inc (Closure  defs name t) = Closure newDefs name $ incFreeOfset (ofset+depthDiff+1) inc t
+ where
+    (depthDiff,newDefs) = incFreeOfsetDefs ofset inc defs
+
+incFreeOfsetDefs :: Int -> Int -> [[Def () D1]] -> (Int,[[Def () D1]])
+incFreeOfsetDefs ofset inc defs = foldr
+         (\def (depth,old) -> let newDepth = depth + length def:: Int
+                              in (newDepth, map (fmap $ incFreeD1ofset (ofset+newDepth) inc) def : old))
+         (0,[])
+         defs
+-- TODO is list best monoid for this ?
+--
+-- | 'Step' is used do incremental calculated something
+-- intermediate valuse are writen out
+type Step w a = Writer [w] a
+
+retell :: (w1 -> w2) ->  Step w1 a -> Step w2 a
+retell f = mapWriterT (fmap $ second (map f))
+
+censors ::  MonadWriter [w] m => (w->w) -> m a -> m a
+censors f = censor (map f)
+
+-- TODO  Int is used to calculated depth differnce
+--       what is needed for inlining
+--       this leaks the abstraction about Bruijnindexs
+--       maybe always store depth defined
+type Env = BruijnEnv (Int, D1)
+
+store:: [D1] -> Env -> Env
+store terms env = bInserts (zip (fromToZero (length terms - 1)) terms ) env
+
+update :: Bound -> D -> Env -> Env
+update b v env = bReplace b (ofset,dToD1 v) env
+  where (ofset, _) =  bLookup b env
+
+-- TODO add coment
+maybeExtract ::  Bound -> Env -> Maybe D
+maybeExtract b@(Bound n) env = do
+    (ofset,v) <- bMaybeLookup b env
+    Just $ incFreeD (n - ofset) $ fmap reproces v
+    -- TODO this incfree is need because v change depth/level
+    --      there are ways to avoid this (see SimpleEval)
+    --      or we could delay/acumulate thile printing
+
+
+extract :: Bound -> Env -> D
+extract b env = fromMaybe  (error "variable not in Env") $ maybeExtract b env

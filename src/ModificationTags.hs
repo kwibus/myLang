@@ -34,13 +34,26 @@ remember (SubstitutT n term) mtable = remember  (Substitut n $ proces mtable ter
 -- TODO implement ofset
 remember  (IncFree 0 inc ) mtable = incFree inc mtable
 
+-- | peek will apply modifications stored in mtabel and apply it on first node in ast
+-- and will give back a new 'MTable' that can be used to view the subtrees
+--
+-- you should only use the new 'MTable' on the found subtrees because:
+--
+-- * 'MTable' keep track of depth of the subtree,
+--
+-- * if a variable is 'substituted' for new subtree, then that subtree need to be ajusted
+--   mtable keep track of this.
+--
+-- * if peek encounters a 'Tag' that specify a modification that should be done on its subtree
+--   that is stored in mtable
+-- but this is not enforced, if you want a save variant use "Unprocessed"
 peek :: MTable -> LamTerm () -> (LamTermF () Bound (LamTerm ()), MTable)
 peek modifications term = case term of
   Tag.Tag m t -> peek (remember m modifications ) t
   Tag.Val i v -> (ValF i v,modifications)
   Tag.Var _ b -> case peekVar modifications b of
-    (Left newB,newM) -> (VarF () newB,newM)
-    (Right t,newM) -> peek newM $ Tag.tag t
+    (Left newB) -> (VarF () newB,modifications)
+    (Right (t,newM)) -> peek newM $ Tag.tag t
   Tag.Appl t1 t2 -> (ApplF t1 t2,modifications)
   Tag.Lambda i n t -> (LambdaF i n t,extraSparceInsertUndefind 1  modifications)
   Tag.Let i defs t -> ( LetF i defs t,extraSparceInsertUndefind (length defs) modifications )
@@ -61,9 +74,9 @@ deepin (Tag.Let i defs t) = LetF i defs t
 
 deepinTags :: [Modify ()] -> LamTerm ()  -> LamTermF () Bound (LamTerm())
 deepinTags tags (Tag.Tag m t) = deepinTags (m:tags) t
-deepinTags tags (Tag.Var _ b) = case fst $ peekVar (foldr remember empty tags) b of
+deepinTags tags (Tag.Var _ b) = case peekVar (foldr remember empty tags) b of
   (Left newB) -> VarF () newB
-  (Right t) -> deepinTags tags $ Tag.tag t
+  (Right (t,_)) -> deepinTags tags $ Tag.tag t
 
 deepinTags _ (Tag.Val i v) = ValF i v
 deepinTags tags t = fmap addNewTags (deepin t)

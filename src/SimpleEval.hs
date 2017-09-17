@@ -7,7 +7,8 @@ import Value
 type Env = BruijnEnv ValR
 
 -- TODO rename R is stupid
--- TODO Result make explicit value var
+-- TODO Result make explicit value
+-- TODO add Free
 data ValR = Closure Env (BruijnTerm())
           | Result (BruijnTerm ())
           deriving Show

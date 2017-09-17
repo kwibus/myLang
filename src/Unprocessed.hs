@@ -17,6 +17,7 @@ peek (Un mtable ast) = fmap (Un newMtable ) astF
 proces :: Unprocessed -> BruijnTerm ()
 proces (Un mtable ast ) = Mod.proces mtable ast
 
+--TODO this function will will make getDepth no longer accurate
 reproces :: BruijnTerm () -> Unprocessed
 reproces ast = Un empty (Tag.tag ast)
 

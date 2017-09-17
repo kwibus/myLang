@@ -20,7 +20,7 @@ arbitraryValue :: Maybe Type -> Generater ( LamTerm () n)
 arbitraryValue t = oneOfLogic [ arbitraryPrimatives t
                               , arbitraryBuildIn t
                               ]
-
+--TODO check if type check can be move up to arbitraryValue
 arbitraryBuildIn :: Maybe Type -> Generater ( LamTerm () n)
 arbitraryBuildIn t = do
     operator <- elementsLogic operators

@@ -1,3 +1,5 @@
+-- | this module defines a way to store/delaye modifications
+
 module MTable
   ( MTable(_env)
   , Symbol (Undefined) -- TODO these 2 are export for test but should not be used
@@ -25,25 +27,52 @@ import BruijnEnvironment
 --      to use own Env you have to track depth
 --      so make it easy to get depth from mtable
 --
+--
+-- TODO maybe parameterise over symbol
+--      then substitute becomes (store (Subst t) $ incFree (-1))
+--
 -- TODO levels range is [0.. depth-1]  maybe is easyer if it was [1..depth]
-
+--
+-- | 'MTable' is data structure to store delayed modifications on ast  that use Bruijn indeces
+--
+-- suported modifications:
+--
+-- * 'incFree'
+--
+-- * 'reorder'
+--
+-- * 'substitute'
+--
+-- * and potentialy storing meta information variable
+--
 data MTable = MTable
             { _depth :: Int
             , _incFreeFromStart :: Int
             , _env :: BruijnEnv (Int,Symbol)
             } deriving (Eq, Show)
 
-peekVar :: MTable -> Bound -> (Either Bound (BruijnTerm ()),MTable)
+-- | peekVar will query mtable with Bruijn index and answer with new Bruijn index to replace it with
+-- or (new 'BruijnTerm' with  'MTable' with delayed modifications on that ast). see substitute for why
+--
+-- this is a low level interface, you should probably use 'Modify.peek' or 'ModificationTags.peek'
+peekVar :: MTable -> Bound -> Either Bound (BruijnTerm (),MTable)
 peekVar modifications b@(Bound n) =
   case getLevel b table of
-    Just (level ,Undefined) -> (Left $ Bound $ depth - level -1,modifications)
-    Just (level ,Subst t) -> (Right t, mTable depth (depth - level))
-    Nothing -> (Left $ Bound $ n + _incFreeFromStart modifications,modifications)
+    Just (level ,Undefined) -> Left $ Bound $ depth - level -1
+    Just (level ,Subst t) -> Right (t, mTable depth (depth - level))
+    Nothing -> Left $ Bound $ n + _incFreeFromStart modifications
   where
     depth = _depth modifications
     table = _env modifications
 
-getLevel :: Bound -> BruijnEnv (Int,Symbol)-> Maybe (Int,Symbol)
+-- |
+-- * Bruijn levels start from 0
+--
+-- * BruijnEnv is sparse. So when index is not found it calculated level from what is stored below
+-- it will asume Undefined for it's symbol
+getLevel :: Bound -- ^ Bruijn index to query
+         -> BruijnEnv (Int,Symbol) -- ^ sparse store for (levels,symbols)
+         -> Maybe (Int,Symbol) -- ^ 'Nothing' if it was not bound /'Just' (bruijn Level, symbol)
 getLevel b@(Bound n) env =
   case bLookupLT b env of
     Just (Bound nFound ,(levelFound,sym))
@@ -61,7 +90,9 @@ incFree n (MTable depth inc env) = MTable (depth +n) (inc+n) env
 empty :: MTable
 empty = mTable 0 0
 
-mTable :: Int -> Int -> MTable
+mTable :: Int -- ^ depth of corresponding BruijnTerm
+       -> Int -- ^ incFree
+       -> MTable -- ^ new 'MTable'
 mTable depth inc = MTable depth inc bEmtyEnv
 
 drop :: Int -> MTable -> MTable
@@ -84,11 +115,13 @@ substitute (Bound n) depthDiff sub m =
   where
     depth = _depth m
 
+-- TODO rename/and make defaut
 extraSparceInsertUndefind :: Int -> MTable -> MTable
 extraSparceInsertUndefind n m@MTable{_depth = depth,_env=env} = case getLevel (Bound 0) env of
   Just (level, _) | level == depth - 1-> m {_depth = depth + n, _env = bInsertBlackhole n env}
   _ -> insertUndefined n m
 
+-- TODO dont export
 insertUndefined :: Int -> MTable -> MTable
 insertUndefined 0 m = m
 insertUndefined n m@MTable{_depth = depth,_env=env} = assert (n >= 1)
