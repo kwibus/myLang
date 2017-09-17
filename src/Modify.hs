@@ -28,8 +28,8 @@ peek modifications term = case term of
   Lambda i n t -> (LambdaF i n t,extraSparceInsertUndefind 1 modifications)
   Let i defs t -> (LetF i defs t,extraSparceInsertUndefind (length defs) modifications )
 
--- TODO you could make this shortcircuit
---
 -- | will apply the modifications stored in mtable
 proces ::  MTable  -> BruijnTerm ()-> BruijnTerm ()
-proces = unfold peek
+proces m t = if isNull m
+             then t
+             else unfold peek m t

@@ -7,6 +7,7 @@ module MTable
   , incFree
   , mTable
   , empty
+  , isNull
   , reorder
   , MTable.drop
   , substitute
@@ -90,6 +91,11 @@ incFree n (MTable depth inc env) = MTable (depth +n) (inc+n) env
 empty :: MTable
 empty = mTable 0 0
 
+-- | check if there are no modifications stored. This can say there are while there are realy none
+isNull :: MTable -> Bool
+isNull (MTable _ 0 env) | env == bEmtyEnv = True
+isNull _ = False
+
 mTable :: Int -- ^ depth of corresponding BruijnTerm
        -> Int -- ^ incFree
        -> MTable -- ^ new 'MTable'
@@ -116,6 +122,7 @@ substitute (Bound n) depthDiff sub m =
     depth = _depth m
 
 -- TODO rename/and make defaut
+-- TODO test
 extraSparceInsertUndefind :: Int -> MTable -> MTable
 extraSparceInsertUndefind n m@MTable{_depth = depth,_env=env} = case getLevel (Bound 0) env of
   Just (level, _) | level == depth - 1-> m {_depth = depth + n, _env = bInsertBlackhole n env}
