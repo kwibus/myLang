@@ -42,6 +42,7 @@ library
                       ,Value
                       ,BruijnTerm
                       ,Eval
+                      ,Step
                       ,SimpleEval
                       ,Operator
                       ,PrettyPrint
@@ -60,6 +61,7 @@ library
                       ,ModificationTags
                       ,Unprocessed
   Ghc-Options:          -Wall -fno-ignore-asserts
+
   default-language:    Haskell2010
 
 executable interperter

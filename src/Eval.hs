@@ -1,4 +1,3 @@
-{-# LANGUAGE FlexibleContexts #-}
 
 -- | This Module implementats eval by value for "BruijnTerm"
 -- it's used in the "Interper.Main", but its more a prove of concept.
@@ -14,9 +13,10 @@
 module Eval
 where
 
-import Control.Monad.Writer.Lazy
 import Data.Maybe
-import Data.Bifunctor
+
+import Step hiding (map)
+import qualified Step as S (map)
 
 import Unprocessed
 import BruijnTerm
@@ -46,7 +46,7 @@ evalSteps :: BruijnTerm () -> [BruijnTerm ()]
 evalSteps ast = snd $ evalStepsW  ast
 
 evalStepsW :: BruijnTerm () -> (D,[BruijnTerm()])
-evalStepsW term = runWriter $ evalW bEmtyEnv $ Un empty $ Tag.tag term
+evalStepsW term = runStep $ evalW bEmtyEnv $ Un empty $ Tag.tag term
 
 -- TODO
 --      it is possibel to chage, to make denotatial value more explict
@@ -78,11 +78,11 @@ evalW :: Env -> Unprocessed -> Step (BruijnTerm()) D
 evalW env ast = case peek ast of
     (LambdaF _ n t) -> return $ Closure [] n t
     (VarF _ b) -> case maybeExtract b env of
-        Just v -> tell [dToBruijn v] >> return v
+        Just v -> yield (dToBruijn v) >> return v
         Nothing -> return $ Free b
     (ValF _ v) -> return $ DVal v
     (LetF _ oldDefs t) -> do
-      (newEnv,newDefs) <- retell (\defs -> Let () defs (proces t)) $ evalDefsW env oldDefs
+      (newEnv,newDefs) <- S.map (\defs -> Let () defs (proces t)) $ evalDefsW env oldDefs
       newT <- censors (Let () $ map (fmap d1ToBruijn) newDefs) $ evalW newEnv t
       shrink [newDefs] newT
     (ApplF t1 t2) -> do
@@ -99,13 +99,13 @@ reduce env d1 d2 = case d1 of
          -- reduce should then no longer need env
          newEnv = foldr (store.map implementation) env defs
     in do newD <- censors (addPrefixLets defs) $ do
-              tell [proces newterm]
+              yield (proces newterm)
               evalW newEnv newterm
           shrink defs newD
   (DVal v1) -> case d2 of
       (DVal v2) -> do
           let newV =  applyValue v1 v2
-          tell [Val () newV]
+          yield (Val () newV)
           return $ DVal newV
       _ -> error $ "applied " ++ show v1 ++ " with " ++ show d2
   Free {} -> error "apply a free variable. This is not implemented"
@@ -118,7 +118,7 @@ shrink def d  = go def
     go [] = return d
     go (dropDefs:defs_) = do
         -- this incFreeD is ony over Dval/Free so should not be expesive
-        tell [addPrefixLets defs_ $ dToBruijn $ incFreeD (negate $ length dropDefs) d]
+        yield $ addPrefixLets defs_ $ dToBruijn $ incFreeD (negate $ length dropDefs) d
         go  defs_
 
 evalDefsW :: Env -> [Def () Unprocessed] ->  Step [Def () (BruijnTerm ())] (Env,[Def () D1] )
@@ -137,7 +137,7 @@ evalDefsW env defs = do
     nDefs = length defs
     go :: (Int,Env) -> Def () (BruijnTerm ()) -> Step (Def () (BruijnTerm ())) ((Int,Env),Def () D)
     go (n,envN) (Def () b t) = do
-      v <- retell (Def () b) $ evalW envN $ reproces t
+      v <- S.map (Def () b) $ evalW envN $ reproces t
       return ((n-1,update (Bound n) v envN),Def () b v)
 
 -- |  this function executes incremental with the 'Step' over a list
@@ -148,12 +148,12 @@ incrementalM f b0 list = go b0 DList.empty DList.empty list
   where
     go _ _ _ [] = error "incrementalM does work on empty list"
     go b previousA previousC [a] = do
-      (newB,newC) <- retell (DList.apply previousA .return ) $ f b a
+      (newB,newC) <- S.map (DList.apply previousA .return ) $ f b a
       return (newB,DList.apply previousC [newC])
     go b previousA previousC (a:future) =
-      let ((newB,newC),newAs) = runWriter  $ f b a
+      let ((newB,newC),newAs) = runStep  $ f b a
       in do
-        tell (map (\a'-> DList.apply previousA ( a':future)) newAs)
+        each (map (\a'-> DList.apply previousA ( a':future)) newAs)
         go newB (DList.snoc previousA  (saveLast a newAs)) (DList.snoc previousC newC ) future
 
 --TODO replace could be from save package
@@ -218,16 +218,6 @@ incFreeOfsetDefs ofset inc defs = foldr
          defs
 -- TODO is list best monoid for this ?
 --
--- | 'Step' is used do incremental calculated something
--- intermediate valuse are writen out
-type Step w a = Writer [w] a
-
-retell :: (w1 -> w2) ->  Step w1 a -> Step w2 a
-retell f = mapWriterT (fmap $ second (map f))
-
-censors ::  MonadWriter [w] m => (w->w) -> m a -> m a
-censors f = censor (map f)
-
 -- TODO  Int is used to calculated depth differnce
 --       what is needed for inlining
 --       this leaks the abstraction about Bruijnindexs
@@ -249,7 +239,6 @@ maybeExtract b@(Bound n) env = do
     -- TODO this incfree is need because v change depth/level
     --      there are ways to avoid this (see SimpleEval)
     --      or we could delay/acumulate thile printing
-
 
 extract :: Bound -> Env -> D
 extract b env = fromMaybe  (error "variable not in Env") $ maybeExtract b env
