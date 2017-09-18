@@ -2,8 +2,8 @@
 --
 -- For some modification you have to rewrite to hole subtree. but if you tag ("TaggedLambda") that subtree with you modification, you can batch you modifications and do them only when needed.
 module ModificationTags
-( module ModificationTags
-)
+  ( module ModificationTags
+  )
 where
 
 import LambdaF

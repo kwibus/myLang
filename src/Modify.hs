@@ -4,8 +4,7 @@ import MTable
 import BruijnTerm hiding (incFree)
 import LambdaF
 
--- TODO make test
--- TODO switch result around
+-- TODO switch result around peek
 --
 -- | peek will apply modifications stored in mtabel and apply it on first node in ast
 -- and will give back a new 'MTable' that can be used to view the subtrees

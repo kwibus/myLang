@@ -105,6 +105,8 @@ drop :: Int -> MTable -> MTable
 drop n m = m{_depth = _depth m - n
             ,_env = bDrop n $ _env m}
 
+-- TODO could make filter to to remove null reorder
+
 reorder :: Int -> [Bound] -> MTable ->MTable
 reorder n order s@ MTable{_env=env} = s {_env=newEnv}
   where
