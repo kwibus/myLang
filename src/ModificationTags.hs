@@ -21,7 +21,7 @@ data Modify i = Reorder Int [Bound] -- ^ @[1, 0, 2]@ will make bound 0 -> 1, 1 -
 --TODO doc tag scoping  / undefined var / binding
 --  __    __
 -- |  |  |  |
--- \.[0] \.10   -> \\.1:q
+-- \.[0] \.10   -> \\.10
 --
 --    |____|
 

@@ -101,21 +101,50 @@ mTable :: Int -- ^ depth of corresponding BruijnTerm
        -> MTable -- ^ new 'MTable'
 mTable depth inc = MTable depth inc bEmtyEnv
 
-drop :: Int -> MTable -> MTable
+-- | Will drop bindings from mtable.
+drop :: Int  -- ^ number of bindings to drop
+     -> MTable -> MTable
 drop n m = m{_depth = _depth m - n
             ,_env = bDrop n $ _env m}
 
 -- TODO could make filter to to remove null reorder
-
-reorder :: Int -> [Bound] -> MTable ->MTable
+-- | Note that:
+--
+-- * It uses old index so not the one you see if you use peek/peekvar.
+--
+-- * It expect a list that is a permutation of [0.. n].
+--
+-- * This will reorder/swap the first of list with (first index in the list + how far back you wanted to start) enz. So @reorder (Bound 1)  [1, 0, 2]@ will make bound 1 -> 2, 2 -> 1 3 -> 3
+--
+-- @ reorder (Bound 1) [1,0,2] λ.01234 ->  λ.02134@
+--
+reorder :: Int -- ^ How far back you want to start reorder
+        -> [Bound] -- ^ The new order
+        -> MTable
+        -> MTable
 reorder n order s@ MTable{_env=env} = s {_env=newEnv}
   where
     newEnv  = foldl go env $ zip order [n ..]
-    go envN (bi, j) = case getLevel bi env of
+    go envN (bi@(Bound i), j) = assert (0 <= i && i < length order) $
+      case getLevel bi env of
       Just (level,sym ) -> bReplace (Bound j) (level,sym) envN
       Nothing -> error "cant reorder what is not there"
 
-substitute  :: Bound -> Int ->  BruijnTerm () -> MTable -> MTable
+-- TODO test this with index bigger then 0
+-- TODO in reorder it uses Int to specify how far back you want to do it but here bound
+-- | Note that:
+--
+-- * it uses old Bruijn index so not the one you see if you use peek/peekvar
+--
+-- * this will not replace a binding of a bruijen  index, but creates a new one.
+--
+-- @ substitute (Bound 1) 0 t λ.012 ->  λ.01t@
+--
+substitute  :: Bound -- ^ which old Bruijn index to substitute
+            -> Int -- ^ Depth difference of that term with current depth
+            -> BruijnTerm () -- ^ Term to substitute with
+            -> MTable
+            -> MTable
 substitute (Bound n) depthDiff sub m =
  m{ _incFreeFromStart = _incFreeFromStart m -1
   -- TODO does bInsertAt n  work if it is past a subscription or incfree
