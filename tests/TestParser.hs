@@ -1,9 +1,9 @@
-module TestParser (testParser ) where
+module TestParser (testParser) where
 
 import Test.Tasty
 import Test.Tasty.HUnit
 import Test.Tasty.QuickCheck
-import Test.QuickCheck.Property
+import Test.QuickCheck.Property (succeeded)
 
 import ArbitraryLambda
 import TestSetParseShow

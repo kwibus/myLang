@@ -531,8 +531,9 @@ convergingSet =
   ]
 testEvalProp :: TestTree
 testEvalProp = testGroup "propertys" $
-  let forAllNonCiculair prop = forAllTypedBruijn $ \ e -> case sortTerm e of
-          Left {} -> property Discard
+      -- TODO dont why again is need here but otwersie test will stop after discard
+  let forAllNonCiculair prop = again $ forAllTypedBruijn $ \ e -> case sortTerm e of
+          Left {} -> discard
           (Right newT) -> prop $ applyModify newT
   in
   [ testProperty "evalSteps == unfold eval" $ forAllNonCiculair $ \ e ->
