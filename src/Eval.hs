@@ -23,7 +23,6 @@ import BruijnTerm
 import Value
 import BruijnEnvironment
 import MTable (empty)
-import qualified TaggedLambda as Tag
 
 import LambdaF
 import qualified Data.DList as DList
@@ -46,7 +45,7 @@ evalSteps :: BruijnTerm () -> [BruijnTerm ()]
 evalSteps ast = snd $ evalStepsW  ast
 
 evalStepsW :: BruijnTerm () -> (D,[BruijnTerm()])
-evalStepsW term = runStep $ evalW bEmtyEnv $ Un empty $ Tag.tag term
+evalStepsW term = runStep $ evalW bEmtyEnv $ Un empty term
 
 -- TODO
 --      it is possibel to chage, to make denotatial value more explict
@@ -58,18 +57,12 @@ evalStepsW term = runStep $ evalW bEmtyEnv $ Un empty $ Tag.tag term
 --      reduce :: .. D -> D -> D
 --      shrink [Dev d] -> D -> D
 --
---      it possibel to store Env  in MTable,
+--      it possibel to store Env in MTable,
 --      no real reason to pass around 2 "env"
 --          this opens the possibilty to store D and incFree instead of substitute
 --          this removes the need for reEval defs
 --          and might make mtable overkill
 --
---      Unprocessed is now (Mtable , Taged Lambda)
---      but tages are only used top level
---      so you could change it to
---      Unprocessed  = (MTable,  BruijnTerm)
---      this could short circuit proces if there are no modifications
-
 -- you might think that Reader monad for env mtable might be a good idea
 -- this does not work well with incrementalM
 -- and makes it easy to exedenaly peekM with not match MTable

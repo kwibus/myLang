@@ -1,13 +1,10 @@
 module Unprocessed where
 
 import MTable
-import qualified ModificationTags as Mod
+import qualified Modify as Mod
 import LambdaF
-import BruijnEnvironment (Bound(..))
-import BruijnTerm as Lam (Value,BruijnTerm)
-import TaggedLambda as Tag
-
-data Unprocessed = Un MTable (Mod.LamTerm ()) deriving Show
+import BruijnTerm
+data Unprocessed = Un MTable (BruijnTerm()) deriving Show
 
 peek :: Unprocessed -> LamTermF () Bound Unprocessed
 peek (Un mtable ast) = fmap (Un newMtable ) astF
@@ -19,16 +16,13 @@ proces (Un mtable ast ) = Mod.proces mtable ast
 
 --TODO this function will will make getDepth no longer accurate
 reproces :: BruijnTerm () -> Unprocessed
-reproces ast = Un empty (Tag.tag ast)
+reproces ast = Un empty ast
 
 val ::  Value -> Unprocessed
 val v = Un empty $ Val () v
 
 var :: Bound -> Unprocessed
 var b = Un empty  $ Var () b
-
-getVal :: Unprocessed -> Maybe Value
-getVal (Un _ t) = Tag.getVal t
 
 incFree :: Int -> Unprocessed -> Unprocessed
 incFree n (Un mtable ast) = Un (MTable.incFree n mtable) ast
