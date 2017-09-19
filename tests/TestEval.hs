@@ -233,9 +233,15 @@ letSet =
         , mkLet [("b", double 1.0), ("a", double 1.0)] $ double 1
         , double 1])
 
+
   ,(mkLet [("a", true), ("b", bvar 2), ("c", false)] true
       , [ mkLet [("a", true), ("b", true), ("c", false)] true
         , true])
+
+  ,(mkLet [("a", true), ("b", bvar 2), ("c",bvar 1)] true
+    , [ mkLet [("a", true), ("b", true), ("c", bvar 1)] true
+      , mkLet [("a", true), ("b", true), ("c", true)] true
+      , true])
 
   , (mkLet [("a", true), ("b", false), ("c", bvar 2)] true
       , [ mkLet [ ("a", true), ("b", false), ("c", true)] true

@@ -15,8 +15,8 @@ where
 
 import Data.Maybe
 
-import Step hiding (map)
-import qualified Step as S (map)
+import Step hiding (map,last)
+import qualified Step as S (map,last)
 
 import Unprocessed
 import BruijnTerm
@@ -144,21 +144,15 @@ evalDefsW env defs = do
 -- it will preserver serounding contect of the elemts is is executing
 -- so it will prepend already fully executed \"results\" and append not yet executed elemnts from the list
 incrementalM :: (b -> a -> Step a (b, c)) -> b -> [a] -> Step [a] (b,[c])
-incrementalM f b0 list = go b0 DList.empty DList.empty list
+incrementalM f b0 list = go b0 DList.empty list
   where
-    go _ _ _ [] = error "incrementalM does work on empty list"
-    go b previousA previousC [a] = do
-      (newB,newC) <- S.map (DList.apply previousA .return ) $ f b a
-      return (newB,DList.apply previousC [newC])
-    go b previousA previousC (a:future) =
-      let ((newB,newC),newAs) = runStep  $ f b a
-      in do
-        each (map (\a'-> DList.apply previousA ( a':future)) newAs)
-        go newB (DList.snoc previousA  (saveLast a newAs)) (DList.snoc previousC newC ) future
+    -- go :: b -> DList.DList c -> [a] -> Step [a] (b,[c])
+    go b cs [] = return (b,DList.toList cs)
+    go b previousC (a:future) = do
+        (maybeNewAs,(newB,newC)) <-S.last $ S.map (:future) $ f b a
+        let resultA = maybe a head maybeNewAs
+        S.map (resultA:) $ go newB  (DList.snoc previousC newC) future
 
---TODO replace could be from save package
-saveLast :: a  -> [a] -> a
-saveLast a as = last (a:as)
 -- | Denotation values or the values you get after evaluation
 -- it makes sure you cant have 'Appl' or 'Let' result of eval
 --
