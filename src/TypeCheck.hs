@@ -134,7 +134,7 @@ generalize env = toPoly
 -- instanceOf (Forall v1 t1 ) (Forall v2 t2 ) = undefined
 
 unifySubs :: TSubst -> TSubst -> ErrorCollector [UnificationError] TSubst
-unifySubs sub1 sub2 = IM.foldWithKey f (return sub1) sub2
+unifySubs sub1 sub2 = IM.foldrWithKey f (return sub1) sub2
     where f key typ1 (Result sub) = case IM.lookup key sub of
             Nothing -> IM.union sub <$> unify (apply sub typ1 ) (apply sub (TVar (Free key)))
             Just typ2 -> IM.union sub <$> unify (apply sub typ1) (apply sub typ2)

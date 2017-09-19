@@ -4,7 +4,7 @@ module TopDown where
 import LambdaF
 import BruijnEnvironment
 import BruijnTerm as Lam hiding(Lambda,Appl,Let)
-import ModifiedLambda (MTable)
+import MTable(MTable)
 import Inprocess
 
 topDownTrans :: (context -> LamTermF () Bound InProcess -> LamTermF () Bound InProcess ) -> context -> MTable -> InProcess -> LamTerm () Bound
