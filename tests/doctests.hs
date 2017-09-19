@@ -1,15 +1,4 @@
--- {-# OPTIONS_GHC -F -pgmF doctest-discover #-}
-module Main where
+{-# OPTIONS_GHC -F -pgmF doctest-discover -optF tests/doctest.json #-}
 
-import Test.DocTest
-
--- TODO can nicer
-main :: IO ()
-main = doctest [ "-itest"
-                , "-isrc"
-                , "tests/MakeTerm.hs"
-                , "src/Operator"
-                , "src/PrettyPrint.hs"
-                , "tests/Properties.hs"
-                , "src/TypeCheck.hs"
-               ]
+-- TODO doctest is not always run over source files for test
+--      think it depends if they are needed for a executable

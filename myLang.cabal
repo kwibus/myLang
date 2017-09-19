@@ -151,8 +151,9 @@ test-suite tests
 test-suite doctests
   type:                exitcode-stdio-1.0
   main-is:             doctests.hs
-  Hs-Source-Dirs:      tests ,src
+  Hs-Source-Dirs:      tests
   build-depends:       base >=4 && < 5
+                      ,myLang
                       ,doctest-discover
                       ,doctest
 

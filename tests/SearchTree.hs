@@ -123,7 +123,7 @@ prune maxfailures = go [] 0 (100000000,0)
       in if  failures + 1 >= maxfailures
          then if
           |depth > highestDepth  -> jumpback 1 stack (depth-1 ,depth)
-          -- |depth < previousJumpDepth -> jumpback 1 stack (depth-1 ,depth)
+          -- depth < previousJumpDepth -> jumpback 1 stack (depth-1 ,depth)
           -- this already happend because a negative jumpback is a next
           |otherwise -> jumpback  (depth - previousJumpDepth +1 ) stack (previousJumpDepth-1,highestDepth)
          else next stack (failures + 1) bounds
