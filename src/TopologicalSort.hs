@@ -24,14 +24,14 @@ import qualified Lambda as Lam
 -- * the chain of dependencies that that let to cycle (exampel [Bound 0, Bound 1, Bound 0])
 data DataCycle i = DataCycle (BruijnTerm i) [Bound] deriving (Eq, Show)
 
---TODO rename (current name refers to i use it, no on how it can be used)
+--TODO rename (current name refers how to i use it, no on how it can be used)
 type FreeVars = Set.Set Int
 
 -- | 'sortTerm' reorder let defenitions in topological order. you should be able to evaluated al expresion of let defenitions to normalform without needing not yet evaluated expresions.
 --
 -- * this order is not unique
 --
--- * this function return 'Nothing' when this is not possible (@ let a = a in a @)
+-- * this function return 'Left' DataCycle' when this is not possible (@ let a = a in a @)
 --
 -- * this function does not rename variables (bruijen index), but add tages that descips how it should be renamed. this can be done with 'ModificationTags.applyModify'
 
@@ -54,42 +54,56 @@ type FreeVars = Set.Set Int
 --      but if you only work in fixed scope/depth the naming is fixed
 
 sortTerm :: BruijnTerm i -> Either (DataCycle i) (Tag.LamTerm i Bound (Modify i))
-sortTerm term = fst <$> go 0 term
+sortTerm term = snd <$> go 0 term
   where
-    go :: Int -> BruijnTerm i -> Either (DataCycle i) (Tag.LamTerm i Bound (Modify i), FreeVars )
-    go _ (Lam.Val i v) = return (Tag.Val i v, Set.empty)
-    go depth (Lam.Var i b) = return (Tag.Var i b, insert depth b Set.empty)
-    go depth (Lam.Lambda i n t) = first (Tag.Lambda i n) <$> go (depth + 1) t
+    -- could replace Either e (b,a).. with EitherT e (b,) a
+    -- this would make is possible to use standard mapchild like function
+    -- and would replace boilerplate
+    go :: Int -> BruijnTerm i -> Either (DataCycle i) (FreeVars, Tag.LamTerm i Bound (Modify i))
+    go _ (Lam.Val i v) = return (Set.empty,Tag.Val i v)
+    go depth (Lam.Var i b) = return (insert depth b Set.empty, Tag.Var i b)
+    go depth (Lam.Lambda i n t) = fmap (Tag.Lambda i n) <$> go (depth + 1) t
     go depth (Lam.Appl t1 t2) = do
-        (t1', free1) <- go depth t1
-        (t2', free2) <- go depth t2
-        return (Tag.Appl t1' t2', Set.union free1 free2)
+        (free1 ,t1') <- go depth t1
+        (free2, t2') <- go depth t2
+        return (Set.union free1 free2, Tag.Appl t1' t2')
     go depth (Lam.Let i defs t) = do
         let ndefs = length defs
         let newDepth = depth + ndefs
-        (t', freeT) <- go newDepth t
-        (defs', frees) <- unzip <$> mapM
-            (\ (Lam.Def i_ n_ t_) -> first (Tag.Def i_ n_) <$> go newDepth t_)
-            defs
-
-        let (newFrees, defSelfs) = unzip $ map (splitPast depth . removeOutScope newDepth) frees
-        let depencys = zip (defsBounds defs) $
-                map
-                (map (Bound . (newDepth -)) . Set.toList)
-                defSelfs
-        let isFunction term_ = case term_ of
-                Lam.Lambda {} -> True
-                _ -> False
+        (freeT,t') <- go newDepth t
+        (freeDefs,defs',depencys) <- unzip3 <$> mapM  ( \(b, Def i_ n_ t_) -> do
+                (freeIndDef,newDef) <- go newDepth t_
+                let (free, boundLet) = splitPast depth $ removeOutScope newDepth freeIndDef
+                let depencys = (b,freeVarsToList newDepth boundLet)
+                return (free,Def i_ n_ newDef,depencys)
+              ) (zip (defsBounds defs) defs)
+        -- here i use the old defs not the ones with already sorted  terms
+        -- because it easyer to find out if its a fucntion
+        -- so i use the assumpiton that go does not change if its a function
         let (funcDef, valDep) = partitionWith (isFunction . Lam.implementation) depencys defs
         newOrder <- first (makeDataCycle (Lam.Let i defs t)) $ topologicalSort valDep funcDef
-        let reorderTerm = Tag.Tag $ Reorder 0 $ order2Permutation newOrder --TODO replace with funciton
+        let reorderTerm = Tag.Tag $ Reorder 0 $ order2reorder newOrder --TODO replace with funciton
         let sortedDefs = map (fmap reorderTerm . (\ b -> bLookup b $ bFromList defs')) newOrder
-        return (Tag.Let i sortedDefs $ reorderTerm t', Set.unions (removeOutScope depth freeT : newFrees))
+        return (mconcat $ removeOutScope depth freeT : freeDefs
+               ,Tag.Let i sortedDefs $ reorderTerm t')
+
+-- TODO define in terms of Eval.BruijnTerm2DenotionalValue
+-- could define "Let defs fucntion" also to be a fucntion. but this would meen you have reevaluate defs every time you call the function
+--
+-- | is used to deterime if the term is allowed to depend on its self
+isFunction :: Lam.LamTerm i n -> Bool
+isFunction term = case term of
+        Lam.Lambda {} -> True
+        _ -> False
 
 -- | given current depth add bruijen variable to set of freevarabls
 insert :: Int -> Bound -> FreeVars -> FreeVars
 -- store depth-defined = current depth - bruijn-index (how much higer is defined)
 insert depth (Bound b) = Set.insert (depth - b)
+
+-- | maps gives a list bruijnen index of the freevarible
+freeVarsToList :: Int -> FreeVars -> [Bound]
+freeVarsToList depth freeVars = map (Bound . (depth -)) $ Set.toList freeVars
 
 -- | given current depth and freeVars its gives freevars that are inscope
 removeOutScope :: Int -> FreeVars -> FreeVars
@@ -119,13 +133,13 @@ partitionWith f as bs = foldl split ([], []) $ zip as bs
 --
 -- example:
 --
--- >>> order2Permutation [Bound 2, Bound 0 ,Bound 1]
+-- >>> order2reorder [Bound 2, Bound 0 ,Bound 1]
 -- [Bound 1,Bound 0,Bound 2]
 --
 -- meaning substituut [Bound 0 -> Bound 1, Bound 1 -> Bound 2, Bound 2]
 -- this substitutions is  needed because Bound 0 refers to last defined argument. But that is now the second last defined argument
-order2Permutation :: [Bound] -> [Bound]
-order2Permutation order = map fst $ sortBy (comparing snd ) relation
+order2reorder:: [Bound] -> [Bound]
+order2reorder order = map fst $ sortBy (comparing snd ) relation
   where
     -- (old, new) (reverse because bruijn-index 0 reverse to last defined)
     relation = zip (map Bound [0 ..]) $ reverse order
