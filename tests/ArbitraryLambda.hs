@@ -186,8 +186,8 @@ arbitraryLambda size t maxlist state = do
 
 arbitraryLet :: ArbiRef n => Int -> Maybe Type -> [Type] -> GenState n -> Generater (LamTerm () n)
 arbitraryLet size t maxlist state =
-    let minmalSize = 1
-        maxDefs = 5
+    let minmalSize = 1::Int
+        maxDefs = 5 :: Int
         maxnumberDefs = min ((size - 1) `div` minmalSize) (maxDefs + 1)
     in do
     numberDefs <- chooseLogic (1, maxnumberDefs)

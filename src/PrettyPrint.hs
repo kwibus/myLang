@@ -1,3 +1,4 @@
+{-# LANGUAGE MonoLocalBinds#-}
 module PrettyPrint
 --(pShow)
 where

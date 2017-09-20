@@ -25,6 +25,7 @@ close t = fst $ go t fEmtyEnv 0
        finedNewName f env n = if fMember f env
              then (fLookup f env, (env, n))
              else (Free n, ( finsertAt (Free n ) f env, n + 1))
+       go :: Type -> FreeEnv Free -> Int -> (Type,(FreeEnv Free,Int))
        go (TVar f ) env n = first TVar (finedNewName f env n)
        go (TPoly f ) env n = first TPoly (finedNewName f env n)
        go (TAppl t1 t2 ) env n = let (t1', ( env', n' )) = go t1 env n

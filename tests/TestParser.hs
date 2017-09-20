@@ -96,7 +96,7 @@ testString string expected
       "\npshow but got : " ++ show (fmap pShow result )
   where
     result = fmap removeInfo (parseString string)
-    expectM = return expected
+    expectM = return expected :: Either ParseError (LamTerm () Name)
 
 testCaseParser :: String -> LamTerm () Name -> TestTree
 testCaseParser string expected = testCase (removeNewLines string) $ case testString string expected of

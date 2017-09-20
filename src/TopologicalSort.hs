@@ -1,3 +1,4 @@
+{-# LANGUAGE MonoLocalBinds#-}
 -- | this module defines sortTerm, that reorder let in a way the can be easly evaluated from top to bottum
 module TopologicalSort
     ( topologicalSort
