@@ -24,8 +24,8 @@ testTypeChecker = testGroup "typeChecker"
                     [ testApply
                     , testUnify
                     , testUnifySubs
-                    , testSolver
                     , testClose
+                    , testTypeCheck
                     ]
 
 testApply :: TestTree
@@ -45,8 +45,11 @@ testApply = testGroup "apply"
     ]
 testUnify :: TestTree
 testUnify = testGroup "unify"
-    [ testCase " unifys a a -> " $
+    [ testCase "fail:  unifys a (a -> b)" $
         unifys (tVar 1) (tVar 1 ~> tVar 2) @?= False
+
+    , testCase "fail: unify (Bool -> a) (a -> Double)" $
+        unifys (tBool ~> tVar 1) (tVar 1 ~> tDouble) @?= False
 
     , testProperty "unify self" $
         \ t -> unifys t t
@@ -109,9 +112,15 @@ testClose = testGroup "close"
     [testProperty "welformd close" $
         welFormdType . close ]
 
+testTypeCheck :: TestTree
+testTypeCheck = testGroup "Type checker"
+  [ testBasic
+  , testCheckerProperty
+  ]
+
 -- TODO consistend names
-testSolver :: TestTree
-testSolver = testGroup "Solver"
+testBasic :: TestTree
+testBasic = testGroup "Solver"
    [ testCase "check Double" $
         solver (double 1.0) @?= return tDouble
    , testCase "check (+1)" $
@@ -150,14 +159,6 @@ testSolver = testGroup "Solver"
                 )))
         @?=
         return ( tVar 0 ~> (tVar 0 ~> tVar 1) ~> tVar 1 )
-
-   , testCase "check \\a.a a" $
-        solver (lambda "a" (appl
-                    (bvar 0)
-                    (bvar 0)
-                ))
-        @?=
-        throw [ UnifyAp undefined undefined undefined [Infinit undefined undefined ]]
 
    , testCase "check (\\a.a (a 1.0))" $
         solver (lambda "a" (appl
@@ -207,29 +208,19 @@ testSolver = testGroup "Solver"
   , testCase "let id = \\a .a in id id" $
         solver (mkLet [("id",lambda "a" (bvar 0))] (appl (bvar 0) (bvar 0)))
         @?= return (tVar 0 ~> tVar 0)
-    -- TODO fail let polymorfise lambca
-    , testCase "\\id. ((\\ a b .a) (id 1.0) (id *))(\\a.a) " $
-        solver (appl (lambda "id "( lambda "c" (appl (appl
-                            (lambda "a" (lambda "b"(bvar 1)))
-                            (appl (bvar 0) (double 1.0)))
-                        (appl (bvar 0) (val plus)))))
-                (lambda "a" (bvar 0)))
 
-        @?= throw [UnifySubs undefined  [Unify undefined undefined ] ]
+  , testCase "let a = a in a +" $
+      solver (mkLet [("a",bvar 0)] $ appl (val plus)(bvar 0))
+      @?= return (tDouble ~> tDouble)
 
-    , testCase "let id = \\a .a in (\\ a b .a) (id 1.0) (id +) " $
-        solver (mkLet [("id",lambda "a" (bvar 0))] (appl (appl
-                    (lambda "a" (lambda "b"(bvar 1)))
-                    (appl (bvar 0) (double 1.0)))
-               (appl (bvar 0) (val plus))
-            ))
-        @?= return tDouble
+  , testCase "let a = true; b = a +; in b" $
+      solver (mkLet [("a",true),("b",appl (val plus) (bvar 1))] $bvar 0 )
+      @=?  throw [UnifyAp undefined undefined undefined [Infinit undefined undefined ]]
+  ]
 
-    , testCase "let a = a in a +" $
-        solver (mkLet [("a",bvar 0)] $ appl (val plus)(bvar 0))
-        @?= return (tDouble ~> tDouble)
-
-    , testProperty "idempotence" $
+testCheckerProperty :: TestTree
+testCheckerProperty = testGroup "propertys"
+    [ testProperty "idempotence" $
         forAllTypedBruijn $ \ e -> case runInfer $ solveWith e fEmtyEnv bEmtyEnv of
                 Error _ -> False
                 Result (t1, sub1) -> case runInfer $ solveWith e sub1 bEmtyEnv of
