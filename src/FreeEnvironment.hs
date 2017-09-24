@@ -19,6 +19,9 @@ fFromList list = IM.fromList $ map convert list
 finsertAt :: a -> Free -> FreeEnv a -> FreeEnv a
 finsertAt a (Free i) = IM.insert i a
 
+fMaybeLookup ::Free -> FreeEnv a -> Maybe a
+fMaybeLookup (Free i) m = IM.lookup i m
+
 fLookup :: Free -> FreeEnv a -> a
 fLookup (Free i) m = m IM.! i
 

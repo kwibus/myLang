@@ -215,7 +215,11 @@ testBasic = testGroup "Solver"
 
   , testCase "let a = true; b = a +; in b" $
       solver (mkLet [("a",true),("b",appl (val plus) (bvar 1))] $bvar 0 )
-      @=?  throw [UnifyAp undefined undefined undefined [Infinit undefined undefined ]]
+      @?= throw [UnifyDef tBool tDouble undefined]
+
+  , testCase "let f a = true; b = f True; in b" $
+      solver (mkLet [("f",lambda "a" true),("b",appl (bvar 1) true)] $bvar 0 )
+      @?= return (tVar 0)
   ]
 
 testCheckerProperty :: TestTree

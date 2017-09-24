@@ -22,9 +22,9 @@ import TypeError
 close :: Type -> Type
 close t = fst $ go t fEmtyEnv 0
  where finedNewName :: Free -> FreeEnv Free -> Int -> (Free, (FreeEnv Free, Int))
-       finedNewName f env n = if fMember f env
-             then (fLookup f env, (env, n))
-             else (Free n, ( finsertAt (Free n ) f env, n + 1))
+       finedNewName f env n = case fMaybeLookup f env of
+             Just fname  -> (fname, (env, n))
+             Nothing -> (Free n, (finsertAt (Free n ) f env, n + 1))
        go :: Type -> FreeEnv Free -> Int -> (Type,(FreeEnv Free,Int))
        go (TVar f ) env n = first TVar (finedNewName f env n)
        go (TPoly f ) env n = first TPoly (finedNewName f env n)
@@ -57,6 +57,11 @@ solveWith e@(Let _ defs e2) sub tenv = do -- TODO vorbid type some type of self 
   newVars <- replicateM (length defs) newFreeVar
   let tempTEnv = foldl ( flip ( bInsert . TVar)) tenv newVars
   (polys, subs) <- unzip <$> mapM (solveDefs tempTEnv) defs
+  zipWithM_ (\f realType -> forM_ subs $ \sub -> case fMaybeLookup f sub of
+    Nothing -> return ()
+    Just t -> do
+      void $ toExcept $ mapError (return . UnifyDef realType t) $unify realType t
+      ) newVars polys
   newSubs <- toExcept $ mapError (\ erros -> [UnifySubs e erros]) $ foldM1 unifySubs subs
   let newTEnv = foldl ( flip bInsert) tenv polys
   solveWith e2 newSubs newTEnv
@@ -145,6 +150,8 @@ unifySubs sub1 sub2 = IM.foldrWithKey f (return sub1) sub2
 
 --TODO only changes?
 unify :: Type -> Type -> ErrorCollector [UnificationError] TSubst
+unify (TPoly _) _ = return fEmtyEnv
+unify  _ (TPoly _) = return fEmtyEnv
 unify (TVar n) t = fromEither $ bind n t
 unify t (TVar n) = fromEither $ bind n t
 unify (TAppl t11 t12 ) (TAppl t21 t22) =

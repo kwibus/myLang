@@ -12,6 +12,7 @@ import Lexer (toChar, reservedSymbols)
 data TypeError i =
       UnifyAp (BruijnTerm i) Type Type [UnificationError]
     | UnifySubs (BruijnTerm i) [UnificationError]
+    | UnifyDef Type Type [UnificationError] -- TODO store more information for good error messages
     | ICE (UndefinedVar Bound i)
     deriving Show
 
@@ -22,6 +23,7 @@ data UnificationError =
 
 -- TODO better EqalitieA / remove and make seperate for unittest
 instance Eq (TypeError i) where
+  (==) (UnifyDef t11 t12 _) (UnifyDef t21 t22 _) = t11 == t21 && t12 == t22
   (==) (UnifyAp _ _ _ err1) (UnifyAp _ _ _ err2) = err1 == err2
   (==) (UnifySubs _ _) (UnifySubs _ _ ) = True
   (==) (ICE _) (ICE _) = True
