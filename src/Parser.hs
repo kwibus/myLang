@@ -137,7 +137,6 @@ pLine = do
     eof
     return term
 
-
 pOperator :: Parser (Expresion, Bool)
 pOperator = do
     pos <- PS.getPosition
@@ -145,10 +144,10 @@ pOperator = do
     return (Val pos o, True)
 
 pPlus :: Parser Value
-pPlus = pSymbol Plus >> return plus
+pPlus = pSymbol Plus >> return (Func plus)
 
 pMultiply :: Parser Value
-pMultiply = pSymbol Multiply >> return multiply
+pMultiply = pSymbol Multiply >> return (Func multiply)
 
 pParentheses :: Parser Expresion
 pParentheses = do

@@ -12,7 +12,6 @@ import TestUtils
 
 import Name
 import Lambda
-import Operator
 import Parser
 import PrettyPrint
 import Info
@@ -40,7 +39,7 @@ testParseAlternatives = testGroup "alternative notation"
     , testCaseParser "\\a.\\b.1.0" $ lambda "a" (lambda "b" (double 1.0))
 
     , testCaseParser "(+) (1.0 2.0)" $
-        appl (val plus) (appl (double 1.0) (double 2.0))
+        appl plus (appl (double 1.0) (double 2.0))
     ]
 
 testParserProperties :: TestTree

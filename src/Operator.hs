@@ -5,6 +5,9 @@ import Control.Monad.State.Strict
 import MakeType
 import Associativity
 
+-- TODO maybe refactor buildin is defined from here
+-- TODO make builder function for buildin operators (arrity 2)
+
 pop :: (Value -> a )-> State Stack a
 pop f = do
     s <- get
@@ -16,10 +19,10 @@ popDouble = pop (\v -> case v of
     Prim (MyDouble n) -> n
     _ -> error $ "expeceted doubel on the stack. but got " ++ show v)
 
-operators :: [Value]
+operators :: [BuildIn]
 operators = [plus, multiply]
 
-plus :: Value
+plus :: BuildIn
 plus = BuildIn
     { prettyName = "+"
     , vName = "plus"
@@ -36,7 +39,7 @@ evalplus = do
     b <- popDouble
     return $ Prim $ MyDouble $ a + b
 
-multiply :: Value
+multiply :: BuildIn
 multiply = BuildIn
     { prettyName = "*"
     , vName = "multiply"

@@ -15,11 +15,13 @@ import qualified ExampleBruijn as B
 import Properties
 import ArbitraryLambda
 
+import TopologicalSort
 import Eval hiding (Free)
 import qualified Eval
 import FreeEnvironment
 import MakeTerm
-import Operator
+import ModificationTags (applyModify)
+import qualified Operator
 import Value
 import Name
 import TestUtils
@@ -39,7 +41,7 @@ testEval = testGroup "eval"
 genD1 :: Gen D1
 genD1= sized go
   where
-    gen1s = [DVal <$> elements ((Prim $ MyDouble 1): (Prim $ MyBool True):operators)
+    gen1s = [DVal <$> elements ((Prim $ MyDouble 1): (Prim $ MyBool True): map Func Operator.operators)
             ,Eval.Free . Bound <$>choose (100000,100010) ]
     genNames = Name . return <$> choose ('a','z')
     go n | n <= 1 = oneof gen1s
@@ -168,19 +170,19 @@ basicSet =
 
 buildinSet :: [(BruijnTerm () () , [BruijnTerm () ()])]
 buildinSet =
-  [ (lambda "#" (appl (appl (val plus) (bvar 0)) (double 1.0)) ,[])
-  , (appl (val plus) (double 1.0), [plus1])
-  , (appl (appl (val plus) ( double 1.0)) (double 2.0)
+  [ (lambda "#" (appl (appl plus (bvar 0)) (double 1.0)) ,[])
+  , (appl plus (double 1.0), [plus1])
+  , (appl (appl plus ( double 1.0)) (double 2.0)
       , [appl plus1 (double 2)
       , double 3])
-  , (appl (appl (val plus)
+  , (appl (appl plus
                            (double 1.0))
-                           (appl (appl (val multiply )
+                           (appl (appl multiply
                                        (double 2.0))
                                        (double 3.0))
 
-      , [ appl (appl (val plus) (double 1)) (appl (val $ applyValue multiply (Prim $ MyDouble 2)) (double 3))
-        , appl (appl (val plus) (double 1)) (double 6)
+      , [ appl (appl plus (double 1)) (appl (val $ applyValue (Func Operator.multiply) (Prim $ MyDouble 2)) (double 3))
+        , appl (appl plus (double 1)) (double 6)
         , appl plus1 (double 6)
         , double 7
         ])
@@ -201,7 +203,7 @@ freeSet =
   ]
 
 plus1 :: BruijnTerm () ()
-plus1 = val $ applyValue plus (Prim $ MyDouble 1)
+plus1 = val $ applyValue (Func Operator.plus) (Prim $ MyDouble 1)
 
 -- TODO  sort and cleanup test description
 letSet ::  [(BruijnTerm () () , [BruijnTerm () ()])]
@@ -213,7 +215,7 @@ letSet =
   , (mkLet [("a", double 1) ] $ lambda "b" $ bvar 1
       , [])
 
-  , (mkLet [("a", appl (appl (val plus) (double 1)) (double 2))] (bvar 0)
+  , (mkLet [("a", appl (appl plus (double 1)) (double 2))] (bvar 0)
       , [ mkLet [("a", appl plus1 (double 2))] $ bvar 0
         , mkLet [("a", double 3)] $ bvar 0
         , mkLet [("a", double 3)] $ double 3
@@ -261,34 +263,34 @@ letSet =
         , double 1.0
         ])
 
-  , ( mkLet [("a", appl (val plus) (double 1))] $ bvar 0
+  , ( mkLet [("a", appl plus (double 1))] $ bvar 0
         , [ mkLet [("a", plus1)] $ bvar 0
           , mkLet [("a", plus1)] $ plus1
           , plus1])
 
-  , ( mkLet [("a", appl (val plus) (double 1))] $ mkLet [("b", double 2)] $ bvar 1
+  , ( mkLet [("a", appl plus (double 1))] $ mkLet [("b", double 2)] $ bvar 1
         , [ mkLet [("a", plus1)] $ mkLet [("b", double 2)] $ bvar 1
           , mkLet [("a", plus1)] $ mkLet [("b", double 2)] plus1
           , mkLet [("a", plus1)] plus1
           , plus1])
 
   , (appl (mkLet [("a", double 1)]
-                          (lambda "b" $ appl (appl (val plus) (bvar 1))
+                          (lambda "b" $ appl (appl plus (bvar 1))
                                              (bvar 0)))
                      (double 2)
-      , [ mkLet [("a", double 1)] (appl (appl (val plus) (bvar 0)) (double 2))
-        , mkLet [("a", double 1)] (appl (appl (val plus) (double 1)) (double 2))
+      , [ mkLet [("a", double 1)] (appl (appl plus (bvar 0)) (double 2))
+        , mkLet [("a", double 1)] (appl (appl plus (double 1)) (double 2))
         , mkLet [("a", double 1)] (appl plus1 (double 2))
         , mkLet [("a", double 1)] $ double 3
         , double 3])
 
   , (appl (mkLet [("b", double 1)]
-                            (lambda "a" $ appl (appl (val plus) (bvar 0))
+                            (lambda "a" $ appl (appl plus (bvar 0))
                                              (bvar 1)))
                      (double 2)
-      , [ mkLet [("b", double 1)] $ appl (appl (val plus) (double 2)) (bvar 0)
-        , mkLet [("b", double 1)] $ appl (appl (val plus) (double 2)) (double 1)
-        , mkLet [("b", double 1)] $ appl (val $ applyValue plus (Prim $ MyDouble 2)) (double 1)
+      , [ mkLet [("b", double 1)] $ appl (appl plus (double 2)) (bvar 0)
+        , mkLet [("b", double 1)] $ appl (appl plus (double 2)) (double 1)
+        , mkLet [("b", double 1)] $ appl (val $ applyValue (Func Operator.plus) (Prim $ MyDouble 2)) (double 1)
         , mkLet [("b", double 1)] $ double 3
         , double 3])
 
@@ -348,7 +350,7 @@ letSet =
          , mkLet [("x", double 1)] $ double 1
          , double 1])
 
-  , ( mkLet [("x", appl (val plus) (double 1))] $ appl (lambda "y" $ bvar 1) true
+  , ( mkLet [("x", appl plus (double 1))] $ appl (lambda "y" $ bvar 1) true
        , [ mkLet [("x", plus1)] $ appl (lambda "y" $ bvar 1) true
          , mkLet [("x", plus1)] $ bvar 0
          , mkLet [("x", plus1)] plus1
@@ -383,12 +385,12 @@ letSet =
        , true
        ])
 
-  , ( mkLet [("g",true)] $ mkLet [("a",mkLet [("c",val plus)] $ lambda "e"$ bvar 3 )]$ mkLet [("x", val multiply)] $ appl (bvar 1)(val multiply )
-      , [mkLet [("g",true)] $ mkLet [("a",mkLet [("c",val plus)] $ lambda "e" $ bvar 3 )] $ mkLet [("x", val multiply)] $ appl (mkLet [("c", val plus)] $ lambda "e" $ bvar 4)(val multiply )
-          ,mkLet [("g",true)] $ mkLet [("a",mkLet [("c",val plus)] $ lambda "e" $ bvar 3 )] $ mkLet [("x", val multiply)] $ mkLet [("c", val plus)] $ bvar 3
-          ,mkLet [("g",true)] $ mkLet [("a",mkLet [("c",val plus)] $ lambda "e" $ bvar 3 )] $ mkLet [("x", val multiply)] $ mkLet [("c", val plus)] true
-          ,mkLet [("g",true)] $ mkLet [("a",mkLet [("c",val plus)] $ lambda "e" $ bvar 3 )] $ mkLet [("x", val multiply)] true
-          ,mkLet [("g",true)] $ mkLet [("a",mkLet [("c",val plus)] $ lambda "e" $ bvar 3 )] true
+  , ( mkLet [("g",true)] $ mkLet [("a",mkLet [("c",plus)] $ lambda "e"$ bvar 3 )]$ mkLet [("x", multiply)] $ appl (bvar 1) multiply
+      , [mkLet [("g",true)] $ mkLet [("a",mkLet [("c",plus)] $ lambda "e" $ bvar 3 )] $ mkLet [("x",multiply)] $ appl (mkLet [("c",plus)] $ lambda "e" $ bvar 4) multiply
+          ,mkLet [("g",true)] $ mkLet [("a",mkLet [("c",plus)] $ lambda "e" $ bvar 3 )] $ mkLet [("x", multiply)] $ mkLet [("c",plus)] $ bvar 3
+          ,mkLet [("g",true)] $ mkLet [("a",mkLet [("c",plus)] $ lambda "e" $ bvar 3 )] $ mkLet [("x", multiply)] $ mkLet [("c",plus)] true
+          ,mkLet [("g",true)] $ mkLet [("a",mkLet [("c",plus)] $ lambda "e" $ bvar 3 )] $ mkLet [("x", multiply)] true
+          ,mkLet [("g",true)] $ mkLet [("a",mkLet [("c",plus)] $ lambda "e" $ bvar 3 )] true
           ,mkLet [("g",true)] true
           ,true
       ])
@@ -400,7 +402,7 @@ letSet =
 
   , --"let f a = a true 2 in let b = 1+ in f (\\c. b)" $
         ( mkLet [("f", lambda "a" $ appl (appl (bvar 0) true) (double 2))] $
-          mkLet [("b", appl (val plus) (double 1))] $ appl (bvar 1) (lambda "c" $ bvar 1 )
+          mkLet [("b", appl plus (double 1))] $ appl (bvar 1) (lambda "c" $ bvar 1 )
         , [ mkLet [("f", lambda "a" $ appl (appl (bvar 0) true) (double 2))] $
             mkLet [("b", plus1)] $ appl (bvar 1) (lambda "c" $ bvar 1 )
 
@@ -427,9 +429,9 @@ letSet =
   , (mkLet [("a", true)] $ appl (lambda "b" $ lambda "c" $ bvar 2) false
       ,[ mkLet [("a", true)] $ lambda "c" $ bvar 1])
 
-  , (appl (mkLet [("b",val multiply), ("a",bvar 1)] $val plus)(double 1)
-      , [ appl (mkLet [("b",val multiply), ("a",val multiply)] $val plus)(double 1)
-        , appl ( val plus)(double 1)
+  , (appl (mkLet [("b",multiply), ("a",bvar 1)] plus)(double 1)
+      , [ appl (mkLet [("b",multiply), ("a",multiply)] plus)(double 1)
+        , appl ( plus)(double 1)
         , plus1 ])
 
   , (mkLet [("id'",mkLet [("a",double 1)] $ lambda "b" $bvar 0)] $appl (bvar 0) true
@@ -445,11 +447,11 @@ letSet =
         , mkLet [("b",true),("c",true)] $ lambda "d" $ bvar 1
         ])
 
-  , (appl (mkLet [("a",val plus )] $ appl (lambda "b" $ bvar 1)$ bvar 0)(double 1)
-      , [appl (mkLet [("a",val plus)] $ appl (lambda "b" $ bvar 1) $ val plus)(double 1)
-       ,appl (mkLet [("a",val plus)] $ bvar 0)(double 1)
-       ,appl (mkLet [("a",val plus)] $ val plus)(double 1)
-       ,appl (val plus)(double 1)
+  , (appl (mkLet [("a",plus )] $ appl (lambda "b" $ bvar 1)$ bvar 0)(double 1)
+      , [appl (mkLet [("a",plus)] $ appl (lambda "b" $ bvar 1) plus)(double 1)
+       ,appl (mkLet [("a", plus)] $ bvar 0)(double 1)
+       ,appl (mkLet [("a", plus)] plus)(double 1)
+       ,appl plus(double 1)
        ,plus1
        ])
 
@@ -461,45 +463,45 @@ letSet =
         , true
         ])
 
-  , (appl (mkLet [("a",false)] $ mkLet [("b",val plus)] $ bvar 0) $ double 1
-      , [ appl (mkLet [("a",false)] $ mkLet [("b",val plus)] $ val plus) (double 1)
-        , appl (mkLet [("a",false)] $ val plus) (double 1)
-        , appl (val plus) (double 1)
+  , (appl (mkLet [("a",false)] $ mkLet [("b", plus)] $ bvar 0) $ double 1
+      , [ appl (mkLet [("a",false)] $ mkLet [("b",plus)] plus) (double 1)
+        , appl (mkLet [("a",false)] plus) (double 1)
+        , appl plus (double 1)
         , plus1
         ])
 
-  , (mkLet [("y", lambda "b" $ lambda "c" $ val multiply)
-           ,("l",mkLet [("p",val plus)]
+  , (mkLet [("y", lambda "b" $ lambda "c" multiply)
+           ,("l",mkLet [("p", plus)]
                        $ lambda "i"$ bvar 1)
-           ] $ mkLet [("u",val plus)
+           ] $ mkLet [("u", plus)
                      ,("x", double 1)] $
                      bvar 2
-    ,[mkLet [("y", lambda "b" $ lambda "c" $ val multiply)
-           ,("l",mkLet [("p",val plus)]
+    ,[mkLet [("y", lambda "b" $ lambda "c" multiply)
+           ,("l",mkLet [("p", plus)]
                        $ lambda "i"$ bvar 1)
-           ] $ mkLet [("u",val plus)
+           ] $ mkLet [("u", plus)
                      ,("x", double 1)] $
-                     mkLet [("p",val plus)] $
+                     mkLet [("p", plus)] $
                            lambda "i"$ bvar 1
     ])
-  , (mkLet [("a", lambda "b" $ val multiply)] $
-           appl (mkLet [("c",val multiply)] B.id)
+  , (mkLet [("a", lambda "b" $ multiply)] $
+           appl (mkLet [("c", multiply)] B.id)
                 (lambda "d"$ bvar 1)
-    , [mkLet [("a", lambda "b" $ val multiply)] $
-           mkLet [("c",val multiply)] (lambda "d"$ bvar 2)
+    , [mkLet [("a", lambda "b" $ multiply)] $
+           mkLet [("c",multiply)] (lambda "d"$ bvar 2)
       ])
 
-  , (appl (appl (mkLet [("id",B.id)] $ bvar 0)(lambda "b" $ val plus)) true
-    ,[ appl (appl (mkLet [("id",B.id)] B.id)(lambda "b" $ val plus)) true
-     , appl (mkLet [("id",B.id)] $ lambda "b" $ val plus) true
-     , mkLet [("id",B.id)] $ val plus
-     , val plus
+  , (appl (appl (mkLet [("id",B.id)] $ bvar 0)(lambda "b" plus)) true
+    ,[ appl (appl (mkLet [("id",B.id)] B.id)(lambda "b" plus)) true
+     , appl (mkLet [("id",B.id)] $ lambda "b"  plus) true
+     , mkLet [("id",B.id)] plus
+     , plus
      ])
 
-  ,(appl (lambda "a" $ appl (mkLet [("b",true)] $ lambda "c" $ bvar 2)(bvar 0)) (val multiply)
-   ,[ appl (mkLet [("b",true)] $ lambda "c" $ val multiply)(val multiply)
-    , mkLet [("b",true)] $ val multiply
-    , val multiply
+  ,(appl (lambda "a" $ appl (mkLet [("b",true)] $ lambda "c" $ bvar 2)(bvar 0)) multiply
+   ,[ appl (mkLet [("b",true)] $ lambda "c" multiply) multiply
+    , mkLet [("b",true)] multiply
+    , multiply
     ])
   ]
 
@@ -526,15 +528,20 @@ convergingSet =
           , mkLet [("f", lambda "a" $ appl (bvar 1) (bvar 0))] $ appl (bvar 0) true
           ])
 
-  , (mkLet [("f",lambda "a" $ appl (bvar 1) (bvar 0))] $ appl (bvar 0 ) (val multiply)
-      , [mkLet [("f",lambda "a" $ appl (bvar 1) (bvar 0))] $ appl (lambda "a" $ appl (bvar 1) (bvar 0)) (val multiply)
-      ,mkLet [("f",lambda "a" $ appl (bvar 1) (bvar 0))] $ appl (bvar 0) $ val multiply
-      ,mkLet [("f",lambda "a" $ appl (bvar 1) (bvar 0))] $ appl (lambda "a" $ appl (bvar 1) (bvar 0)) (val multiply)
-      ,mkLet [("f",lambda "a" $ appl (bvar 1) (bvar 0))] $ appl (bvar 0) $ val multiply
+  , (mkLet [("f",lambda "a" $ appl (bvar 1) (bvar 0))] $ appl (bvar 0 ) multiply
+      , [mkLet [("f",lambda "a" $ appl (bvar 1) (bvar 0))] $ appl (lambda "a" $ appl (bvar 1) (bvar 0)) multiply
+      ,mkLet [("f",lambda "a" $ appl (bvar 1) (bvar 0))] $ appl (bvar 0) multiply
+      ,mkLet [("f",lambda "a" $ appl (bvar 1) (bvar 0))] $ appl (lambda "a" $ appl (bvar 1) (bvar 0)) multiply
+      ,mkLet [("f",lambda "a" $ appl (bvar 1) (bvar 0))] $ appl (bvar 0) multiply
       ])
   ]
 testEvalProp :: TestTree
 testEvalProp = testGroup "propertys" $
+      -- TODO dont why again is need here but otwersie test will stop after discard
+  let forAllNonCiculair prop = again $ forAllTypedBruijn $ \ e -> case sortTerm e of
+          Left {} -> discard
+          (Right newT) -> prop $ applyModify newT
+  in
   [ testProperty "evalSteps == unfold eval" $ forAllNonCiculair $ \ e ->
         take 10 (evalSteps e) === take 10 (unfoldr (\ e0 -> let nextE = eval e0
                                                                 clone a = (a, a)

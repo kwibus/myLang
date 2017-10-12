@@ -17,7 +17,6 @@ import ArbitraryLambda
 
 import Type (Type,normalise)
 import TypeCheck
-import Operator
 import FreeEnvironment
 import TypeError
 
@@ -123,7 +122,7 @@ testBasic = testGroup "Solver"
    [ testCase "check Double" $
         solver (double 1.0) @?= return tDouble
    , testCase "check (+1)" $
-        solver (appl (val plus) (double 1.0)) @?=
+        solver (appl plus (double 1.0)) @?=
         return (tDouble ~> tDouble)
    , testCase "check id" $
         solver B.id @?= return (tVar 0 ~> tVar 0)
@@ -132,13 +131,13 @@ testBasic = testGroup "Solver"
         solver (appl B.id (double 1.0)) @?= return tDouble
     , testCase "check \\a.1+a" $
         solver (lambda "a" (appl
-                    (appl (val plus ) (double 1.0))
+                    (appl plus  (double 1.0))
                     (bvar 0)))
                 @?=
         return (tDouble ~> tDouble)
    , testCase "check \\a.a+1" $
         solver (lambda "a" (appl
-                    (appl (val plus ) (bvar 0))
+                    (appl plus (bvar 0))
                     (double 1.0)))
                 @?=
         return (tDouble ~> tDouble)
@@ -158,6 +157,14 @@ testBasic = testGroup "Solver"
                 )))
         @?=
         return ( tVar 0 ~> (tVar 0 ~> tVar 1) ~> tVar 1 )
+
+   , testCase "check \\a.a a" $
+        solver (lambda "a" (appl
+                    (bvar 0)
+                    (bvar 0)
+                ))
+        @?=
+        Left [ UnifyAp undefined undefined undefined [Infinit undefined undefined ]]
 
    , testCase "check (\\a.a (a 1.0))" $
         solver (lambda "a" (appl
@@ -188,7 +195,7 @@ testBasic = testGroup "Solver"
         return ((tDouble ~>tVar 0) ~> (tVar 1 ~> tVar 0))
 
     , testCase "fail (+)\\a.a" $
-        solver (appl (val plus) B.id ) @?=
+        solver (appl plus B.id ) @?=
         Left [UnifyAp undefined undefined undefined [Unify undefined undefined ]]
 
     , testCase "fail \\a.a a" $
@@ -203,7 +210,7 @@ testBasic = testGroup "Solver"
         @?= Left [UnifyAp undefined undefined undefined  [Unify tDouble tBool]]
 
 
-    , testCase "(\\x.(\\y.x)((\\z.x)(x(\\w.w))))\\a.a" $
+    , testCase "(\\x.(\\x y)((\\z y)y(\\w.w)) )\\a.a " $
         solver (appl (lambda "x" (appl (lambda "y" (bvar 1))
                                        (appl (lambda "z" (bvar 1))
                                              (appl (bvar 0)
@@ -234,7 +241,7 @@ testBasic = testGroup "Solver"
         @?= return (tVar 0 ~> tVar 0)
 
   , testCase "let a = a in a +" $
-      solver (mkLet [("a",bvar 0)] $ appl (val plus)(bvar 0))
+      solver (mkLet [("a",bvar 0)] $ appl plus(bvar 0))
       @?= return (tDouble ~> tDouble)
 
   , testCase "let a = 1.0; b = a in b" $
@@ -247,7 +254,7 @@ testBasic = testGroup "Solver"
       @?= return tBool
 
   , testCase "let a = true; b = a +; in b" $
-      solver (mkLet [("a",true),("b",appl (val plus) (bvar 1))] $bvar 0 )
+      solver (mkLet [("a",true),("b",appl plus (bvar 1))] $bvar 0 )
       @?= Left [UnifyAp undefined undefined undefined [Unify tBool tDouble]]
 
   , testCase "let f a = true; b = f True; in b" $
@@ -263,12 +270,12 @@ testBasic = testGroup "Solver"
       @?= return tDouble
 
   , testCase "let x = let y = p 1.0 2.0 in y; p = (+) in x" $
-      solver (mkLet [("x", mkLet [("y",bvar 1 `appl` double 1 `appl` double 2 )] $ bvar 0), ("p", val plus)] $ bvar 1)
+      solver (mkLet [("x", mkLet [("y",bvar 1 `appl` double 1 `appl` double 2 )] $ bvar 0), ("p", plus)] $ bvar 1)
       @?= return tDouble
 
   , testCase "let ap f a = f a in ap (ap (+) 1) 2" $
       solver (mkLet [("ap",lambda "f" $ lambda "a" $ appl (bvar 1) (bvar 0))]
-          $ bvar 0 `appl` (bvar 0 `appl` val plus `appl` double 1)`appl` double 2.0 )
+          $ bvar 0 `appl` (bvar 0 `appl` plus `appl` double 1)`appl` double 2.0 )
       @?= return tDouble
 
   , testCase "let f a = a (f a) in f" $

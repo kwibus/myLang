@@ -35,7 +35,7 @@ isInfix (Val _ v ) = Value.isInfix v
 isInfix _ = False
 
 getPrec :: LamTerm i j n -> (Precedence, Associativity)
-getPrec (Val _ BuildIn {fixity = Infix p a}) = (p, a)
+getPrec (Val _ (Func BuildIn {fixity = Infix p a})) = (p, a)
 getPrec _ = highPrec
 
 accumulateArgs :: LamTerm i j n -> [LamTerm i j n]

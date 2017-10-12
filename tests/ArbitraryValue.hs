@@ -23,7 +23,7 @@ arbitraryValue t = oneOfLogic [ arbitraryPrimatives t
 --TODO check if type check can be move up to arbitraryValue
 arbitraryBuildIn :: Maybe Type -> Generater ( LamTerm () () n)
 arbitraryBuildIn t = do
-    operator <- elementsLogic operators
+    operator <- elementsLogic $ map Func operators
     unifyGen t (getType operator )
     return $ val operator
 

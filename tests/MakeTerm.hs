@@ -3,6 +3,7 @@ module MakeTerm where
 import BruijnTerm
 import Value
 import Name
+import qualified Operator as Buildin (plus,multiply)
 
 val :: Value -> LamTerm () () n
 val = Val ()
@@ -18,6 +19,12 @@ true = Val () $ Prim $ MyBool True
 
 false :: LamTerm () () n
 false = Val () $ Prim $ MyBool False
+
+plus :: LamTerm () () n
+plus = Val () $ Func Buildin.plus
+
+multiply::  LamTerm () ()n
+multiply = Val () $ Func Buildin.multiply
 
 bvar :: Int -> BruijnTerm () ()
 bvar = Var () . Bound
