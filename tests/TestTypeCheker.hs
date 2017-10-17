@@ -213,6 +213,11 @@ testBasic = testGroup "Solver"
       solver (mkLet [("a",bvar 0)] $ appl (val plus)(bvar 0))
       @?= return (tDouble ~> tDouble)
 
+    , testCase "let a = 1.0; b = a in b" $
+        solver (mkLet [("a",double 1),
+        ("b",bvar 1)] $bvar 0)
+        @?= return tDouble
+
   , testCase "let a = true; b = a +; in b" $
       solver (mkLet [("a",true),("b",appl (val plus) (bvar 1))] $bvar 0 )
       @?= throw [UnifyDef tBool tDouble undefined]

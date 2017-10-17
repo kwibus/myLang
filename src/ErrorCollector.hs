@@ -53,6 +53,7 @@ instance (Applicative m , Monoid e) => Applicative (ErrorCollectorT e m) where
 instance Functor m => Functor (ErrorCollectorT e m) where
   fmap f ma = ErrorT $ fmap (fmap f ) (runErrorT ma)
 
+-- TODO better name
 toExcept :: (Monad m, Monoid e) => ErrorCollector e a -> ErrorCollectorT e m a
 toExcept errorCol = case errorCol of
     Error e -> ErrorT $ return $ Error e

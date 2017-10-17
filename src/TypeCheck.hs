@@ -52,17 +52,21 @@ newFreeVar = do
     put (i + 1)
     return $ Free i
 
+-- TODO which types  whould be poly and test
+-- TODO use unionfind
 solveWith :: BruijnTerm i -> TSubst -> TEnv -> Infer i (Type, TSubst)
 solveWith e@(Let _ defs e2) sub tenv = do -- TODO vorbid type some type of self refrence
   newVars <- replicateM (length defs) newFreeVar
   let tempTEnv = foldl ( flip ( bInsert . TVar)) tenv newVars
   (polys, subs) <- unzip <$> mapM (solveDefs tempTEnv) defs
-  zipWithM_ (\f realType -> forM_ subs $ \sub -> case fMaybeLookup f sub of
-    Nothing -> return ()
-    Just t -> do
-      void $ toExcept $ mapError (return . UnifyDef realType t) $unify realType t
-      ) newVars polys
-  newSubs <- toExcept $ mapError (\ erros -> [UnifySubs e erros]) $ foldM1 unifySubs subs
+  subs2 <- zipWithM (\f realType -> do --TODO can this not be faster
+      forM_ subs ( \sub -> case fMaybeLookup f sub of -- check if defenion is Correctly used in other defs
+        Nothing -> return ()
+        Just t -> void $ toExcept $ mapError (return . UnifyDef realType t) $ unify realType t -- TODO should this not be instnace of instead of unify
+        )
+      toExcept $ mapError (\ erros -> [UnifySubs e erros]) $ fromEither $ bind f realType
+    ) newVars polys
+  newSubs <- toExcept $ mapError (\ erros -> [UnifySubs e erros]) $ foldM1 unifySubs (subs ++ subs2)
   let newTEnv = foldl ( flip bInsert) tenv polys
   solveWith e2 newSubs newTEnv
   where solveDefs dic ( Def _ _ en) = do
