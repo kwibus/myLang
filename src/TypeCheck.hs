@@ -19,6 +19,7 @@ import BruijnTerm
 import LambdaF2
 import FreeEnvironment
 import TypeError
+
 -- $setup
 -- >>> import MakeType
 

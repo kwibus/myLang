@@ -29,6 +29,9 @@ library
                       ,transformers
                       ,ansi-wl-pprint
                       ,assert-failure
+                      ,llvm-hs-pure
+                      ,llvm-hs >= 5.0
+                      ,bytestring
 
   exposed-modules:     Lambda
                       ,LambdaF
@@ -61,6 +64,11 @@ library
                       ,Modify
                       ,ModificationTags
                       ,Unprocessed
+                      ,CodeGen
+                      ,Statments
+                      ,Jit
+                      ,Compile
+                      ,ANormalForm
   Ghc-Options:          -Wall -fno-ignore-asserts
 
   default-language:    Haskell2010
@@ -89,6 +97,7 @@ executable sample
                       ,mtl
                       ,transformers
                       ,containers
+
   default-language:    Haskell2010
 
   other-modules:      ArbiRef
@@ -120,6 +129,9 @@ test-suite tests
                       ,parsec-numbers
                       ,ansi-wl-pprint
                       ,dlist
+                      ,llvm-hs-pure
+                      ,llvm-hs >= 5.0
+                      ,bytestring
 
   other-modules:      ArbiRef
                       ,ArbitraryLambda
@@ -148,6 +160,11 @@ test-suite tests
                       ,TestModify
                       ,TestTopologicalSort
                       ,TestUtils
+                      ,TestANormalForm
+                      ,MakeAnormal
+                      ,TestCodeGen
+
+
   Ghc-Options:          -Wall -fno-ignore-asserts -threaded -rtsopts -with-rtsopts=-N
   default-language:    Haskell2010
 

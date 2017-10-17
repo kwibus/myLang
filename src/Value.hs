@@ -15,7 +15,7 @@ data Value = Prim Primative
 data BuildIn = BuildIn
               { prettyName :: String -- TODO why 2 names
               , vName :: String
-              , arrity :: Int
+              , arrity :: Int --TODO mispeld
               , fixity :: Fixity
               , myType :: Type
               , evaluator :: State Stack Value

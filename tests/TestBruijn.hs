@@ -12,6 +12,8 @@ import ArbitraryLambda
 import BruijnTerm
 import Name
 
+--TODO add test for unamed
+
 testBruijn :: TestTree
 testBruijn = testGroup "bruijn index"
   [ testCase "bruijn2Lam id " $

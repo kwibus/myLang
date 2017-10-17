@@ -27,7 +27,12 @@ import Name
 import TestUtils
 import qualified Type as T
 import qualified SimpleEval as Simple
-
+import Jit
+-- import qualified ANormalForm as ANorm -- TODO remove
+-- import qualified Data.ByteString.Char8 as ByteString
+-- import LLVM.Analysis
+-- import LLVM.Module
+-- import CodeGen
 -- TODO test with free variables
 
 testEval :: TestTree
@@ -35,6 +40,7 @@ testEval = testGroup "eval"
     [ testFullEval
     , testEvalUtils
     , testEvalSteps
+    , testEvalJit
     ]
 
 -- TODO remove or make nices/faster
@@ -62,6 +68,7 @@ genD1= sized go
     subtract1To0 :: Int -> Int
     subtract1To0 n | n > 0 = n - 1
                    | otherwise = 0
+
 testEvalUtils :: TestTree
 testEvalUtils = testGroup "eval utils"
 
@@ -82,13 +89,19 @@ testEvalUtils = testGroup "eval utils"
 
   ]
 
-testEvalStepsExample :: (BruijnTerm () (),[BruijnTerm () ()]) -> TestTree
-testEvalStepsExample (input,expected) = testCase (removeNewLines $ pShow input) $ evalSteps input @?= expected
+testEvalJit :: TestTree
+testEvalJit = testGroup "JIT"
+    [ testGroup "basic" (map testFullEvalExample $ mkFullEvalCompatable basicSet)
+    , testGroup "buildin" (map testFullEvalExample $ mkFullEvalCompatable buildinSet)
+    , testGroup "let" (map testFullEvalExample $ mkFullEvalCompatable letSet)
+    ]
+  where
+    testFullEvalExample :: (BruijnTerm() (), BruijnTerm() ()) -> TestTree
+    testFullEvalExample (input,expected) = testCase (removeNewLines $ pShow input) $ do
+        result <- evalWithJit input
+        val (Prim result) @?= expected
 
-testFullEvalExample :: (BruijnTerm () () ,BruijnTerm () ()) -> TestTree
-testFullEvalExample (input,expected) =  testCase (removeNewLines $ pShow input) $ Simple.fullEval' input @?= expected
-
-mkFullEvalCompatable :: [(BruijnTerm () () ,[BruijnTerm () ()])] -> [(BruijnTerm () () ,BruijnTerm () ())]
+mkFullEvalCompatable :: [(BruijnTerm() (), [BruijnTerm() ()])] -> [(BruijnTerm() (),BruijnTerm() ())]
 mkFullEvalCompatable set = filter isValue $ map (\(input, expected) -> (input,last $input:expected)) set
   where
     isValue (_,t) = case t of
@@ -97,25 +110,33 @@ mkFullEvalCompatable set = filter isValue $ map (\(input, expected) -> (input,la
 
 testFullEval :: TestTree
 testFullEval = testGroup "full eval"
-  [ testGroup "basic" (map testFullEvalExample $ mkFullEvalCompatable basicSet)
-  , testGroup "buildin" (map testFullEvalExample $ mkFullEvalCompatable buildinSet)
-  , testGroup "let" (map testFullEvalExample $ mkFullEvalCompatable letSet)
-  ]
+    [ testGroup "basic" (map testFullEvalExample $ mkFullEvalCompatable basicSet)
+    , testGroup "buildin" (map testFullEvalExample $ mkFullEvalCompatable buildinSet)
+    , testGroup "let" (map testFullEvalExample $ mkFullEvalCompatable letSet)
+    ]
+  where
+    testFullEvalExample :: (BruijnTerm() () ,BruijnTerm() () ) -> TestTree
+    testFullEvalExample (input,expected) =  testCase (removeNewLines $ pShow input) $ Simple.fullEval' input @?= expected
 
 testEvalSteps :: TestTree
 testEvalSteps = testGroup "evalSteps"
-  [ testGroup "basic" (map testEvalStepsExample basicSet)
-  , testGroup "buildin" (map testEvalStepsExample buildinSet)
-  , testGroup "let" (map testEvalStepsExample letSet)
-  , testGroup "free" (map testEvalStepsExample freeSet )
-  , testconvergentSteps
-  , testEvalProp
-  ]
+    [ testGroup "basic" (map testEvalStepsExample basicSet)
+    , testGroup "buildin" (map testEvalStepsExample buildinSet)
+    , testGroup "let" (map testEvalStepsExample letSet)
+    , testGroup "free" (map testEvalStepsExample freeSet )
+    , testconvergentSteps
+    , testEvalProp
+    ]
+  where
+    testEvalStepsExample :: (BruijnTerm() () ,[BruijnTerm() ()]) -> TestTree
+    testEvalStepsExample (input,expected) = testCase (removeNewLines $ pShow input) $
+        evalSteps input @?= expected
 
 testconvergentSteps :: TestTree
 testconvergentSteps = testGroup "convergent" $ map test convergingSet
   where
-  test (input,expected)= testCase (removeNewLines $ pShow input) $ (take (length expected) $ evalSteps input) @?= expected
+    test (input,expected) = testCase (removeNewLines $ pShow input) $
+      (take (length expected) $ evalSteps input) @?= expected
 
 basicSet :: [(BruijnTerm () () , [BruijnTerm () ()])]
 basicSet =
@@ -267,6 +288,12 @@ letSet =
         , [ mkLet [("a", plus1)] $ bvar 0
           , mkLet [("a", plus1)] $ plus1
           , plus1])
+
+  , ( mkLet [("a", appl plus (double 1))] $ appl (bvar 0) (double 2)
+        , [ mkLet [("a", plus1)] $ appl (bvar 0) (double 2)
+          , mkLet [("a", plus1)] $ appl plus1 (double 2)
+          , mkLet [("a", plus1)] $ double 3
+          , double 3])
 
   , ( mkLet [("a", appl plus (double 1))] $ mkLet [("b", double 2)] $ bvar 1
         , [ mkLet [("a", plus1)] $ mkLet [("b", double 2)] $ bvar 1

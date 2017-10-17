@@ -7,6 +7,7 @@ import Data.Foldable
 import Data.Bifunctor
 import Control.Monad.Writer.Lazy
 
+-- TODO replace with writer dlist or kind of iterater
 -- | 'Step' is used do incremental calculated something
 -- intermediate valuse are writen out
 type Step w a = Writer [w] a

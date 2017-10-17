@@ -11,6 +11,8 @@ import FreeEnvironment
 type Dictionary = FreeEnv String
 type Type = TypeA ()
 
+--TODO maybe rename pritive types
+--TODO maybe make llvm type
 data TypeInstance = TDouble
                   | TBool
                   deriving (Eq, Show)
@@ -61,10 +63,11 @@ mkDictonarieWithReserved fixedNames ts = fst $ foldl go (fixedNames, letters ) $
 pShow :: Type -> String
 pShow t = pShowWithDic t (mkDictonarie [t])
 
-pShowWithDic :: Type -> Dictionary -> String
+pShowWithDic :: TypeA () -> Dictionary -> String
 pShowWithDic = go
   where
-    go (TPoly f j) dic = '*':go (TVar f j) dic
+    go :: TypeA () -> Dictionary -> String
+    go (TPoly i f) dic = '*':go (TVar i f ) dic
     go (TVar (Free i) _) dic = fromMaybe
                   (error "incomplete dictonary; missing name for: " ++ show i)
                   (IM.lookup i dic)

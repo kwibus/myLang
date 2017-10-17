@@ -118,7 +118,7 @@ evalDefsW :: Env -> [Def () Unprocessed] ->  Step [Def () (BruijnTerm () ())] (E
 evalDefsW env defs = do
     let procesedDef = map (fmap proces) defs
 
-        dumyEnv = store (map (convert . implementation) procesedDef) env
+        dumyEnv = store (map (convert . implementation) procesedDef) env --TODO dummy
 
         convert :: BruijnTerm () () -> D1
         convert (Lambda () name t) = Closure [] name t

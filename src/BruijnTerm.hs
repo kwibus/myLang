@@ -9,6 +9,7 @@ module BruijnTerm
   , pShow
   , incFree
   , incFreeOfset
+  , fullApplied --TODO rename
   ) where
 
 import Control.Monad.Except
@@ -18,6 +19,7 @@ import Data.List (foldl')
 
 import Info
 import Name
+import Value
 import BruijnEnvironment
 import Lambda
 import qualified PrettyPrint as Lambda
@@ -127,3 +129,20 @@ incFreeOfset ofset increase term = go ofset term
       where
         newDepth = depth + length defs
     go _ (Val i v) = Val i v
+
+ -- TODO use makeTerm
+ -- TODO incfree slow
+fullApplied :: BruijnTerm () () -> BruijnTerm () ()
+fullApplied t@(Val _ (Func f)) = case arrity f of
+  0 -> Val () $ Func f
+  2 -> Lambda () DummyBegin $ Lambda () DummyEnd $
+        foldl Appl (incFree 2 t) $ map (Var (). Bound ) [0,1]
+  _ -> error "not supported yet" --etaExpansion n t
+fullApplied t@Appl{} = case accumulateArgs t of
+  (Val _ (Func f): rest)
+    | arrity f - length rest == 0 -> t
+    | arrity f - length rest == 1 -> Lambda () DummyEnd $
+        Appl (incFree 1 t) (Var () $ Bound 0)
+    -- %| otherwise -> etaExpansion (arrity f - length rest) t
+  _ -> t -- TODO need type information to expand no buildin fucntions
+fullApplied t = t

@@ -32,3 +32,21 @@ substitute n sub (Un mtable ast) =  Un (MTable.substitute (Bound 0) n sub $ MTab
 
 insertUndefined :: Int -> Unprocessed -> Unprocessed
 insertUndefined n (Un m t) = Un (MTable.insertUndefined n m) t
+
+-- TODO this can be expensive
+accumulateArgs :: Unprocessed -> [Unprocessed]
+accumulateArgs = go []
+  where
+      go accuList un = case peek un of
+        (ApplF t1 t2 ) ->  go (t2 : accuList) t1
+        _ -> un : accuList
+
+accumulateVars :: Unprocessed -> ([Name], Unprocessed)
+accumulateVars = go []
+ where
+  go names un = case peek un of
+    (LambdaF _ name t) -> go (name : names) t
+    _ -> (reverse  names, un)
+
+unsafeProces :: Unprocessed -> (BruijnTerm () () -> BruijnTerm () () ) -> Unprocessed
+unsafeProces (Un m t) f = Un m (f t)

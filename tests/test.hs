@@ -14,6 +14,8 @@ import TestLogic
 import TestSearchTree
 import TestTopologicalSort
 import TestModify
+import TestANormalForm
+import TestCodeGen
 
 main :: IO ()
 main = defaultMain tests
@@ -31,4 +33,6 @@ tests = testGroup "tests"
     , testTopologicalSort
     , testEval
     , testParser
+    , testANormalForm
+    , testCodeGen
     ]
