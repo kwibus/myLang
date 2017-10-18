@@ -91,12 +91,12 @@ solveWith e@Appl {} sub tenv = do
     let newTyp = apply newSub (TVar var)
     return (newTyp, newSub)
 
-solveWith (Val _ v) _ _ = return (getType v, fEmtyEnv)
+solveWith (Val _ v) sub _ = return (getType v, sub)
 
 solveWith (Var i n) sub tEnv = case bMaybeLookup n tEnv of
         Just pt -> do
             t <- instantiate pt
-            return (apply sub t, fEmtyEnv)
+            return (apply sub t, sub)
         Nothing -> throwT [ICE $ UndefinedVar n i]
 
 foldM1 :: Monad m => (a -> a -> m a) -> [a] -> m a

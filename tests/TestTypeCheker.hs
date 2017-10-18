@@ -119,6 +119,7 @@ testTypeCheck = testGroup "Type checker"
   ]
 
 -- TODO consistend names
+-- TODO consistend indentation
 testBasic :: TestTree
 testBasic = testGroup "Solver"
    [ testCase "check Double" $
@@ -213,10 +214,14 @@ testBasic = testGroup "Solver"
       solver (mkLet [("a",bvar 0)] $ appl (val plus)(bvar 0))
       @?= return (tDouble ~> tDouble)
 
-    , testCase "let a = 1.0; b = a in b" $
-        solver (mkLet [("a",double 1),
-        ("b",bvar 1)] $bvar 0)
-        @?= return tDouble
+  , testCase "let a = 1.0; b = a in b" $
+      solver (mkLet [("a",double 1),
+      ("b",bvar 1)] $bvar 0)
+      @?= return tDouble
+
+  , testCase "(\\b.let a = b; in a) true" $
+      solver (appl (lambda "b" $ mkLet [("a",bvar 1)] $ bvar 0) true)
+      @?= return tBool
 
   , testCase "let a = true; b = a +; in b" $
       solver (mkLet [("a",true),("b",appl (val plus) (bvar 1))] $bvar 0 )
