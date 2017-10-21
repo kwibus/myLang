@@ -75,10 +75,18 @@ aNormalize' t = case peek t of
           nNew = length $ filter (not . atom) lamArgs
 
           normalize ::  ANorm -> ([Def], [Value], Int) ->([Def], [Value], Int )
-          normalize et (accumDefs, accumVals, depth) = case et of
+          normalize et (accumDefs, accumVals, depth)= case et of -- TODO better name t
             -- Left (Var (Bound b)) -> (defs,Var (Bound $ b+nNew) : vals,n) --FIXME
             Val v -> (accumDefs,v:accumVals,depth)
             at -> (Def Nothing at: accumDefs, Var (Bound depth):accumVals,depth+1 )
+
+etaExpansion :: Int -> [Value]-> ANorm
+etaExpansion n (f:args) = applyN n (Val . Lambda (Name "#unamed")) $ Appl  f $ args ++ map (Var . Bound ) [0..n-1] -- TODO use makeTerm
+
+applyN :: Int -> (a -> a) -> a -> a
+applyN n f a
+  | n <= 0 = a
+  |otherwise = applyN (n - 1) f (f a)
 
 --TODO beter name
 atom :: Unprocessed -> Bool

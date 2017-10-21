@@ -146,3 +146,32 @@ fullApplied t@Appl{} = case accumulateArgs t of
     -- %| otherwise -> etaExpansion (arrity f - length rest) t
   _ -> t -- TODO need type information to expand no buildin fucntions
 fullApplied t = t
+
+-- TODO watch out arrity is different function that should be renammed (2r`s)
+arity :: BruijnTerm i j -> BruijnEnv [Int] -> [Int]
+arity t env = go [] t env
+  where
+    go :: [[Int]] -> BruijnTerm i j -> BruijnEnv [Int] -> [Int]
+    go arityArgs (Val _ (Func v)) _ = [arrity v - (length arityArgs )] -- TODO this asumes Func are not higher order?
+    go [] (Val _ Prim {}) _ = [0]
+    go arityArgs t@Lambda {} env =
+      let (names,body) = accumulateVars t
+          nArgs = length arityArgs
+          nNames = length names
+          (consumed,unconsumed) = splitAt nNames arityArgs
+      in if nArgs > nNames
+         then go unconsumed body (bInserts  unconsumed env)
+         else nNames - nArgs : go [] body (bInserts (arityArgs ++ replicate (nNames - nArgs) [0])  env)
+    go arityArgs (Appl t1 t2) env = go (arity t2 env : arityArgs) t env
+    go arityArgs (Var _ b) env = bLookup b env
+    go arityArgs (Let _ defs t) env =
+      let newEnv = bInserts ((\t -> arity t env ).implementation <$> defs) env -- TODO does this work
+      in go arityArgs t newEnv
+
+etaExpansion :: Int -> BruijnTerm () () -> BruijnTerm () ()
+etaExpansion n t = applyN n (Lambda () (Name "#unamed")) $ foldl Appl  t $ map (Var (). Bound ) [0..n-1] -- TODO use makeTerm
+
+applyN :: Int -> (a -> a) -> a -> a
+applyN n f a
+  | n <= 0 = a
+  |otherwise = applyN (n - 1) f (f a)

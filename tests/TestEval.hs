@@ -40,7 +40,7 @@ testEval = testGroup "eval"
     [ testFullEval
     , testEvalUtils
     , testEvalSteps
-    , testEvalJit
+    -- , testEvalJit
     ]
 
 -- TODO remove or make nices/faster
