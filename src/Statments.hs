@@ -6,14 +6,12 @@ module Statments
   , mergBlocks
   , toBlock
   , toStatments
+  , Statments.void
   , call
+  , callFunction
   , genBlock
-  ,traceStatments --FIXME
   )
 where
---FIXME
-import Debug.Trace
-
 import Data.ByteString.Short (ShortByteString)
 import Data.List
 import Control.Exception
@@ -24,20 +22,16 @@ import qualified Data.Map as Map
 import Control.Monad.State
 
 import LLVM.AST as AST hiding (args,resultType)
+import qualified LLVM.AST.CallingConvention as LLVM
 
+import qualified LLVM.AST.Operand as LLVM
+import qualified LLVM.AST.Constant as LLVM hiding (type')
 import qualified LLVM.AST.AddrSpace as LLVM
-import qualified LLVM.AST.Constant as LLVM
 import qualified LLVM.AST.Type as LLVM
 import qualified LLVM.AST.Name as LLVM
 
 -- TODO name it contnue ore returnblock
 -- TODO rename end in function to more disciptive
-
---FIXME
-traceStatments :: Statments String
-traceStatments = Stmt $ do
-  s <- get
-  return $ show s
 
 freshName :: State StmtStack LLVM.Name
 freshName = do
@@ -84,24 +78,41 @@ data StmtStack = StmtStack { startInsruction :: BlockStart
 data Label = Label LLVM.Name LLVM.Type Operand
              deriving Show
 
+callFunction :: ShortByteString -> [(Type,Operand)] -> Type -> Instruction
+callFunction name args resultType =
+  let (argTyps, operandArgs) = unzip args
+  in ( Call
+      Nothing
+      LLVM.C
+      [] -- return atributes
+      (Right (LLVM.ConstantOperand $ LLVM.GlobalReference (PointerType (FunctionType resultType argTyps False) (LLVM.AddrSpace 0)) (Name name)))
+      [(o,[]) |o <- operandArgs]
+      [] --fucntion atributes
+      [] -- instruction Metadata
+    )
+
 call ::Label -> [Either Label Operand] -> Statments Operand
 call (Label calledBlock resultType resulOperand) args = Stmt $ do
-  let operandArgs = map (either undefined id) args --FIXME
+  let operandArgs = map (either undefined id) args --FIXME conver label
   newBlockName <- freshName
   modify $ \(s@StmtStack {startInsruction = start, instructions = i}) ->
     let newBlock = Block start (toList i) (CallBlock calledBlock operandArgs newBlockName)
     in s
-      {startInsruction = BlockStart newBlockName [] -- FIXME
+      {startInsruction = BlockStart newBlockName []
       ,instructions = empty
       ,blocks = cons newBlock (blocks s)}
 
-  LocalReference resultType <$> (lower $ toStatments $ Phi resultType [(resulOperand,calledBlock)] [])
+  LocalReference resultType <$> lower ( toStatments $ Phi resultType [(resulOperand,calledBlock)] []) --FIXME make label posble result
 
 toStatments :: Instruction -> Statments LLVM.Name
 toStatments i = Stmt $ do
   name <- freshName
   modify $ \s -> s{instructions = cons (name := i) $ instructions s}
   return name
+
+--TOD maybe remove
+void :: Instruction -> Statments ()
+void i = Stmt $ modify $ \s -> s{instructions = cons (Do i) $ instructions s}
 
 -- TODO rename newblock to createBlock
 genBlock :: Maybe ShortByteString -> [Type] -> ([(Type,LLVM.Name)]-> Statments Operand) -> Statments Label --make block result
@@ -141,13 +152,15 @@ blockType :: LLVM.Type
 blockType =  PointerType LLVM.i8 (LLVM.AddrSpace 0)
 
 -- TODO clean up
+--  is this more clear then when you do it when define blocks
+--  is it better to have one mape with all properties
+--  allow block tail calls
 mergBlocks :: [Block] -> [BasicBlock]
 mergBlocks blocks = map block2BacsicBlock blocks
   where
     callMap :: Map.Map Name [(Name,[Operand], Name)]
     callMap = foldl registerCall Map.empty blocks
 
-    -- FIXME "main" named coninue
     -- FIXME callMap thirds item is never used and can be removed
     registerCall :: Map.Map Name [(Name,[Operand], Name)] -> Block -> Map.Map Name [(Name,[Operand], Name)]
     registerCall oldCallMap (Block (BlockStart {blockName = bName})
@@ -167,7 +180,7 @@ mergBlocks blocks = map block2BacsicBlock blocks
     endMap :: Map.Map Name Name
     endMap = foldl registerEnd Map.empty blocks
 
-    -- TODO rename env
+    -- TODO rename env (env is to genral)
     allMap :: Map.Map Name Block
     allMap = foldl (\env b@(Block (BlockStart {blockName = bName}) _ _ ) -> Map.insert bName b env ) Map.empty blocks
 
@@ -189,13 +202,13 @@ mergBlocks blocks = map block2BacsicBlock blocks
         LLVMEnd t -> t
 
     block2BacsicBlock :: Block -> BasicBlock
-    block2BacsicBlock (Block (BlockStart
-                   { blockName = name
-                   , blockArgs = args
-                   })
-                   instructions
-                   end)
-            = BasicBlock name (phis ++ instructions) $ Do $ blockEnd2Termintor name end
+    block2BacsicBlock (Block
+        BlockStart
+          { blockName = name
+          , blockArgs = args
+          }
+        instructions
+        end) = BasicBlock name (phis ++ instructions) $ Do $ blockEnd2Termintor name end
             where
         phis :: [Named Instruction]
         phis = --TODO add comments

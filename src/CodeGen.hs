@@ -2,12 +2,11 @@
 {-# LANGUAGE RecursiveDo#-}
 module CodeGen where
 
--- import Debug.Trace --FIXME
 import Data.DList hiding (map)
 import Data.Maybe
 import Control.Exception
 import Control.Monad
--- import Control.Monad.State
+import Data.ByteString.Short (ShortByteString)
 
 import qualified LLVM.AST.Global as LLVM
 import qualified LLVM.AST.Constant as LLVM hiding (type')
@@ -15,7 +14,7 @@ import LLVM.AST.Instruction hiding (args)
 import LLVM.AST.Float
 
 -- import qualified LLVM.AST as AST
-import LLVM.AST hiding (args,Name)
+import LLVM.AST hiding (args,Name,resultType)
 
 import qualified LLVM.AST.Name as LLVM
 import qualified LLVM.AST.Type as LLVM
@@ -25,8 +24,15 @@ import ANormalForm
 import Value (Primative(..),BuildIn(..))
 import Statments
 
-mkModule :: Definition -> Module --TODO better name, option as argument
-mkModule definition = defaultModule { moduleName="test", moduleDefinitions = [definition]}
+mkModule :: [Definition] -> Module --TODO better name, option as argument
+mkModule definitions = defaultModule { moduleName="test", moduleDefinitions = definitions}
+
+external :: ShortByteString -> [Parameter] -> Type -> Definition
+external name args resultType = GlobalDefinition $ functionDefaults
+    { LLVM.name = LLVM.Name name
+    , LLVM.returnType = resultType
+    , LLVM.parameters = (args, False)
+    }
 
 -- need to be topologically sorted to work
 codeGen :: ANorm -> Definition
@@ -129,8 +135,8 @@ llvmInstruc (Var b) args env = case bMaybeLookup b env of
   Nothing -> error $ "missing entry in env for " ++ show b ++", called from llvmInstruc"
   Just (Left label) -> do
       operands  <- mapM (\ v -> fromValue v env) args
-      Right <$> call label operands --FIXME
-  Just (Right o) -> traceStatments >>= (\s -> error $ "apply operator: "  ++ show o ++ s)
+      Right <$> call label operands --FIXME could be a function
+  Just (Right o) -> ( error $ "apply operator: "  ++ show o )
 
 -- TODO maybe remove is to short, mispelled
 -- TODO could made result Just Operand no Statments are produced unless for converting lambda which will become a label

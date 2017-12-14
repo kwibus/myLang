@@ -2,9 +2,11 @@
 module Jit where
 
 import Foreign.Ptr
-import Data.ByteString.Short as ByteString
+import Data.ByteString.Char8 as ByteString (unpack)
+import Data.ByteString.Short as ByteString hiding (unpack)
 import LLVM.Context
 import LLVM.Module as Mod
+
 import BruijnTerm (BruijnTerm)
 import ANormalForm
 import Unprocessed hiding (peek)
@@ -17,12 +19,18 @@ import LLVM.Target
 import LLVM.OrcJIT
 import  LLVM.OrcJIT.CompileLayer
 import Foreign.Storable
+import LLVM.Internal.OrcJIT
+import System.Posix.DynamicLinker
+import Data.Int
 import qualified Data.Map.Strict as Map
 import Data.IORef
 
 -- foreign import ccall "dynamic"
 --   mkMain :: FunPtr (IO Int32) -> IO Int32
 
+import LLVM.Internal.ExecutionEngine --TODO
+
+foreign import ccall "dynamic" fnToInt32:: FunPtr (IO Int32) -> IO Int32
 foreign import ccall "dynamic" fnToDouble :: FunPtr (IO Double) -> IO Double
 foreign import ccall "dynamic" fnToWord:: FunPtr (IO Word) -> IO Word
 
@@ -31,45 +39,49 @@ castFn addres t = do
    let fnPtr = castPtrToFunPtr $ wordPtrToPtr addres
    case t of
     TDouble -> MyDouble <$> fnToDouble fnPtr
-    _ -> do
+    TBool -> do
       word <- fnToWord fnPtr
-      return $ wordToPrimative word  t
+      return $ MyBool $ wordToBool word
 
 cast :: WordPtr -> TypeInstance -> IO Primative
-cast addres TDouble = MyDouble <$> peek  (wordPtrToPtr addres)
-cast address t = do
+cast address TDouble = MyDouble <$> peek  (wordPtrToPtr address)
+cast address TBool  = do
      word <- peek  $ wordPtrToPtr address:: IO Word
-     return $ wordToPrimative word t
+     return $ MyBool $ wordToBool word
 
-wordToPrimative :: Word -> TypeInstance -> Primative
-wordToPrimative word TBool = MyBool $  case word of
+wordToBool :: Word -> Bool
+wordToBool word = case word of
         0 -> False
         _ -> True
 
--- jit :: Context -> (MCJIT -> IO a) -> IO a
--- jit c = withMCJIT c optlevel model ptrelim fastins
---   where
---     optlevel = Just (0::Word)  -- optimization level
---     model    = Nothing -- code model ( Default )
---     ptrelim  = Nothing -- frame pointer elimination
---     fastins  = Nothing -- fast instruction selection
---
--- runJIT :: AST.Module -> IO Word
--- runJIT modul =
---   withContext $ \context ->
---     jit context $ \executionEngine ->
---       withModuleFromAST context modul $ \m ->
---         withModuleInEngine executionEngine m $ \ee -> do
---         ByteString.putStrLn =<< moduleLLVMAssembly m --TODO add pretty print fucntion
---         maybeA <- getFunction ee "main"
---         case maybeA of
---           Nothing ->  error "fail"
---           Just f ->  castFn f
+mcjit :: Context -> (MCJIT -> IO a) -> IO a
+mcjit c = withMCJIT c optlevel model ptrelim fastins
+  where
+    optlevel = Just (0::Word)  -- optimization level
+    model    = Nothing -- code model ( Default )
+    ptrelim  = Nothing -- frame pointer elimination
+    fastins  = Nothing -- fast instruction selection
 
-symbolResolver :: SymbolResolver --FIXME
-symbolResolver = SymbolResolver resolveError
- where
- resolveError msym = error $ "symbol" ++ show msym ++ "could not be found"
+runMCJIT :: AST.Module -> ShortByteString  -> (FunPtr () -> IO a) -> IO a
+runMCJIT modul functionName f =
+  withContext $ \context ->
+    mcjit context $ \executionEngine ->
+      withModuleFromAST context modul $ \m ->
+        withModuleInEngine executionEngine m $ \ee -> do
+        maybeA <- getFunction ee (AST.Name functionName)
+        case maybeA of
+          Nothing ->  error "fail"
+          Just funAddress -> f funAddress
+
+symbolResolver :: CompileLayer l => l -> SymbolResolver
+symbolResolver compileLayer =
+   SymbolResolver
+      -- (\m -> findSymbol compileLayer m False)
+      (\(MangledSymbol n) -> do
+         -- TODO dl <- dlopen "" [RTLD_LAZY, RTLD_GLOBAL]
+         ptr <- dlsym Default (unpack n)
+         return $ Right $ JITSymbol (ptrToWordPtr $ castFunPtrToPtr  ptr) (JITSymbolFlags True False True True )
+      )
 
 nullResolver :: MangledSymbol -> IO (Either JITSymbolError JITSymbol)
 nullResolver s = putStrLn "nullresolver" >> return (Left (JITSymbolError "unknown symbol"))
@@ -77,6 +89,7 @@ nullResolver s = putStrLn "nullresolver" >> return (Left (JITSymbolError "unknow
 withLLVM :: AST.Module -> (Module -> IO a) -> IO a
 withLLVM modul f = withContext $ \context -> withModuleFromAST context modul f
 
+-- TODO rename orcJIt
 jit :: Module -> ShortByteString -> (WordPtr -> IO a) -> IO a
 jit modul name f= do
    resolvers <- newIORef Map.empty
@@ -96,8 +109,9 @@ runJit :: AST.Module -> ShortByteString -> (WordPtr -> IO a) -> IO a
 runJit amod name f = withLLVM amod $ \ modul ->
    jit modul name f
 
+-- TODO is this the right place to define it
 evalWithJit :: BruijnTerm () () -> IO Primative
-evalWithJit term = withLLVM (mkModule $ codeGen $ aNormalize term) $ \ modul ->
+evalWithJit term = withLLVM (mkModule [codeGen $ aNormalize term]) $ \ modul ->
       jit modul "main" $ \address ->
       if atom $ reproces term --TODO withou reproces
       then cast address primativeType
