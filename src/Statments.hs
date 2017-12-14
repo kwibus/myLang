@@ -7,7 +7,7 @@ module Statments
   , toBlock
   , toStatments
   , Statments.void
-  , call
+  , callBlock
   , callFunction
   , genBlock
   )
@@ -30,8 +30,9 @@ import qualified LLVM.AST.AddrSpace as LLVM
 import qualified LLVM.AST.Type as LLVM
 import qualified LLVM.AST.Name as LLVM
 
--- TODO name it contnue ore returnblock
 -- TODO rename end in function to more disciptive
+-- TODO steal some names from IRBUilder,
+--      rename staments emiter
 
 freshName :: State StmtStack LLVM.Name
 freshName = do
@@ -39,7 +40,14 @@ freshName = do
   modify $ \s -> s{nameSupply = nameSupply s +1}
   return $ UnName w
 
--- TODO can we do away with blockstart insructoin blockend
+-- | Data struction that closely mirror BasicBlock but  it differnce in:
+--
+-- *  phi nod for blockcall are not all inserted (return form block call are)
+
+-- Block is split up in 3 part because the generator for block does not know about end:
+-- that will add in running the emitter
+-- and in the emiter the insturcion or stored in a dlist
+
 data Block = Block
                 BlockStart
                 [Named Instruction]
@@ -55,33 +63,30 @@ data BlockStart = BlockStart
 
 data BlockEnd = ResultBlock Operand Name-- TODO one result for now
                   -- TODO can LLVM.Name be replaced with something that always reference to codeblock
-                  -- TODO if you
               | CallBlock LLVM.Name [Operand] LLVM.Name
               | LLVMEnd AST.Terminator -- TODO maybe keep llvm termnoatr out and keep control self
+                                       -- TODO add exit statment
               deriving Show
 
--- TODO if you want to encapsulate it has to be newtype
--- TODO make monoid
--- TODO reinvent state monad without result
 newtype Statments a = Stmt (State StmtStack a)
                       deriving (Monad, Applicative,Functor,MonadFix)
 
 lower:: Statments a -> State StmtStack a
 lower (Stmt m) = m
 
-data StmtStack = StmtStack { startInsruction :: BlockStart
-                           , instructions :: DList (Named Instruction)
-                           , blocks :: DList Block
+data StmtStack = StmtStack { startBlock:: BlockStart
+                           , emitedInst :: DList (Named Instruction)
+                           , emitedBlocks :: DList Block
                            , nameSupply :: Word
                            }deriving Show
 
-data Label = Label LLVM.Name LLVM.Type Operand
+data Label = Label LLVM.Name LLVM.Type Operand -- TODO result could be another label
              deriving Show
 
 callFunction :: ShortByteString -> [(Type,Operand)] -> Type -> Instruction
 callFunction name args resultType =
   let (argTyps, operandArgs) = unzip args
-  in ( Call
+  in Call
       Nothing
       LLVM.C
       [] -- return atributes
@@ -89,63 +94,63 @@ callFunction name args resultType =
       [(o,[]) |o <- operandArgs]
       [] --fucntion atributes
       [] -- instruction Metadata
-    )
 
-call ::Label -> [Either Label Operand] -> Statments Operand
-call (Label calledBlock resultType resulOperand) args = Stmt $ do
-  let operandArgs = map (either undefined id) args --FIXME conver label
+
+callBlock ::Label -> [Either Label Operand] -> Statments Operand
+callBlock (Label calledBlock resultType resulOperand) args = Stmt $ do
+  let operandArgs = map (either undefined id) args --FIXME convert label
   newBlockName <- freshName
-  modify $ \(s@StmtStack {startInsruction = start, instructions = i}) ->
+  modify $ \(s@StmtStack {startBlock= start, emitedInst = i}) ->
     let newBlock = Block start (toList i) (CallBlock calledBlock operandArgs newBlockName)
     in s
-      {startInsruction = BlockStart newBlockName []
-      ,instructions = empty
-      ,blocks = cons newBlock (blocks s)}
+      {startBlock = BlockStart newBlockName []
+      ,emitedInst = empty
+      ,emitedBlocks = cons newBlock (emitedBlocks s)}
 
   LocalReference resultType <$> lower ( toStatments $ Phi resultType [(resulOperand,calledBlock)] []) --FIXME make label posble result
 
 toStatments :: Instruction -> Statments LLVM.Name
 toStatments i = Stmt $ do
   name <- freshName
-  modify $ \s -> s{instructions = cons (name := i) $ instructions s}
+  modify $ \s -> s{emitedInst = cons (name := i) $ emitedInst s}
   return name
 
---TOD maybe remove
+--TODO maybe remove
 void :: Instruction -> Statments ()
-void i = Stmt $ modify $ \s -> s{instructions = cons (Do i) $ instructions s}
+void i = Stmt $ modify $ \s -> s{emitedInst = cons (Do i) $ emitedInst s}
 
--- TODO rename newblock to createBlock
 genBlock :: Maybe ShortByteString -> [Type] -> ([(Type,LLVM.Name)]-> Statments Operand) -> Statments Label --make block result
 genBlock maybeName typeofArgs fStmt = Stmt $ do
   name <- maybe freshName (return . Name) maybeName --TODO can this not be done in toBlock
   args <- mapM (\t -> fmap (\n -> (t ,n ))freshName ) typeofArgs
   nameSeed <- gets nameSupply
   let (resulOperand,newBlocks,newSeed) = toBlock' nameSeed name True args (fStmt args)
-  modify (\s -> s { blocks = blocks s `append` newBlocks
+  modify (\s -> s { emitedBlocks = emitedBlocks s `append` newBlocks
                   , nameSupply = newSeed
                   })
   return $ Label name LLVM.double resulOperand-- FIXME double
 
 -- TODO beter name  (run?)
-toBlock :: Maybe LLVM.Name -> [Type] -> ([(Type,LLVM.Name)] -> Statments Operand) -> ([(Type, LLVM.Name)], DList Block)
-toBlock maybeName argtyps fStmt = (args,blocks)
+toBlock :: Maybe LLVM.Name -> [Type] -> ([(Type,LLVM.Name)] -> Statments Operand) -> ([(Type, LLVM.Name)], [Block])
+toBlock maybeName argtyps fStmt = (args,toList blocks)
   where
     args = zipWith (\t n -> (t,UnName n)) argtyps [1..]
     entryName = fromMaybe (UnName 0) maybeName
     (_,blocks,_) = toBlock' (fromIntegral (length argtyps) +1) entryName False [] (fStmt args)
 
 -- TODO better name
+-- TODO should make terminaton more configurable
 toBlock' :: Word -> LLVM.Name -> Bool -> [(Type,Name)] -> Statments Operand -> (Operand ,DList Block,Word)
-toBlock' nameSupplySeed name returnFromBlock args (Stmt stmt) = (a, (snoc (blocks newStmdStack) newBlock ), nameSupply newStmdStack)
+toBlock' nameSupplySeed name returnFromBlock args (Stmt stmt) = (a, snoc (emitedBlocks newStmdStack) newBlock, nameSupply newStmdStack)
     where
       (a, newStmdStack) = runState stmt initStmtStack
       (realNameSupplySeed,realArgs, end) = if returnFromBlock
           then (nameSupplySeed +1, (blockType, UnName nameSupplySeed):args,ResultBlock a $ UnName nameSupplySeed)
           else (nameSupplySeed,args, LLVMEnd $ Ret (Just  a) [])
-      newBlock = Block (startInsruction newStmdStack) (toList $instructions newStmdStack) end
-      initStmtStack = StmtStack { startInsruction = BlockStart name realArgs
-                                , instructions = empty
-                                , blocks = empty
+      newBlock = Block (startBlock newStmdStack) (toList $emitedInst  newStmdStack) end
+      initStmtStack = StmtStack { startBlock = BlockStart name realArgs
+                                , emitedInst = empty
+                                , emitedBlocks = empty
                                 , nameSupply = realNameSupplySeed }
 
 blockType :: LLVM.Type
@@ -158,15 +163,14 @@ blockType =  PointerType LLVM.i8 (LLVM.AddrSpace 0)
 mergBlocks :: [Block] -> [BasicBlock]
 mergBlocks blocks = map block2BacsicBlock blocks
   where
-    callMap :: Map.Map Name [(Name,[Operand], Name)]
+    callMap :: Map.Map Name [(Name,[Operand])]
     callMap = foldl registerCall Map.empty blocks
 
-    -- FIXME callMap thirds item is never used and can be removed
-    registerCall :: Map.Map Name [(Name,[Operand], Name)] -> Block -> Map.Map Name [(Name,[Operand], Name)]
-    registerCall oldCallMap (Block (BlockStart {blockName = bName})
+    registerCall :: Map.Map Name [(Name,[Operand])] -> Block -> Map.Map Name [(Name,[Operand])]
+    registerCall oldCallMap (Block BlockStart {blockName = bName}
                                 _
                                 (CallBlock calledBlock args nameContinue)) =
-        Map.insertWith  (++) calledBlock [(bName, ConstantOperand (LLVM.BlockAddress "main" nameContinue) : args, nameContinue)] oldCallMap
+        Map.insertWith  (++) calledBlock [(bName, ConstantOperand (LLVM.BlockAddress "main" nameContinue) : args)] oldCallMap
     registerCall oldCallMap _ = oldCallMap
 
     returnMap:: Map.Map Name [Name]
@@ -180,21 +184,19 @@ mergBlocks blocks = map block2BacsicBlock blocks
     endMap :: Map.Map Name Name
     endMap = foldl registerEnd Map.empty blocks
 
-    -- TODO rename env (env is to genral)
-    allMap :: Map.Map Name Block
-    allMap = foldl (\env b@(Block (BlockStart {blockName = bName}) _ _ ) -> Map.insert bName b env ) Map.empty blocks
+    blockMap :: Map.Map Name Block
+    blockMap = foldl (\oldBlockMap b@(Block BlockStart {blockName = bName} _ _ ) -> Map.insert bName b oldBlockMap) Map.empty blocks
 
-    -- TODO rename env
     registerEnd :: Map.Map Name Name -> Block -> Map.Map Name Name
-    registerEnd oldEndMap block = newEnv
+    registerEnd oldEndMap block = newEndMap
       where
-        (end,newEnv) = walk oldEndMap block
+        (end,newEndMap) = walk oldEndMap block
         walk :: Map.Map Name Name -> Block -> (Name, Map.Map Name Name)
-        walk _env (Block (BlockStart {blockName = bName}) _ endBlock) = case Map.lookup bName _env of
-          Just previousFoundEnd -> (previousFoundEnd, _env)
+        walk currentEndMap (Block BlockStart {blockName = bName} _ endBlock) = case Map.lookup bName currentEndMap of
+          Just previousFoundEnd -> (previousFoundEnd, currentEndMap)
           Nothing -> case endBlock of
-            (CallBlock _ _ continue) -> walk (Map.insert bName end _env) (allMap Map.! continue)
-            _ -> (bName, Map.insert bName bName _env)
+            (CallBlock _ _ continue) -> walk (Map.insert bName end currentEndMap) (blockMap Map.! continue)
+            _ -> (bName, Map.insert bName bName currentEndMap)
 
     blockEnd2Termintor name end = case end of
         ResultBlock _ returnBlock -> IndirectBr (LocalReference blockType returnBlock) ( returnMap Map.! name ) []
@@ -211,10 +213,10 @@ mergBlocks blocks = map block2BacsicBlock blocks
         end) = BasicBlock name (phis ++ instructions) $ Do $ blockEnd2Termintor name end
             where
         phis :: [Named Instruction]
-        phis = --TODO add comments
-          let argOrigins = transpose $
-                map (\(caller , callerOperands ,_) ->
-                  assert (length callerOperands == length args) $
+        phis =
+          let argOrigins = transpose $ -- change a list of caller (with there there operand aruments) to list args (withe (operand, callername) )
+                map (\(caller , callerOperands) ->
+                  assert (length callerOperands == length args) $ -- check if every caller calles with corect number of arguments
                     map (,caller) callerOperands )
                 $ fromMaybe (error $ "not in callMap" ++ show name) $ Map.lookup name callMap
 

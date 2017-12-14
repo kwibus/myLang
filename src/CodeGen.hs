@@ -2,7 +2,6 @@
 {-# LANGUAGE RecursiveDo#-}
 module CodeGen where
 
-import Data.DList hiding (map)
 import Data.Maybe
 import Control.Exception
 import Control.Monad
@@ -73,7 +72,7 @@ insertValues vs table = do
   return $ bInserts operands table
 
 codeGenFunction :: [Type] -> ANorm -> ([(Type,LLVM.Name)],[BasicBlock])
-codeGenFunction argtypes term = (args, mergBlocks  $ toList blocks)
+codeGenFunction argtypes term = (args, mergBlocks blocks)
   where
     (args,blocks) = toBlock
       (Just "entry")
@@ -135,7 +134,7 @@ llvmInstruc (Var b) args env = case bMaybeLookup b env of
   Nothing -> error $ "missing entry in env for " ++ show b ++", called from llvmInstruc"
   Just (Left label) -> do
       operands  <- mapM (\ v -> fromValue v env) args
-      Right <$> call label operands --FIXME could be a function
+      Right <$> callBlock label operands --FIXME could be a function
   Just (Right o) -> ( error $ "apply operator: "  ++ show o )
 
 -- TODO maybe remove is to short, mispelled

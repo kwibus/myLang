@@ -5,7 +5,6 @@ module TestCodeGen where
 -- import LLVM.Module
 
 
-import Data.DList hiding (map)
 import qualified LLVM.AST.Constant as LLVM
 import qualified LLVM.AST as LLVM
 import qualified LLVM.AST.Global as LLVM
@@ -60,7 +59,7 @@ testCodeGen = testGroup "CodeGen"
             , LLVM.GlobalDefinition $ LLVM.functionDefaults
               { LLVM.name = "main"
               , LLVM.returnType = LLVM.i32
-              , LLVM.basicBlocks = mergBlocks $ toList $ snd $ toBlock (Just " entry") []
+              , LLVM.basicBlocks = mergBlocks $ snd $ toBlock (Just " entry") []
                 (\[] -> LLVM.LocalReference LLVM.i32 <$> (toStatments $ callFunction
                                         "putchar"
                                         [(LLVM.i32 ,(LLVM.ConstantOperand $ LLVM.Int 32 42))]
