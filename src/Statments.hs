@@ -4,12 +4,13 @@ module Statments
   ( Statments
   , Label
   , mergBlocks
-  , toBlock
+  , genBlock
+  , genFuncBlock
+  , genMainBlock
   , toStatments
   , Statments.void
   , callBlock
   , callFunction
-  , genBlock
   )
 where
 import Data.ByteString.Short (ShortByteString)
@@ -21,7 +22,7 @@ import Data.Maybe
 import qualified Data.Map as Map
 import Control.Monad.State
 
-import LLVM.AST as AST hiding (args,resultType)
+import LLVM.AST as AST hiding (Resume,args,resultType)
 import qualified LLVM.AST.CallingConvention as LLVM
 
 import qualified LLVM.AST.Operand as LLVM
@@ -83,7 +84,7 @@ data StmtStack = StmtStack { startBlock:: BlockStart
 data Label = Label LLVM.Name LLVM.Type Operand -- TODO result could be another label
              deriving Show
 
-callFunction :: ShortByteString -> [(Type,Operand)] -> Type -> Instruction
+callFunction :: ShortByteString -> [(Type,Operand)] -> Type -> Instruction -- use typed
 callFunction name args resultType =
   let (argTyps, operandArgs) = unzip args
   in Call
@@ -95,7 +96,9 @@ callFunction name args resultType =
       [] --fucntion atribues
       [] -- instruction Metadata
 
-callBlock ::Label -> [Either Label Operand] -> Statments Operand
+-- TODO add function exit
+
+callBlock :: Label -> [Either Label Operand] -> Statments Operand
 callBlock (Label calledBlock resultType resulOperand) args = Stmt $ do
   let operandArgs = map (either undefined id) args --FIXME convert label
   newBlockName <- freshName
@@ -120,33 +123,42 @@ void i = Stmt $ modify $ \s -> s{emitedInst = cons (Do i) $ emitedInst s}
 
 genBlock :: Maybe ShortByteString -> [Type] -> ([(Type,LLVM.Name)]-> Statments Operand) -> Statments Label --make block result
 genBlock maybeName typeofArgs fStmt = Stmt $ do
-  name <- maybe freshName (return . Name) maybeName --TODO can this not be done in toBlock
+  name <- maybe freshName (return . Name) maybeName
   args <- mapM (\t -> fmap (\n -> (t ,n ))freshName ) typeofArgs
   nameSeed <- gets nameSupply
-  let (resulOperand,newBlocks,newSeed) = toBlock' nameSeed name True args (fStmt args)
+  let (resulOperand,newBlocks,newSeed) = toBlock nameSeed name Resume args (fStmt args)
   modify (\s -> s { emitedBlocks = emitedBlocks s `append` newBlocks
                   , nameSupply = newSeed
                   })
-  return $ Label name LLVM.double resulOperand-- FIXME double
+  return $ Label name LLVM.double resulOperand -- FIXME double
 
--- TODO beter name  (run?)
-toBlock :: Maybe LLVM.Name -> [Type] -> ([(Type,LLVM.Name)] -> Statments Operand) -> ([(Type, LLVM.Name)], [Block])
-toBlock maybeName argtyps fStmt = (args,toList blocks)
+genFuncBlock:: Maybe LLVM.Name -> [Type] -> ([(Type,LLVM.Name)] -> Statments Operand) -> ([(Type, LLVM.Name)], [Block])
+genFuncBlock maybeName argtyps fStmt = (args,toList blocks)
   where
-    args = zipWith (\t n -> (t,UnName n)) argtyps [1..]
+    args = zipWith (\t n -> (t,UnName n)) argtyps [1..] -- TODO always start counting at 1
     entryName = fromMaybe (UnName 0) maybeName
-    (_,blocks,_) = toBlock' (fromIntegral (length argtyps) +1) entryName False [] (fStmt args)
+    (_,blocks,_) = toBlock (fromIntegral (length argtyps) +1) entryName Return [] (fStmt args)
+
+genMainBlock:: Maybe LLVM.Name -> [Type] -> ([(Type,LLVM.Name)] -> Statments Operand) -> ([(Type, LLVM.Name)], [Block])
+genMainBlock maybeName argtyps fStmt = (args,toList blocks)
+  where
+    args = zipWith (\t n -> (t,UnName n)) argtyps [1..] -- TODO always start counting at 1
+    entryName = fromMaybe (UnName 0) maybeName
+    (_,blocks,_) = toBlock (fromIntegral (length argtyps) +1) entryName Exit [] (fStmt args)
 
 -- TODO better name
 -- TODO should make terminaton more configurable
-toBlock' :: Word -> LLVM.Name -> Bool -> [(Type,Name)] -> Statments Operand -> (Operand ,DList Block,Word)
-toBlock' nameSupplySeed name returnFromBlock args (Stmt stmt) = (a, snoc (emitedBlocks newStmdStack) newBlock, nameSupply newStmdStack)
+data EndFlag = Return | Exit | Resume
+
+toBlock :: Word -> LLVM.Name -> EndFlag -> [(Type,Name)] -> Statments Operand -> (Operand ,DList Block,Word)
+toBlock nameSupplySeed name endFlag args (Stmt stmt) = (a, snoc (emitedBlocks newStmdStack) newBlock, nameSupply newStmdStack)
     where
       (a, newStmdStack) = runState stmt initStmtStack
-      (realNameSupplySeed,realArgs, end) = if returnFromBlock
-          then (nameSupplySeed +1, (blockType, UnName nameSupplySeed):args,ResultBlock a $ UnName nameSupplySeed)
-          else (nameSupplySeed,args, LLVMEnd $ Ret (Just  a) [])
-      newBlock = Block (startBlock newStmdStack) (toList $emitedInst  newStmdStack) end
+      (realNameSupplySeed,realArgs,prolog, end) = case endFlag of
+          Resume -> (nameSupplySeed +1, (blockType, UnName nameSupplySeed):args,[]                                                , ResultBlock a (UnName nameSupplySeed) )
+          Return -> (nameSupplySeed   , args                                   ,[]                                                , LLVMEnd $ Ret (Just a) [])
+          Exit   -> (nameSupplySeed   , args                                   ,[Do $ callFunction "ext" [(LLVM.i32,a)] LLVM.void], LLVMEnd $ Unreachable [])
+      newBlock = Block (startBlock newStmdStack) (apply (emitedInst  newStmdStack) prolog) end
       initStmtStack = StmtStack { startBlock = BlockStart name realArgs
                                 , emitedInst = empty
                                 , emitedBlocks = empty

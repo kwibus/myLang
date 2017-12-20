@@ -23,12 +23,11 @@ import Statments
 mkModule :: [Definition] -> Module --TODO better name, option as argument
 mkModule definitions = defaultModule { moduleName="test", moduleDefinitions = definitions}
 
---TODO alow void
 callWith :: ShortByteString -> ShortByteString -> [LLVM.Constant] -> Type -> Definition
 callWith name function args resultType = GlobalDefinition $ LLVM.functionDefaults
     { LLVM.name = LLVM.Name name
     , LLVM.returnType = resultType
-    , LLVM.basicBlocks = mergBlocks $ snd $ toBlock (Just " entry") []
+    , LLVM.basicBlocks = mergBlocks $ snd $ genFuncBlock (Just " entry") []
       (\[] -> let call = callFunction
                               function
                               (zip (typeOf <$> args) (ConstantOperand <$> args))
@@ -38,7 +37,6 @@ callWith name function args resultType = GlobalDefinition $ LLVM.functionDefault
                  else LocalReference resultType <$> toStatments call
       )
     }
-
 
 -- need to be topologically sorted to work
 codeGen :: ANorm -> Definition
@@ -81,7 +79,7 @@ insertValues vs table = do
 codeGenFunction :: [Type] -> ANorm -> ([(Type,LLVM.Name)],[BasicBlock])
 codeGenFunction argtypes term = (args, mergBlocks blocks)
   where
-    (args,blocks) = toBlock
+    (args,blocks) = genFuncBlock
       (Just "entry")
       argtypes
       (\_args -> do
