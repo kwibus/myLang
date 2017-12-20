@@ -16,9 +16,11 @@ import TestTopologicalSort
 import TestModify
 import TestANormalForm
 import TestCodeGen
+import TestExternal
 
 main :: IO ()
-main = defaultMain tests
+main =
+    defaultMain tests
 
 tests :: TestTree
 tests = testGroup "tests"
@@ -35,4 +37,5 @@ tests = testGroup "tests"
     , testParser
     , testANormalForm
     , testCodeGen
+    , testExternal
     ]

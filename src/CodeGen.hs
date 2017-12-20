@@ -3,17 +3,14 @@
 module CodeGen where
 
 import Data.Maybe
+import Data.ByteString.Short (ShortByteString)
 import Control.Exception
 import Control.Monad
-import Data.ByteString.Short (ShortByteString)
-
+import LLVM.AST.Typed -- TODO use upstream
+import LLVM.AST hiding (function,args,Name,resultType)
 import qualified LLVM.AST.Global as LLVM
 import qualified LLVM.AST.Constant as LLVM hiding (type')
-import LLVM.AST.Instruction hiding (args)
 import LLVM.AST.Float
-
--- import qualified LLVM.AST as AST
-import LLVM.AST hiding (args,Name,resultType)
 
 import qualified LLVM.AST.Name as LLVM
 import qualified LLVM.AST.Type as LLVM
@@ -26,12 +23,22 @@ import Statments
 mkModule :: [Definition] -> Module --TODO better name, option as argument
 mkModule definitions = defaultModule { moduleName="test", moduleDefinitions = definitions}
 
-external :: ShortByteString -> [Parameter] -> Type -> Definition
-external name args resultType = GlobalDefinition $ functionDefaults
+--TODO alow void
+callWith :: ShortByteString -> ShortByteString -> [LLVM.Constant] -> Type -> Definition
+callWith name function args resultType = GlobalDefinition $ LLVM.functionDefaults
     { LLVM.name = LLVM.Name name
     , LLVM.returnType = resultType
-    , LLVM.parameters = (args, False)
+    , LLVM.basicBlocks = mergBlocks $ snd $ toBlock (Just " entry") []
+      (\[] -> let call = callFunction
+                              function
+                              (zip (typeOf <$> args) (ConstantOperand <$> args))
+                              resultType
+              in if resultType == LLVM.void
+                 then Statments.void call >> return ( ConstantOperand $ LLVM.Int 8 0) --TODO cleaner solution
+                 else LocalReference resultType <$> toStatments call
+      )
     }
+
 
 -- need to be topologically sorted to work
 codeGen :: ANorm -> Definition

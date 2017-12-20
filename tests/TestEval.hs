@@ -144,7 +144,7 @@ basicSet =
 
   , ( B.id, [])
 
-  , ( appl B.id true, [true])
+  -- , ( appl B.id true, [true])
 
   , ( appl B.id ( appl B.id (lambda "z" (appl B.id (bvar 0))))
     , [appl B.id ( lambda "z" (appl B.id (bvar 0)))

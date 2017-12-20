@@ -66,10 +66,13 @@ library
                       ,ModificationTags
                       ,Unprocessed
                       ,CodeGen
+                      ,LLVM.AST.Typed
+                      ,ExternalFunctions
                       ,Statments
                       ,Jit
                       ,Compile
                       ,ANormalForm
+
   Ghc-Options:          -Wall -fno-ignore-asserts
 
   default-language:    Haskell2010
@@ -166,6 +169,7 @@ test-suite tests
                       ,TestANormalForm
                       ,MakeAnormal
                       ,TestCodeGen
+                      ,TestExternal
 
 
   Ghc-Options:          -Wall -fno-ignore-asserts -threaded -rtsopts -with-rtsopts=-N

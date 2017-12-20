@@ -92,9 +92,8 @@ callFunction name args resultType =
       [] -- return atributes
       (Right (LLVM.ConstantOperand $ LLVM.GlobalReference (PointerType (FunctionType resultType argTyps False) (LLVM.AddrSpace 0)) (Name name)))
       [(o,[]) |o <- operandArgs]
-      [] --fucntion atributes
+      [] --fucntion atribues
       [] -- instruction Metadata
-
 
 callBlock ::Label -> [Either Label Operand] -> Statments Operand
 callBlock (Label calledBlock resultType resulOperand) args = Stmt $ do
