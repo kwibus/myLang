@@ -230,6 +230,10 @@ testBasic = testGroup "Solver"
   , testCase "let f a = true; b = f True; in b" $
       solver (mkLet [("f",lambda "a" true),("b",appl (bvar 1) true)] $bvar 0 )
       @?= return (tVar 0)
+
+  , testCase "let f a = id 1; id a = a in f 2" $
+      solver (mkLet [("f", lambda "a" $ appl (bvar 1) (double 1)), ("id", B.id)] $ appl (bvar 1) (double 2))
+      @?= return  tDouble
   ]
 
 testCheckerProperty :: TestTree
