@@ -17,7 +17,7 @@ import Type
 import FreeEnvironment
 import Associativity
 import InfixFix
-import Info
+import SourcePostion
 import BruijnTerm
 import TypeError
 import ErrorCollector

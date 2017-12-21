@@ -6,7 +6,7 @@ import FreeEnvironment
 import BruijnEnvironment
 import Type
 import BruijnTerm
-import Info
+import SourcePostion
 import Lexer (toChar, reservedSymbols)
 
 data TypeError i =

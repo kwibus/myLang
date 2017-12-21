@@ -16,7 +16,7 @@ import Value
 import Lambda
 import Lexer
 import Operator
-import Info
+import SourcePostion
 import Name
 
 -- TODO Remove p
