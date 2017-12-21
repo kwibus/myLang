@@ -37,7 +37,7 @@ close t = fst $ go t fEmtyEnv 0
 fst3 :: (a, b, c) -> a
 fst3 (a, _, _) = a
 
-solver :: BruijnTerm i -> ErrorCollector [TypeError i] Type
+solver :: BruijnTerm i i -> ErrorCollector [TypeError i] Type
 solver e = fmap ( close . uncurry (flip apply) ) $ runInfer $ solveWith e fEmtyEnv bEmtyEnv
 
 type Infer i a = ErrorCollectorT [TypeError i] ( State Int ) a
@@ -63,7 +63,7 @@ newFreeVar = do
 --              this is inconsistend with check of final term let
 --              where the correct type of defs is input
 --              which one gives best error messages or is fastest
-solveWith :: BruijnTerm i -> TSubst -> TEnv -> Infer i (Type, TSubst)
+solveWith :: BruijnTerm i i -> TSubst -> TEnv -> Infer i (Type, TSubst)
 solveWith e@(Let _ defs e2) sub tenv = do -- TODO vorbid type some type of self refrence
   newVars <- replicateM (length defs) newFreeVar
   let tempTEnv = foldl ( flip ( bInsert . TVar)) tenv newVars

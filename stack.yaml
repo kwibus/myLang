@@ -1,6 +1,7 @@
 ---
 packages:
 - '.'
+ghc-build: nopie
 extra-deps:
 - parsec-numbers-0.1.0
 - assert-failure-0.1.1.0

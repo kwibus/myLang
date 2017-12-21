@@ -18,11 +18,12 @@ import BruijnEnvironment
 import BruijnTerm
 import qualified Lambda as Lam
 
+-- TODO replace BruijnTerm with list Defs
 -- | data type when sortTerm fails, cointaining :
 --
 -- * The Let defenitions where  cycle ocure
 -- * the chain of dependencies that that let to cycle (exampel [Bound 0, Bound 1, Bound 0])
-data DataCycle i = DataCycle (BruijnTerm i) [Bound] deriving (Eq, Show)
+data DataCycle i = DataCycle (BruijnTerm i i) [Bound] deriving (Eq, Show)
 
 --TODO rename (current name refers how to i use it, no on how it can be used)
 type FreeVars = Set.Set Int
@@ -53,13 +54,13 @@ type FreeVars = Set.Set Int
 --      topologicalSort expect normal naming scheme, no relative (bruij-index's)
 --      but if you only work in fixed scope/depth the naming is fixed
 
-sortTerm :: BruijnTerm i -> Either (DataCycle i) (Tag.LamTerm i Bound (Modify i))
+sortTerm :: BruijnTerm i i -> Either (DataCycle i) (Tag.LamTerm i i Bound (Modify i))
 sortTerm term = snd <$> go 0 term
   where
     -- could replace Either e (b,a).. with EitherT e (b,) a
     -- this would make is possible to use standard mapchild like function
     -- and would replace boilerplate
-    go :: Int -> BruijnTerm i -> Either (DataCycle i) (FreeVars, Tag.LamTerm i Bound (Modify i))
+    go :: Int -> BruijnTerm i i-> Either (DataCycle i) (FreeVars, Tag.LamTerm i i Bound (Modify i))
     go _ (Lam.Val i v) = return (Set.empty,Tag.Val i v)
     go depth (Lam.Var i b) = return (insert depth b Set.empty, Tag.Var i b)
     go depth (Lam.Lambda i n t) = fmap (Tag.Lambda i n) <$> go (depth + 1) t
@@ -91,7 +92,7 @@ sortTerm term = snd <$> go 0 term
 -- could define "Let defs fucntion" also to be a fucntion. but this would meen you have reevaluate defs every time you call the function
 --
 -- | is used to deterime if the term is allowed to depend on its self
-isFunction :: Lam.LamTerm i n -> Bool
+isFunction :: Lam.LamTerm i i n -> Bool
 isFunction term = case term of
         Lam.Lambda {} -> True
         _ -> False
@@ -209,5 +210,5 @@ topologicalSort strong weak = reverse . snd <$> foldM visit (initTags, []) tasks
         Just (StrongDepencys _) -> visit (Map.insert parrent Forbidden tags, order) a
         _ -> visit (tags, order) a
 
-makeDataCycle :: BruijnTerm i -> [Bound] -> DataCycle i
+makeDataCycle :: BruijnTerm i i -> [Bound] -> DataCycle i
 makeDataCycle term chain = DataCycle term $ dropWhile (/= last chain ) chain

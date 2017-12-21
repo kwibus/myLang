@@ -10,8 +10,8 @@ import SourcePostion
 import Lexer (toChar, reservedSymbols)
 
 data TypeError i =
-      UnifyAp (BruijnTerm i) Type Type [UnificationError]
-    | UnifySubs (BruijnTerm i) [UnificationError]
+      UnifyAp (BruijnTerm i i) Type Type [UnificationError]
+    | UnifySubs (BruijnTerm i i) [UnificationError]
     | UnifyDef Type Type [UnificationError] -- TODO store more information for good error messages
     | ICE (UndefinedVar Bound i)
     deriving Show
@@ -42,7 +42,7 @@ showError str (UnifyAp expr t1 t2 err ) = text (showPosition (getPosition expr))
         indent 4 ( showUnifyApError str expr t1 t2 err)
 showError _ _ = text "No error messages implemented"
 
-showUnifyApError :: String -> BruijnTerm SourcePos -> Type -> Type -> [UnificationError] -> Doc
+showUnifyApError :: String -> BruijnTerm SourcePos SourcePos -> Type -> Type -> [UnificationError] -> Doc
 showUnifyApError str e@(Appl e1 e2) t1 t2 _ =
   let compleetDictonarie = mkDictonarie [t1, t2]
       localShow t = text $ pShowWithDic t compleetDictonarie
@@ -62,7 +62,7 @@ showUnifyApError _ _ _ _ _ = text "No error messages implemented"
 showLine :: Int -> Int -> String -> [String]
 showLine start n str = take n $ drop (start - 1 ) $ lines str
 
-getsource :: BruijnTerm SourcePos -> String -> Doc
+getsource :: BruijnTerm SourcePos SourcePos -> String -> Doc
 getsource term str =
     if sourceLine start /= sourceLine end
     then vsep $ map text srcLines

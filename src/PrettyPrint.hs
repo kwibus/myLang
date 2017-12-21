@@ -42,13 +42,13 @@ import Associativity
 -- >>> pShow $Lambda ()(DummyBegin) (Appl  (Appl (Val () plus)(Var ()DummyBegin))(Val () (Prim $ MyDouble 1)))
 -- "+ 1.0"
 
-pShow :: LamTerm i Name -> String
+pShow :: LamTerm i j Name -> String
 pShow = show . go True lowPrec
  where
   go :: Bool                         -- ^ indicate if prented term is top leftmost of a expresion
                                      -- ^ to indicate of Lambda Terms  Should be enclosed in parenthese
       -> (Precedence, Associativity) -- ^ precedence of previous Infix  (if there is no infix then its lowPrec)
-      -> LamTerm i Name             -- ^ term that should be printed
+      -> LamTerm i j Name             -- ^ term that should be printed
       -> Doc                         -- ^ result
   go _ _ (Var _ name ) = text $ prettyPrint name -- ignore Empty
 
@@ -118,11 +118,11 @@ myAppend d1 d2
 myConcat :: [Doc] -> Doc
 myConcat = foldl1 myAppend
 
-isNotFullAplliedInfix :: LamTerm i Name -> Bool
+isNotFullAplliedInfix :: LamTerm i j Name -> Bool
 isNotFullAplliedInfix (Appl t1 _) = isInfix t1
 isNotFullAplliedInfix t = isInfix t
 
-accumulateVars :: LamTerm i Name -> ([Name], LamTerm i Name)
+accumulateVars :: LamTerm i j Name -> ([Name], LamTerm i j Name)
 accumulateVars = go []
  where go names (Lambda _ name t ) = go (name : names) t
        go names t = (reverse $ filter (\e-> e/=DummyBegin && e/= DummyEnd) names, t)

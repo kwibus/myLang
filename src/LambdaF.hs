@@ -6,28 +6,28 @@ import Lambda as Lam
 
 -- TODO i is always () maybe remove
 
-data LamTermF i n a = LambdaF i Name a
+data LamTermF i j n a = LambdaF i Name a
             | ApplF a a
-            | VarF i n
-            | ValF i Value
-            | LetF i [Def i a] a
+            | VarF j n
+            | ValF j Value
+            | LetF j [Def i a] a
             deriving (Eq, Show)
 
-instance Functor (LamTermF i n) where
+instance Functor (LamTermF i j n) where
     fmap f (LambdaF i n t) = LambdaF i n $ f t
     fmap f (ApplF t1 t2) = ApplF (f t1) (f t2)
     fmap _ (VarF i n) = VarF i n
     fmap _ (ValF i v) = ValF i v
     fmap f (LetF i defs t ) = LetF i (map (fmap f) defs) $ f t
 
-instance Traversable (LamTermF i n) where
+instance Traversable (LamTermF i j n) where
   traverse _ (VarF i b) = pure (VarF i b)
   traverse _ (ValF i v) = pure (ValF i v)
   traverse f (LambdaF i n t) = LambdaF i n <$> f t
   traverse f (ApplF t1 t2) = ApplF  <$> f t1 <*> f t2
   traverse f (LetF i defs tn) = LetF i <$> traverse (traverse f ) defs <*> f tn
 
-instance Foldable (LamTermF i n) where
+instance Foldable (LamTermF i j n) where
   foldr _ b VarF {} = b
   foldr _ b ValF {} = b
   foldr f b (LambdaF _ _ a) = f a b
@@ -36,7 +36,7 @@ instance Foldable (LamTermF i n) where
 
 -- fold :: (b -> LamTermF i n a-> (a,b)) -> b -> a -> LamTerm i n
 --FIXME rename
-unfold :: (b -> a -> (LamTermF i n a,b)) -> b -> a -> LamTerm i n
+unfold :: (b -> a -> (LamTermF i j n a,b)) -> b -> a -> LamTerm i j n
 unfold f b a = case f b a of
     (VarF i n,_) -> Lam.Var i n
     (ValF i v,_) -> Lam.Val i v
@@ -45,7 +45,7 @@ unfold f b a = case f b a of
     (LetF i defs t, b1) -> Lam.Let i (map (fmap $ unfold f b1) defs) (unfold f b1 t)
 
 --FIXME rename
-unfoldM :: Monad m => (b -> a -> m (LamTermF i n a,b)) -> b -> a -> m (LamTerm i n)
+unfoldM :: Monad m => (b -> a -> m (LamTermF i j n a,b)) -> b -> a -> m (LamTerm i j n)
 unfoldM f b a = do
   result <- f b a
   case result of

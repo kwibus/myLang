@@ -34,7 +34,7 @@ testTopological :: TestTree
 testTopological = testGroup "topologicalSort" $ map
    (\ (d1, d2, r) -> testCase (show d1 ++ show d2) $ topologicalSort d1 d2 @?= r) topologicalSortExample
 
-circular :: [BruijnTerm () ]
+circular :: [BruijnTerm () ()]
 circular =
   [ mkLet [("a", bvar 0)] $ bvar 0
   , mkLet [("a", bvar 0), ("b", bvar 1)] $ bvar 0
@@ -51,7 +51,7 @@ circular =
   , mkLet [("x", mkLet [("y", bvar 1)] $ bvar 0)] true
   ]
 
-noncircular :: [BruijnTerm () ]
+noncircular :: [BruijnTerm () ()]
 noncircular =
     [ mkLet [("f", lambda "a" $ bvar 0), ("g", lambda "a" $ bvar 1)] $ bvar 0
     , mkLet [("f", lambda "x" $ lambda "y" (bvar 2)), ("y", true)] false
@@ -60,7 +60,7 @@ noncircular =
     , mkLet [("f", lambda "x" $ mkLet [("y", bvar 2)] $ bvar 0)] true
     ]
 
-sortTermExample :: [(BruijnTerm (), Either (DataCycle ()) (BruijnTerm ()))]
+sortTermExample :: [(BruijnTerm () (), Either (DataCycle ()) (BruijnTerm () ()))]
 sortTermExample =
   [ ( mkLet [("a", bvar 0), ("b", true)] $ bvar 0
     , return $ mkLet [("b", true), ("a", bvar 1)] $ bvar 1)

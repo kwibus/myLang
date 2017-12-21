@@ -74,15 +74,15 @@ testModificationsTags = testGroup "ModificationTags"
     testTupl (str, m, input, result) = testCase str $ ModificationTags.proces m (T.tag input) @?= result
 
 
-testSetId :: [(String, MTable, BruijnTerm (), BruijnTerm ())]
+testSetId :: [(String, MTable, BruijnTerm () () , BruijnTerm () () )]
 testSetId = map (\t -> (pShow t, empty,t,t))
     [ lambda "a" $ bvar 1
     , lambda "a" $ bvar 0]
 
-mkAbc :: Int -> BruijnTerm ()
+mkAbc :: Int -> BruijnTerm () ()
 mkAbc n = foldl1 appl $ map bvar [0..n]
 
-testSetIncFree :: [(String, MTable, BruijnTerm () , BruijnTerm ())]
+testSetIncFree :: [(String, MTable, BruijnTerm () (), BruijnTerm () () )]
 testSetIncFree =
     [ ("\\a.ab", mTable 0 5
         , lambda "a" $ appl (bvar 0) (bvar 1)
@@ -101,7 +101,7 @@ testSetIncFree =
 reorderTable :: [Int] -> MTable -> MTable
 reorderTable order m = reorder 0 (map Bound order )$ insertUndefined (length order) m
 
-testReorderSet :: [(String,MTable,BruijnTerm () , BruijnTerm ())]
+testReorderSet :: [(String,MTable,BruijnTerm () () , BruijnTerm () () )]
 testReorderSet =
     [ ("[] a" , reorderTable [] empty , bvar 0 , bvar 0)
     , ("[a->a] a" , reorderTable [0] empty , bvar 0 , bvar 0)
@@ -117,10 +117,9 @@ testReorderSet =
     ]
 
 
-substitutTable :: [BruijnTerm ()] -> MTable -> MTable
+substitutTable :: [BruijnTerm () () ] -> MTable -> MTable
 substitutTable  terms m = foldl (flip (substitute (Bound 0) 0)) m terms
-
-testSubstitueSet :: [(String,MTable,BruijnTerm () , BruijnTerm ())]
+testSubstitueSet :: [(String,MTable,BruijnTerm () (), BruijnTerm () ())]
 testSubstitueSet =
     [ ("[a/b] a= b", substitutTable [bvar 0] empty, bvar 0, bvar 0)
     , ("[a/c] a= b", substitutTable [bvar 1] empty, bvar 1, bvar 0)
@@ -143,16 +142,16 @@ testSubstitueSet =
     ]
 
 -- TODO fixname
-reorder' :: [Int] -> M.LamTerm () -> M.LamTerm ()
+reorder' :: [Int] -> M.LamTerm () () -> M.LamTerm () ()
 reorder' = T.Tag . Reorder 0 . map Bound
 
-incFree' :: Int -> M.LamTerm () -> M.LamTerm ()
+incFree' :: Int -> M.LamTerm () () -> M.LamTerm () ()
 incFree' = T.Tag . IncFree 0
 
-sub' :: M.LamTerm () -> M.LamTerm () -> M.LamTerm ()
+sub' :: M.LamTerm () () -> M.LamTerm () () -> M.LamTerm () ()
 sub' = T.Tag . SubstitutT 0
 
-testTagsSet :: [(String, M.LamTerm  (), BruijnTerm())]
+testTagsSet :: [(String, M.LamTerm  () () , BruijnTerm () () )]
 testTagsSet =
     [ ("\\a b.[a<->b] \\c.abc"
         , T.lambda "a" $ T.lambda "b" $ reorder' [1, 0] $ T.lambda "c" $
@@ -183,7 +182,7 @@ testTagsSet =
     ]
 
 
-testTagsCobinedSet :: [(String, M.LamTerm  (), BruijnTerm())]
+testTagsCobinedSet :: [(String, M.LamTerm () (), BruijnTerm () ())]
 testTagsCobinedSet =
     [ ("[a/true,b/a] [a<->b] b = true"
         , sub' T.true $ sub' (T.bvar 0) $ reorder' [1, 0] $ T.bvar 1

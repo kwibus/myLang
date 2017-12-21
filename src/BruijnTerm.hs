@@ -30,13 +30,13 @@ import qualified PrettyPrint as Lambda
 -- * \\a.a == \\0
 -- * \\a\\b.a == \\\\1
 
-type BruijnTerm i = LamTerm i Bound
+type BruijnTerm i j = LamTerm i j Bound
 
 -- | This is error type for when a variable is used before is defined (free variable)
 data UndefinedVar i n = UndefinedVar i n -- ^ i is extra information (location of variable) and n is the name
     deriving (Show, Eq)
 
-pShow :: BruijnTerm () -> String
+pShow :: BruijnTerm () () -> String
 pShow a = either (const (show a)) Lambda.pShow $ bruijn2Lam a
 
 -- | Converts 'BruijnTerm' to a 'LambTerm'
@@ -47,13 +47,13 @@ pShow a = either (const (show a)) Lambda.pShow $ bruijn2Lam a
 --
 -- "\\\\1" becomes: "\\a.\\a1.a"  not: "\a.\a.a"
 -- TODO used names list is inefficient maybe Map Name int??
-bruijn2Lam :: BruijnTerm i -> Either (UndefinedVar i Bound) (LamTerm i Name)
+bruijn2Lam :: BruijnTerm i j -> Either (UndefinedVar j Bound) (LamTerm i j Name)
 bruijn2Lam t = go t []
     where
         -- first name in [name,name1,name2,..] that is not allready used
         mkNewName name env = head $ dropWhile (`elem` env)
                 (map (\ i -> fromString (toString name ++ i)) ("" : map show [(0 :: Int) ..] ))
-        go :: BruijnTerm i -> [Name] -> Either (UndefinedVar i Bound) (LamTerm i Name)
+        go :: BruijnTerm i j -> [Name] -> Either (UndefinedVar j Bound) (LamTerm i j Name)
         go (Var info n) env = case getAt env (toInt n ) of
             Nothing -> throwError $ UndefinedVar info n
             Just name -> return $ Var info name
@@ -80,10 +80,10 @@ bruijn2Lam t = go t []
 -- the remove of index only works if there are no digits in userdevined names
 -- TODO fix this maybe by rename name1 in name#1 and disallow #
 
-lam2Bruijn :: LamTerm i Name -> Either (UndefinedVar i Name ) (BruijnTerm i)
+lam2Bruijn :: LamTerm i j Name -> Either (UndefinedVar j Name ) (BruijnTerm i j)
 lam2Bruijn t = go t 0 M.empty
   where removeIndex n = fromString $ takeWhile (not . isDigit) n
-        go :: LamTerm i Name -> Int -> M.Map Name Int -> Either (UndefinedVar i Name ) (BruijnTerm i)
+        go :: LamTerm i j Name -> Int -> M.Map Name Int -> Either (UndefinedVar j Name ) (BruijnTerm i j)
         go (Var i n) depth env = case M.lookup n env of
         -- (depth - deptDefined ) is how many lamba's  back variable is defiend. -1 so first index is 0
             Just deptDefined -> return $ Var i $ Bound (depth - deptDefined - 1)
@@ -108,15 +108,15 @@ getAt (_ : xs) n = getAt xs (n - 1)
 defsBounds :: [a] -> [Bound]
 defsBounds defs = Bound <$> fromToZero (length defs - 1)
 
-incFree :: Int -> BruijnTerm i -> BruijnTerm i
+incFree :: Int -> BruijnTerm i j -> BruijnTerm i j
 incFree = incFreeOfset 0
 
-incFreeOfset :: Int -> Int -> BruijnTerm i -> BruijnTerm i
+incFreeOfset :: Int -> Int -> BruijnTerm i j -> BruijnTerm i j
 incFreeOfset _ 0 term = term
 
 incFreeOfset ofset increase term = go ofset term
   where
-    go :: Int -> BruijnTerm i -> BruijnTerm i
+    go :: Int -> BruijnTerm i j -> BruijnTerm i j
     go depth (Lambda i n t) = Lambda i n $ go (depth + 1) t
     go depth (Appl t1 t2) = Appl (go depth t1) (go depth t2)
     go depth (Var i (Bound n))

@@ -13,6 +13,5 @@ tVar = TVar . Free
 tDouble :: Type
 tDouble = TVal TDouble
 
-
 tBool :: Type
 tBool = TVal TBool

@@ -56,7 +56,7 @@ data MTable = MTable
 -- or (new 'BruijnTerm' with  'MTable' with delayed modifications on that ast). see substitute for why
 --
 -- this is a low level interface, you should probably use 'Modify.peek' or 'ModificationTags.peek'
-peekVar :: MTable -> Bound -> Either Bound (BruijnTerm (),MTable)
+peekVar :: MTable -> Bound -> Either Bound (BruijnTerm () (),MTable)
 peekVar modifications b@(Bound n) =
   case getLevel b table of
     Just (level ,Undefined) -> Left $ Bound $ depth - level -1
@@ -81,7 +81,7 @@ getLevel b@(Bound n) env =
         | otherwise -> Just (levelFound + (nFound-n),Undefined)
     Nothing -> Nothing
 
-data Symbol = Subst (BruijnTerm ())
+data Symbol = Subst (BruijnTerm () () )
            | Undefined
            deriving (Show, Eq)
 
@@ -142,7 +142,7 @@ reorder n order s@ MTable{_env=env} = s {_env=newEnv}
 --
 substitute  :: Bound -- ^ which old Bruijn index to substitute
             -> Int -- ^ Depth difference of that term with current depth
-            -> BruijnTerm () -- ^ Term to substitute with
+            -> BruijnTerm () () -- ^ Term to substitute with
             -> MTable
             -> MTable
 substitute (Bound n) depthDiff sub m =
