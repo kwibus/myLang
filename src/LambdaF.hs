@@ -1,3 +1,4 @@
+{-#LANGUAGE MonoLocalBinds #-}
 module LambdaF where
 
 import Name
@@ -54,3 +55,37 @@ unfoldM f b a = do
     (LambdaF i n t1, b1) -> Lam.Lambda i n <$> unfoldM f b1 t1
     (ApplF t1 t2, b1) -> Lam.Appl <$> unfoldM f b1 t1 <*> unfoldM f b1 t2
     (LetF i defs t, b1) -> Lam.Let i <$> mapM (mapM$ unfoldM f b1)defs <*> unfoldM f b1 t
+
+
+unwrap :: LamTerm i n -> LamTermF i n (LamTerm i n)
+unwrap (Lam.Var i n) = VarF i n
+unwrap (Lam.Val i v) = ValF i v
+unwrap (Lam.Lambda i n t) = LambdaF i n t
+unwrap (Lam.Appl t1 t2) = ApplF t1 t2
+unwrap (Lam.Let i defs t) = LetF i defs t
+
+
+bottumUpWithM :: Monad m => (context -> LamTerm i  n -> m context)
+              -> (context -> LamTermF i n a -> m a)
+              -> context
+              -> LamTerm i n
+              -> m a
+bottumUpWithM updateContext f context0 ast0 = go context0 ast0
+  where
+   -- go :: context -> LamTerm i n -> m a
+   go context ast = do
+      newContext <- updateContext context ast
+      astF <- traverse (go newContext) (unwrap ast)
+      f newContext astF
+
+bottumUpWith :: (context -> LamTerm i  n -> context)
+             -> (context -> LamTermF i n a -> a)
+             -> context
+             -> LamTerm i n
+             -> a
+bottumUpWith updateContext f context0 ast0 = go context0 ast0
+  where
+   -- go :: context -> LamTerm i n -> a
+   go context ast = f newContext $ undefined-- fmap (go newContext) $ unwrap ast
+    where
+      newContext = updateContext context ast

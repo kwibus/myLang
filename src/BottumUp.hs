@@ -81,10 +81,10 @@ bottumUp f ast = bottumUpWithContext empty ignore (\() -> f) () ast
 
 bottumUpWithContext :: MTable
           -> (context -> LamTermF () Bound (LamTerm ()) -> context)
-          -> (context -> LamTermF () Bound (LamTerm ()) -> LamTerm ())
+          -> (context -> LamTermF () Bound a -> a)
           -> context
           -> LamTerm ()
-          -> LamTerm ()
+          -> a
 
 bottumUpWithContext modifications  updateContext f context ast = f context $ fmap (bottumUpWithContext newModifications updateContext  f newContext) astF
   where
