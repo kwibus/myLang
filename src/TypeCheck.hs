@@ -6,6 +6,7 @@ import qualified Data.IntMap as IM
 import qualified Data.Set as Set
 import Control.Monad.State hiding (sequence)
 import Data.Bifunctor
+import Data.Maybe
 
 import ErrorCollector
 import Value
@@ -52,22 +53,33 @@ newFreeVar = do
     put (i + 1)
     return $ Free i
 
--- TODO which types  whould be poly and test
--- TODO use unionfind
+-- TODO which types whould be poly and test
+-- TODO add comments
+-- TODO maybe need a rewrite
+--      *  use unionfind
+--      *  consider order checks
+--              now individual defs are checked separate
+--              and after ward the subs are merged, and it is checked if the new defs are correcly used in onther defs
+--              this is inconsistend with check of final term let
+--              where the correct type of defs is input
+--              which one gives best error messages or is fastest
 solveWith :: BruijnTerm i -> TSubst -> TEnv -> Infer i (Type, TSubst)
 solveWith e@(Let _ defs e2) sub tenv = do -- TODO vorbid type some type of self refrence
   newVars <- replicateM (length defs) newFreeVar
   let tempTEnv = foldl ( flip ( bInsert . TVar)) tenv newVars
   (polys, subs) <- unzip <$> mapM (solveDefs tempTEnv) defs
   subs2 <- zipWithM (\f realType -> do --TODO can this not be faster
-      forM_ subs ( \sub -> case fMaybeLookup f sub of -- check if defenion is Correctly used in other defs
-        Nothing -> return ()
-        Just t -> void $ toExcept $ mapError (return . UnifyDef realType t) $ unify realType t -- TODO should this not be instnace of instead of unify
+      specialsations <-forM subs ( \sub -> case fMaybeLookup f sub of -- check if defenion is Correctly used in other defs
+        Nothing -> return IM.empty
+        Just t -> do
+          specialisedType <- instantiate realType
+          toExcept $ mapError (return . UnifyDef realType t) $ unify specialisedType t -- TODO should this not be instnace of instead of unify
         )
-      toExcept $ mapError (\ erros -> [UnifySubs e erros]) $ fromEither $ bind f realType
+      replaceNewVars <-toExcept $ mapError (\ erros -> [UnifySubs e erros]) $ fromEither $ bind f realType
+      toExcept $ mapError (\ erros -> [UnifySubs e erros]) $ foldM1 unifySubs (replaceNewVars:specialsations )
     ) newVars polys
   newSubs <- toExcept $ mapError (\ erros -> [UnifySubs e erros]) $ foldM1 unifySubs (subs ++ subs2)
-  let newTEnv = foldl ( flip bInsert) tenv polys
+  let newTEnv = foldl ( flip bInsert) tenv $ map (apply newSubs) polys
   solveWith e2 newSubs newTEnv
   where solveDefs dic ( Def _ _ en) = do
             (t2, newsub) <- solveWith en sub dic
@@ -168,15 +180,19 @@ unify t1@(TVal v1) t2@(TVal v2) = if v1 == v2
 unify t1 t2 = throw [Unify t1 t2 ]
 
 apply :: TSubst -> Type -> Type
-apply sub (TVar i) = if fMember i sub
-    then assert (not (isIn i (fLookup i sub) )) $
-         apply sub $ fLookup i sub
-    else TVar i
+apply sub (TPoly i) = fromMaybe (TPoly i) (applyVar sub i)
+apply sub (TVar i) = fromMaybe (TVar i) (applyVar sub i)
+apply _ (TVal v) = TVal v
 apply sub (TAppl t1 t2) =
   let t1' = apply sub t1
       t2' = apply sub t2
   in TAppl t1' t2'
-apply _ t = t
+
+applyVar :: TSubst -> Free -> Maybe Type
+applyVar sub f = if fMember f sub
+    then assert (not (isIn f (fLookup f sub) )) $
+         Just $ apply sub $ fLookup f sub
+    else Nothing
 
 bind :: Free -> Type -> Either UnificationError TSubst
 bind n1 t
