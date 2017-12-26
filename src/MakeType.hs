@@ -10,9 +10,11 @@ t1 ~> t2 = TAppl t1 t2
 tVar :: Int -> Type
 tVar = TVar . Free
 
+tPoly :: Int -> Type
+tPoly = TPoly . Free
+
 tDouble :: Type
 tDouble = TVal TDouble
-
 
 tBool :: Type
 tBool = TVal TBool

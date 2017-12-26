@@ -197,17 +197,37 @@ testBasic = testGroup "Solver"
         solver (lambda "a" (appl (bvar 0 ) (bvar 0))) @?=
         throw [UnifyAp undefined undefined undefined [Infinit undefined undefined ]]
 
-    , testCase "(\\y.(\\x y)((\\z y)y(\\w.w)) )\\a.a " $
+    , testCase "(\\x.(\\y z. z)(x 1.0)(x True))\\a.a" $
+        solver (appl (lambda "x" (appl (appl (lambda "y" $lambda "z"(bvar 0))
+                                             (appl (bvar 0) (double 1)))
+                                         (appl (bvar 0) true)))
+               B.id)
+        @?= throw [UnifySubs undefined undefined]
+
+
+    , testCase "(\\x.(\\y.x)((\\z.x)(x(\\w.w))))\\a.a" $
         solver (appl (lambda "x" (appl (lambda "y" (bvar 1))
                                        (appl (lambda "z" (bvar 1))
                                              (appl (bvar 0)
                                                    (lambda "w" (bvar 0))))))
                B.id)
         @?=
-        return ( (tVar 0 ~> tVar 0) ~> (tVar 0 ~>tVar 0))
+        return ((tVar 0 ~> tVar 0) ~> (tVar 0 ~>tVar 0))
 
   , testCase "let id = \\a .a in id id" $
         solver (mkLet [("id",lambda "a" (bvar 0))] (appl (bvar 0) (bvar 0)))
+        @?= return (tVar 0 ~> tVar 0)
+
+  , testCase "let id = \\a .a; idid = id id in idid" $
+        solver (mkLet [("id",lambda "a" (bvar 0))
+                      ,("idid", appl (bvar 1) (bvar 1))
+                      ] $ bvar 0)
+        @?= return (tVar 0 ~> tVar 0)
+
+  , testCase "let idid = id id; id = \\a.a in idid" $
+        solver (mkLet  [("idid", appl (bvar 0) (bvar 0))
+                       ,("id",lambda "a" (bvar 0))
+                       ] $ bvar 1)
         @?= return (tVar 0 ~> tVar 0)
 
   , testCase "let a = a in a +" $
@@ -234,6 +254,20 @@ testBasic = testGroup "Solver"
   , testCase "let f a = id 1; id a = a in f 2" $
       solver (mkLet [("f", lambda "a" $ appl (bvar 1) (double 1)), ("id", B.id)] $ appl (bvar 1) (double 2))
       @?= return tDouble
+
+  , testCase "let x = let y = p 1.0 2.0 in y; p = (+) in x" $
+      solver (mkLet [("x", mkLet [("y",bvar 1 `appl` double 1 `appl` double 2 )] $ bvar 0), ("p", val plus)] $ bvar 1)
+      @?= return tDouble
+
+  , testCase "let ap f a = f a in ap (ap (+) 1) 2" $
+      solver (mkLet [("ap",lambda "f" $ lambda "a" $ appl (bvar 1) (bvar 0))]
+          $ bvar 0 `appl` (bvar 0 `appl` val plus `appl` double 1)`appl` double 2.0 )
+      @?= return tDouble
+
+  , testCase "let f a = g; g = f in f" $
+      solver (mkLet [("f", lambda "a" $ bvar 1 ), ("g", bvar 1)] $ bvar 1)
+      @?=  throw [UnifySubs undefined [Infinit (Free 1) (tPoly 2 ~> tVar 1)]]
+
   ]
 
 testCheckerProperty :: TestTree
