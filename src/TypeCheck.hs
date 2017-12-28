@@ -4,7 +4,7 @@ module TypeCheck where
 import Control.Exception.Base (assert)
 import qualified Data.IntMap as IM
 import qualified Data.Set as Set
-import Control.Monad.State hiding (sequence)
+import Control.Monad.State.Strict hiding (sequence)
 import Data.Bifunctor
 import Data.Maybe
 
@@ -38,23 +38,26 @@ fst3 :: (a, b, c) -> a
 fst3 (a, _, _) = a
 
 solver :: BruijnTerm i -> ErrorCollector [TypeError i] Type
-solver e = fmap ( close . uncurry (flip apply) ) $ runInfer $ solveWith e fEmtyEnv bEmtyEnv
+solver e =
+  let (result,subs) = runInfer $ solveWith e
+  in fmap ( close . (apply subs) ) result
 
-type Infer i a = ErrorCollectorT [TypeError i] ( State Int ) a
+type Infer i a = ErrorCollectorT [TypeError i] ( State InferState ) a -- TODO check is this option order of transformers
+data InferState = InferState {fresh :: Int, substitution :: TSubst, context ::TEnv }
 type TSubst = FreeEnv Type
-type TEnv = BruijnEnv Type
+type TEnv = BruijnEnv (Either [Free] Type)
 
-runInfer :: Infer i a -> ErrorCollector [TypeError i] a
-runInfer infer = evalState ( runErrorT infer) 0
+runInfer :: Infer i a -> (ErrorCollector [TypeError i] a,TSubst)
+runInfer infer = second substitution $ runState (runErrorT infer) $ InferState 0 fEmtyEnv bEmtyEnv
 
 newFreeVar :: Infer i Free
 newFreeVar = do
-    i <- get
-    put (i + 1)
+    i <- gets fresh
+    modify' $ \s->s{fresh = i + 1}
     return $ Free i
 
 -- TODO which types whould be poly and test
--- TODO add comments
+-- TODO add comments (name algoritme symtrye asumptions (apply))
 -- TODO maybe need a rewrite
 --      *  use unionfind
 --      *  consider order checks
@@ -63,53 +66,57 @@ newFreeVar = do
 --              this is inconsistend with check of final term let
 --              where the correct type of defs is input
 --              which one gives best error messages or is fastest
-solveWith :: BruijnTerm i -> TSubst -> TEnv -> Infer i (Type, TSubst)
-solveWith e@(Let _ defs e2) sub tenv = do -- TODO vorbid type some type of self refrence
-  newVars <- replicateM (length defs) newFreeVar
-  let tempTEnv = foldl ( flip ( bInsert . TVar)) tenv newVars
-  (polys, subs) <- unzip <$> mapM (solveDefs tempTEnv) defs
-  subs2 <- zipWithM (\f realType -> do --TODO can this not be faster
-      specialsations <-forM subs ( \sub -> case fMaybeLookup f sub of -- check if defenion is Correctly used in other defs
-        Nothing -> return IM.empty
-        Just t -> do
-          specialisedType <- instantiate realType
-          toExcept $ mapError (return . UnifyDef realType t) $ unify specialisedType t -- TODO should this not be instnace of instead of unify
-        )
-      replaceNewVars <-toExcept $ mapError (\ erros -> [UnifySubs e erros]) $ fromEither $ bind f realType
-      toExcept $ mapError (\ erros -> [UnifySubs e erros]) $ foldM1 unifySubs (replaceNewVars:specialsations )
-    ) newVars polys
-  newSubs <- toExcept $ mapError (\ erros -> [UnifySubs e erros]) $ foldM1 unifySubs (subs ++ subs2)
-  let newTEnv = foldl ( flip bInsert) tenv $ map (apply newSubs) polys
-  solveWith e2 newSubs newTEnv
-  where solveDefs dic ( Def _ _ en) = do
-            (t2, newsub) <- solveWith en sub dic
-            let poly = generalize dic t2
-            return (poly, newsub)
+solveWith :: BruijnTerm i -> Infer i Type
+solveWith e@(Let _ defs e2) = do -- TODO vorbid type some type of self refrence
+  modify' $ \s -> s{context = bInserts (replicate (length defs) $ Left []) (context s)}
+  size <- bSize <$> gets context
+  typeDefs <- mapM (\(Def _ _ t) -> solveWith t<* reset size) defs  -- zip (defsBounds defs) defs
+  tenv <- gets context
+  let polys = map (generalize tenv) typeDefs
+  zipWithM_ (\b t ->
+      case bLookup b tenv of
+        Right _ -> error "already devined"
+        Left useses -> forM useses $ \use->
+          do
+              freshT <- instantiate t
+              unifyM e freshT $ TVar use
+      ) (defsBounds polys ) polys
+  zipWithM_ (\b t -> do
+      newt <- applyM t
+      modify' $ \s ->  s{context = bReplace b (Right newt) (context s)}
+      ) (defsBounds polys ) polys
+  solveWith e2
+  where
+    reset size = modify' $ \s -> s {context = bDrop (bSize (context s) - size )(context s)}
 
-solveWith (Lambda _ _ e2) sub tenv = do
+solveWith (Lambda _ _ e2) = do
     k <- newFreeVar
-    let newTEnv = bInsert (TVar k) tenv
-    (t, newSub) <- solveWith e2 sub newTEnv
-    return (apply newSub (TAppl (TVar k) t), newSub)
+    modify' $ \s -> s {context = bInsert (Right $ TVar k) (context s)} --TRY
+    t  <- solveWith e2
+    applyM (TAppl (TVar k) t)
 
-solveWith e@Appl {} sub tenv = do
+solveWith e@Appl {} = do
     let (function : args) = accumulateArgs e
-    (functionTyp, sub1) <- solveWith function sub tenv
-    (argsTyps, subs) <- unzip <$> mapM (\ arg -> solveWith arg sub tenv) args
+    functionTyp <- solveWith function
+    argsTyps <- mapM (\ arg -> solveWith arg) args
     var <- newFreeVar
     let typeArg = foldr1 TAppl (argsTyps ++ [TVar var])
-    newsup <- toExcept $ mapError (\ erro -> [UnifyAp e functionTyp typeArg erro]) $ unify functionTyp typeArg
-    newSub <- toExcept $ mapError (\ erros -> [UnifySubs e erros]) $ foldM1 unifySubs (newsup : sub : sub1 : subs)
-    let newTyp = apply newSub (TVar var)
-    return (newTyp, newSub)
+    unifyM e functionTyp typeArg
+    applyM (TVar var)
 
-solveWith (Val _ v) sub _ = return (getType v, sub)
+solveWith (Val _ v) = return $ getType v
 
-solveWith (Var i n) sub tEnv = case bMaybeLookup n tEnv of
-        Just pt -> do
-            t <- instantiate pt
-            return (apply sub t, sub)
-        Nothing -> throwT [ICE $ UndefinedVar n i]
+solveWith (Var i n) = do
+    tenv <- gets context
+    case bMaybeLookup n tenv of
+      Just (Right pt ) -> do
+          t <- instantiate pt
+          applyM t
+      (Just (Left used)) -> do
+          v <- newFreeVar
+          modify' $ \s ->s{context = bReplace n (Left (v:used))tenv}
+          return (TVar v)
+      Nothing -> throwT [ICE $ UndefinedVar n i]
 
 foldM1 :: Monad m => (a -> a -> m a) -> [a] -> m a
 foldM1 _ [] = error " foldM1 empty List"
@@ -119,7 +126,6 @@ foldM1 f (x : xs) = foldM f x xs
 -- | instantiate copys all variabls and replace them with new vars
 -- >>> runInfer $ instantiate ((tVar (-1)) ~> (TPoly $ Free (-1)))
 -- Result (TAppl (TVar (Free (-1))) (TVar (Free 0)))
-
 instantiate :: Type -> Infer a Type
 instantiate = fmap snd . toTVar fEmtyEnv
   where
@@ -147,14 +153,23 @@ instantiate = fmap snd . toTVar fEmtyEnv
 generalize :: TEnv -> Type -> Type
 generalize env = toPoly
   where
-    freeInEnv = Set.unions $ map (typeFreeVars . snd) $ bToList env
+    freeInEnv = Set.unions $ map (either Set.fromList typeFreeVars . snd) $ bToList env
     toPoly (TAppl t1 t2 ) = TAppl (toPoly t1) (toPoly t2)
     toPoly (TVar i) | not (Set.member i freeInEnv) = TPoly i
     toPoly t = t
 
--- instanceOf :: PolyType -> PolyType -> _
--- instanceOf (Forall v1 t1 ) (Forall v2 t2 ) = undefined
+unifyM :: BruijnTerm i -> Type -> Type -> Infer i ()
+unifyM origin t1 t2 = do
+  t1' <- applyM t1 --TODO writght fast one
+  t2' <- applyM t2
+  newSubs <- toExcept $ mapError (\ erro -> [UnifyAp origin t1' t2' erro]) $  unify t1 t2
+  oldSubs <- gets substitution
+  sub <- toExcept $ mapError (\ erros -> [UnifyDef t1' t2' erros]) $ unifySubs newSubs  oldSubs
+  modify' $ \s-> s{substitution = sub  }
 
+-- TODO can be replace when we use infer monad smart
+-- TODO add comments how it works
+-- insert second into the first
 unifySubs :: TSubst -> TSubst -> ErrorCollector [UnificationError] TSubst
 unifySubs sub1 sub2 = IM.foldrWithKey f (return sub1) sub2
     where f key typ1 (Result sub) = case IM.lookup key sub of
@@ -178,6 +193,12 @@ unify t1@(TVal v1) t2@(TVal v2) = if v1 == v2
     then return fEmtyEnv
     else throw [Unify t1 t2 ]
 unify t1 t2 = throw [Unify t1 t2 ]
+
+-- TODO make apply that optimize subst map
+applyM :: Type ->Infer i Type
+applyM t = do
+  subs <- gets substitution
+  return $ apply subs t
 
 apply :: TSubst -> Type -> Type
 apply sub (TPoly i) = fromMaybe (TPoly i) (applyVar sub i)
