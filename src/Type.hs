@@ -9,8 +9,7 @@ import Name
 import FreeEnvironment
 
 type Dictionary = FreeEnv String
-type Type = TypeA Free
-
+type Type = TypeA ()
 
 data TypeInstance = TDouble
                   | TBool
@@ -19,8 +18,8 @@ data TypeInstance = TDouble
 -- TODO replace i by Free ?
 -- TODO merge tvar poly with (TVar kind i)
 data TypeA i = TVal TypeInstance
-            | TVar i
-            | TPoly i --TODO remove
+            | TVar Free i
+            | TPoly Free i
             | TAppl (TypeA i) (TypeA i) deriving (Eq, Show)
 
 mkDictonarie :: [Type] -> Dictionary
@@ -43,8 +42,8 @@ pShow t = pShowWithDic t (mkDictonarie [t])
 pShowWithDic :: Type -> Dictionary -> String
 pShowWithDic = go
   where
-    go (TPoly f) dic = '*':go (TVar f ) dic
-    go (TVar (Free i)) dic = fromMaybe
+    go (TPoly f j) dic = '*':go (TVar f j) dic
+    go (TVar (Free i) _) dic = fromMaybe
                   (error "incomplete dictonary; missing name for: " ++ show i)
                   (IM.lookup i dic)
     go (TAppl t1 t2) dic =
@@ -56,22 +55,29 @@ pShowWithDic = go
     go (TVal v) _ = showTypeInstance v
 
 
-typeVars :: Eq i => TypeA i -> [i]
+typeVars :: Eq i => TypeA i -> [Free]
 typeVars = nub . getTvars
-  where getTvars (TVar i) = [i]
+  where getTvars (TVar i _) = [i]
         getTvars (TAppl i j) = getTvars i ++ getTvars j
-        getTvars (TPoly i) = [i]
+        getTvars (TPoly i _) = [i]
         getTvars TVal {} = []
 
 typeSize :: TypeA i -> Int
 typeSize (TAppl t1 t2) = typeSize t1 + typeSize t2
 typeSize _ = 1
 
-mapVar :: (i -> j) -> TypeA i -> TypeA j
+-- TODO rename it does not map var anymore but anotation
+mapVar :: (i -> j) -> TypeA i -> TypeA j --T
 mapVar f (TAppl t1 t2) = TAppl (mapVar f t1) (mapVar f t2)
-mapVar f (TPoly i) = TPoly (f i)
-mapVar f (TVar i) = TVar (f i)
+mapVar f (TPoly i j) = TPoly i $ f j
+mapVar f (TVar i j) = TVar i $ f j
 mapVar _ (TVal a) = TVal a
+
+mapFree :: (Free -> Free) -> TypeA i -> TypeA i --T
+mapFree f (TAppl t1 t2) = TAppl (mapFree f t1) (mapFree f t2)
+mapFree f (TPoly i j) = TPoly (f i) j
+mapFree f (TVar i j) = TVar (f i) j
+mapFree _ (TVal a) = TVal a
 
 showTypeInstance :: TypeInstance -> String
 showTypeInstance TDouble = "Double"
@@ -81,7 +87,7 @@ dropTypeArg :: TypeA i -> TypeA i
 dropTypeArg (TAppl _ t ) = t
 dropTypeArg _ = error "apply non function"
 
-typeFreeVars :: Type -> Set.Set Free
-typeFreeVars (TVar v ) = Set.singleton v
+typeFreeVars ::Type -> Set.Set Free
+typeFreeVars (TVar v _ ) = Set.singleton v
 typeFreeVars (TAppl t1 t2) = typeFreeVars t1 `Set.union` typeFreeVars t2
 typeFreeVars _ = Set.empty

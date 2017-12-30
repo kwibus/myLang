@@ -9,6 +9,7 @@ import BruijnTerm
 import Info
 import Lexer (toChar, reservedSymbols)
 
+-- TODO remove not used
 data TypeError i =
       UnifyAp (BruijnTerm i) Type Type [UnificationError]
     | UnifySubs (BruijnTerm i) [UnificationError]

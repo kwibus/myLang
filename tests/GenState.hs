@@ -47,7 +47,7 @@ unifyGen (Just t1) t2 = do
         Error {} -> mzero
         (Result sub1) -> setEnv sub1
 
-getSub :: Generater TSubst
+getSub :: Generater (TSubst Type)
 getSub = liftM fst get
 
 setEnv :: FreeEnv Type -> Generater ()

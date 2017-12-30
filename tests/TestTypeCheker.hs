@@ -10,11 +10,10 @@ import MakeTerm
 import MakeType
 import ArbitraryType ()
 import Properties
-import ArbitraryLambda
 
+import Type (Type)
 import TypeCheck
 import Operator
-import BruijnEnvironment
 import FreeEnvironment
 import TypeError
 import ErrorCollector
@@ -43,6 +42,7 @@ testApply = testGroup "apply"
         let sub = fFromList [(tVar 2, Free 1), (tVar 3, Free 2)]
         in apply sub (tVar 1) @?= tVar 3
     ]
+
 testUnify :: TestTree
 testUnify = testGroup "unify"
     [ testCase "fail:  unifys a (a -> b)" $
@@ -52,10 +52,10 @@ testUnify = testGroup "unify"
         unifys (tBool ~> tVar 1) (tVar 1 ~> tDouble) @?= False
 
     , testProperty "unify self" $
-        \ t -> unifys t t
+        \ t -> unifys t (t::Type)
 
     , testProperty "symetric " $
-        \ t1 t2 -> unifys t1 t2 == unifys t2 t1
+        \ t1 t2 -> unifys t1 t2 == unifys t2 (t1::Type)
 
     ]
 
@@ -109,13 +109,11 @@ testUnifySubs = testGroup " UnifySubs "
 
 testClose :: TestTree
 testClose = testGroup "close"
-    [testProperty "welformd close" $
-        welFormdType . close ]
+    [testProperty "welformd close" $ welFormdType . (close :: Type -> Type) ]
 
 testTypeCheck :: TestTree
 testTypeCheck = testGroup "Type checker"
   [ testBasic
-  , testCheckerProperty
   ]
 
 -- TODO consistend names
@@ -202,7 +200,7 @@ testBasic = testGroup "Solver"
                                              (appl (bvar 0) (double 1)))
                                          (appl (bvar 0) true)))
                B.id)
-        @?= throw [UnifySubs undefined undefined]
+        @?= throw [UnifyAp undefined undefined undefined  [Unify tDouble tBool]]
 
 
     , testCase "(\\x.(\\y.x)((\\z.x)(x(\\w.w))))\\a.a" $
@@ -245,7 +243,7 @@ testBasic = testGroup "Solver"
 
   , testCase "let a = true; b = a +; in b" $
       solver (mkLet [("a",true),("b",appl (val plus) (bvar 1))] $bvar 0 )
-      @?= throw [UnifyDef tBool tDouble undefined]
+      @?= throw [UnifyAp undefined undefined undefined [Unify tBool tDouble]]
 
   , testCase "let f a = true; b = f True; in b" $
       solver (mkLet [("f",lambda "a" true),("b",appl (bvar 1) true)] $ bvar 0 )
@@ -266,18 +264,6 @@ testBasic = testGroup "Solver"
 
   , testCase "let f a = g; g = f in f" $
       solver (mkLet [("f", lambda "a" $ bvar 1 ), ("g", bvar 1)] $ bvar 1)
-      @?= throw [UnifyDef (tVar 3 ~> tVar 1) (tVar 1)undefined ]
+      @?= throw [UnifyAp undefined undefined undefined [Infinit (Free 1)(tVar 3 ~> tVar 1) ]]
+
   ]
-
-testCheckerProperty :: TestTree
-testCheckerProperty = testGroup "propertys"
-    [ testProperty "idempotence" $ True -- FIXME
-        -- forAllTypedBruijn $ \ e -> case runInfer $ solveWith e bEmtyEnv of
-        --         Error _ -> False
-        --         Result (t1, sub1) -> case runInfer $ solveWith e sub1 bEmtyEnv of
-        --             Error _ -> False
-        --             Result (t2, _) -> close t1 == close t2 -- && sub1 == sub2
-
-    , testProperty "typeable" $
-        forAllTypedBruijn $ \ e -> hasSucces $ solver e
-    ]

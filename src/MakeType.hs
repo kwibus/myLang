@@ -4,14 +4,14 @@ import Type
 import FreeEnvironment
 
 infixr 9 ~>
-(~>) :: Type -> Type -> Type
+(~>) :: TypeA a -> TypeA a -> TypeA a
 t1 ~> t2 = TAppl t1 t2
 
 tVar :: Int -> Type
-tVar = TVar . Free
+tVar i = TVar (Free i) ()
 
 tPoly :: Int -> Type
-tPoly = TPoly . Free
+tPoly i = TPoly (Free i )()
 
 tDouble :: Type
 tDouble = TVal TDouble
