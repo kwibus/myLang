@@ -86,23 +86,21 @@ level = bruijnDepth <$> gets context
 -- TODO maybe need a rewrite
 --      *  use unionfind
 --      *  consider order checks
---              now individual defs are checked separate
 solveWith :: BruijnTerm i -> Infer i TypeL
 solveWith e@(Let _ defs e2) = do
   currentLevel <- level
   modify' $ \s -> s{context = bInserts (replicate (length defs) $ Left (currentLevel, [])) (context s)}
-  typeDefs <- mapM (\(Def _ _ t) -> preserve $ solveWith t) defs
-  tenv <- gets context
-  aTypeDefs <- mapM applyM typeDefs
-  let polys = map (generalize currentLevel) aTypeDefs
-  zipWithM_ (\b t -> do
-      case bLookup b tenv of
-        Right _ -> error "already devined"
-        Left (originLevel,uses) -> assert (originLevel == currentLevel) forM uses $ \f-> do
-              newt <- instantiate currentLevel t
-              unifyM e newt $ TVar f currentLevel
-      modify' $ \s ->  s{context = bReplace b (Right t) (context s)}
-      ) (defsBounds polys) polys
+  zipWithM_ (\ b (Def _ _ t) -> do
+      typeDef <- preserve $ solveWith t
+      poly <- generalize currentLevel <$> applyM typeDef
+      tenv <- gets context
+      void $ case bLookup b tenv of
+          Right _ -> error "already devined"
+          Left (originLevel,uses) -> assert (originLevel == currentLevel) $forM uses $ \f-> do
+                newt <- instantiate currentLevel poly
+                unifyM e newt $ TVar f currentLevel
+      modify' $ \s ->  s{context = bReplace b (Right poly) (context s)}
+    ) (defsBounds defs) defs
   solveWith e2
 
 solveWith (Lambda _ _ e2) = do
