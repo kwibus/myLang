@@ -3,6 +3,7 @@
 module TopologicalSort
     ( topologicalSort
     , sortTerm
+    , freevars
     , DataCycle (..)
     ) where
 
@@ -13,11 +14,13 @@ import qualified Data.Map as Map
 import qualified Data.Set as Set
 import Data.Bifunctor
 import ModificationTags
-import qualified TaggedLambda as Tag
+import qualified TaggedLambda as Tag (LamTerm(..),unwrap)
 import BruijnEnvironment
-import BruijnTerm
+import BruijnTerm (BruijnTerm (),defsBounds)
+import Lambda (Def (..),implementation)
 import qualified Lambda as Lam
-
+import LambdaF
+-- TODO replace BruijnTerm with list Defs
 -- | data type when sortTerm fails, cointaining :
 --
 -- * The Let defenitions where  cycle ocure
@@ -52,48 +55,59 @@ type FreeVars = Set.Set Int
 --
 --      topologicalSort expect normal naming scheme, no relative (bruij-index's)
 --      but if you only work in fixed scope/depth the naming is fixed
+updateDepthM :: Monad m => Int -> BruijnTerm i -> m Int
+updateDepthM i t = return $ updateDepth i t
 
-sortTerm :: BruijnTerm i -> Either (DataCycle i) (Tag.LamTerm i Bound (Modify i))
-sortTerm term = snd <$> go 0 term
+updateDepth :: Int -> BruijnTerm i -> Int
+updateDepth i Lam.Lambda {} = i+1
+updateDepth i (Lam.Let _ defs _) = i+length defs
+updateDepth i _ = i
+
+freevars :: BruijnTerm i -> [Bound]
+freevars = freeVarsToList 0 . bottumUpWith updateDepth (\depth _ astF -> updateFreeVars depth astF)0
+
+updateFreeVars :: Int -> LamTermF i Bound FreeVars -> FreeVars
+updateFreeVars  _ ValF {} = Set.empty
+updateFreeVars depth (VarF _ b) = singlton depth b
+updateFreeVars depth (LambdaF _ _ t) = removeOutScope (depth-1) t -- TODO maybe it better to keep out of scoop and down show them when queryed
+updateFreeVars _ (ApplF free1 free2) = Set.union free1 free2
+updateFreeVars depth (LetF _ defs freeT) = removeOutScope (depth-length defs) $ mconcat (freeT:map implementation defs)
+
+sortTerm :: BruijnTerm i -> Either (DataCycle i) (LamTerm i )
+sortTerm term = snd <$> bottumUpWithM updateDepthM go 0 term
   where
-    -- could replace Either e (b,a).. with EitherT e (b,) a
-    -- this would make is possible to use standard mapchild like function
-    -- and would replace boilerplate
-    go :: Int -> BruijnTerm i -> Either (DataCycle i) (FreeVars, Tag.LamTerm i Bound (Modify i))
-    go _ (Lam.Val i v) = return (Set.empty,Tag.Val i v)
-    go depth (Lam.Var i b) = return (insert depth b Set.empty, Tag.Var i b)
-    go depth (Lam.Lambda i n t) = fmap (Tag.Lambda i n) <$> go (depth + 1) t
-    go depth (Lam.Appl t1 t2) = do
-        (free1 ,t1') <- go depth t1
-        (free2, t2') <- go depth t2
-        return (Set.union free1 free2, Tag.Appl t1' t2')
-    go depth (Lam.Let i defs t) = do
-        let ndefs = length defs
-        let newDepth = depth + ndefs
-        (freeT,t') <- go newDepth t
-        (freeDefs,defs',depencys) <- unzip3 <$> mapM  ( \(b, Def i_ n_ t_) -> do
-                (freeIndDef,newDef) <- go newDepth t_
-                let (free, boundLet) = splitPast depth $ removeOutScope newDepth freeIndDef
-                let depencys = (b,freeVarsToList newDepth boundLet)
-                return (free,Def i_ n_ newDef,depencys)
+    go :: Int -> BruijnTerm i -> LamTermF i Bound (FreeVars, LamTerm i) -> Either (DataCycle i) (FreeVars, LamTerm i)
+    go depth orignal (LetF i defs (freeT,t)) =
+        let oldDepth = depth - length defs
+            (freeDefs,defs',depencys) = unzip3 $ map  ( \(b, Lam.Def i_ n_ (freeIndDef, newDef)) ->
+                let (free, boundLet) = splitPast oldDepth freeIndDef
+                    depency = (b,freeVarsToList depth boundLet)
+                in (free,Def i_ n_ newDef,depency)
               ) (zip (defsBounds defs) defs)
-        -- here i use the old defs not the ones with already sorted  terms
-        -- because it easyer to find out if its a fucntion
-        -- so i use the assumpiton that go does not change if its a function
-        let (funcDef, valDep) = partitionWith (isFunction . Lam.implementation) depencys defs
-        newOrder <- first (makeDataCycle (Lam.Let i defs t)) $ topologicalSort valDep funcDef
-        let reorderTerm = Tag.Tag $ Reorder 0 $ order2reorder newOrder --TODO replace with funciton
-        let sortedDefs = map (fmap reorderTerm . (\ b -> bLookup b $ bFromList defs')) newOrder
-        return (mconcat $ removeOutScope depth freeT : freeDefs
-               ,Tag.Let i sortedDefs $ reorderTerm t')
+            (funcDef, valDep) = partitionWith (isFunction .snd. Lam.implementation) depencys defs
+        in case  topologicalSort valDep funcDef of
+          Left dependencyChain -> Left $ makeDataCycle orignal dependencyChain
+          Right newOrder ->
+            let reorderTerm = Tag.Tag $ Reorder 0 $ order2reorder newOrder --TODO replace with funciton
+                sortedDefs = map (fmap reorderTerm . (\ b -> bLookup b $ bFromList defs')) newOrder
+            in return (mconcat $ removeOutScope oldDepth freeT : freeDefs
+                   ,Tag.Let i sortedDefs $ reorderTerm t)
+
+    go depth _ ast = return (updateFreeVars depth $ fmap fst ast ,Tag.unwrap $ fmap snd ast)
+    -- go _ (ValF i v) = return (Set.empty,Tag.Val i v)
+    -- go depth (VarF i b) = return (singlton depth b, Tag.Var i b)
+    -- go _ (LambdaF i n t) = return $ second (Tag.Lambda i n) t
+    -- go _ (ApplF (free1,t1) (free2, t2)) = return (Set.union free1 free2 , Tag.Appl t1 t2)
 
 -- TODO define in terms of Eval.BruijnTerm2DenotionalValue
 -- could define "Let defs fucntion" also to be a fucntion. but this would meen you have reevaluate defs every time you call the function
 --
+-- TODO move to other module
 -- | is used to deterime if the term is allowed to depend on its self
-isFunction :: Lam.LamTerm i n -> Bool
+isFunction :: LamTerm i -> Bool
 isFunction term = case term of
-        Lam.Lambda {} -> True
+        Tag.Lambda {} -> True
+        Tag.Tag _ t -> isFunction t
         _ -> False
 
 -- | given current depth add bruijen variable to set of freevarabls
@@ -101,9 +115,12 @@ insert :: Int -> Bound -> FreeVars -> FreeVars
 -- store depth-defined = current depth - bruijn-index (how much higer is defined)
 insert depth (Bound b) = Set.insert (depth - b)
 
+singlton :: Int -> Bound -> FreeVars
+singlton depth b = insert depth b Set.empty
+
 -- | maps gives a list bruijnen index of the freevarible
 freeVarsToList :: Int -> FreeVars -> [Bound]
-freeVarsToList depth freeVars = map (Bound . (depth -)) $ Set.toList freeVars
+freeVarsToList depth vars = map (Bound . (depth -)) $ Set.toList vars
 
 -- | given current depth and freeVars its gives freevars that are inscope
 removeOutScope :: Int -> FreeVars -> FreeVars

@@ -13,7 +13,7 @@ import TestUtils
 
 testTopologicalSort :: TestTree
 testTopologicalSort = testGroup "topologicalSort"
-  [testTopological, testNonCirculair, testCirculair, testSort]
+  [testFreeVars,testTopological, testNonCirculair, testCirculair, testSort]
 
 testNonCirculair :: TestTree
 testNonCirculair = testGroup "noncircular" $ map
@@ -33,6 +33,20 @@ testSort = testGroup "sortTerm" $ map
 testTopological :: TestTree
 testTopological = testGroup "topologicalSort" $ map
    (\ (d1, d2, r) -> testCase (show d1 ++ show d2) $ topologicalSort d1 d2 @?= r) topologicalSortExample
+
+testFreeVars :: TestTree
+testFreeVars = testGroup "freeVars" $ map runTest testSet
+  where
+    runTest (term,bound) = testCase (pShow term) $  freevars term @?= map Bound bound
+    testSet :: [(BruijnTerm (),[Int])]
+    testSet =
+      [(bvar 0 , [0])
+      ,(lambda "a" $ bvar 0 , [])
+      ,(lambda "a" $ bvar 0 `appl` bvar 1, [0])
+      ,(mkLet [("a",true)] true, [])
+      ,(mkLet [("a", bvar 0 `appl` bvar 1)] true, [0])
+      ,(mkLet [("a", true)] $ bvar 0 `appl` bvar 1 `appl` bvar 2, [1,0])
+      ]
 
 circular :: [BruijnTerm () ]
 circular =
