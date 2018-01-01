@@ -11,6 +11,7 @@ import ErrorCollector
 import Value
 import Type
 import BruijnTerm
+import LambdaF2
 import BruijnEnvironment
 import FreeEnvironment
 import TypeError
@@ -38,7 +39,7 @@ fst3 (a, _, _) = a
 
 solver :: BruijnTerm i -> ErrorCollector [TypeError i] Type
 solver e =
-  let (result,subs) = runInfer $ solveWith e
+  let (result,subs) = runInfer $ mapLambdaM solveWith e
   in fmap (close . apply subs) result
 
 -- TODO better name
@@ -86,44 +87,43 @@ level = bruijnDepth <$> gets context
 -- TODO maybe need a rewrite
 --      *  use unionfind
 --      *  consider order checks
-solveWith :: BruijnTerm i -> Infer i TypeL
-solveWith e@(Let _ defs e2) = do
+solveWith :: BruijnTerm i -> LamTermF i Bound (Infer i TypeL) -> Infer i TypeL
+solveWith orignal (LetF _ defs result) = do
   currentLevel <- level
   modify' $ \s -> s{context = bInserts (replicate (length defs) $ Left (currentLevel, [])) (context s)}
   zipWithM_ (\ b (Def _ _ t) -> do
-      typeDef <- preserve $ solveWith t
+      typeDef <- preserve t
       poly <- generalize currentLevel <$> applyM typeDef
       tenv <- gets context
       void $ case bLookup b tenv of
           Right _ -> error "already devined"
           Left (originLevel,uses) -> assert (originLevel == currentLevel) $forM uses $ \f-> do
                 newt <- instantiate currentLevel poly
-                unifyM e newt $ TVar f currentLevel
+                unifyM orignal newt $ TVar f currentLevel
       modify' $ \s ->  s{context = bReplace b (Right poly) (context s)}
     ) (defsBounds defs) defs
-  solveWith e2
+  result
 
-solveWith (Lambda _ _ e2) = do
-    k <- newVar
-    modify' $ \s -> s {context = bInsert (Right k) (context s)}
-    t  <- solveWith e2
+solveWith _ (LambdaF ns e) = do --TODO
+    vs <- replicateM (length ns) newVar
+    modify' $ \s -> s {context = bInserts (map Right vs) (context s)}
+    t  <- e
     -- applyM (TAppl k t)
-    return (TAppl k t)
+    return (foldr TAppl t vs)
 
-solveWith e@Appl {} = do
-    let (function : args) = accumulateArgs e
-    functionTyp <- preserve $ solveWith function
-    argsTyps <- mapM (preserve . solveWith) args
+solveWith orignal (ApplF function args) = do
+    functionTyp <- preserve function
+    argsTyps <- mapM preserve args
     f <- newFreeVar
     let var = TVar f $ typeResultLevel functionTyp
     let typeArg = foldr1 TAppl (argsTyps ++ [var])
-    unifyM e functionTyp typeArg
+    unifyM orignal functionTyp typeArg
     -- applyM var
     return var
 
-solveWith (Val _ v) = return (mapVar (const 0) $ getType v)
+solveWith _ (ValF _ v) = return (mapVar (const 0) $ getType v)
 
-solveWith (Var i n) = do
+solveWith _ (VarF i n) = do
     tenv <- gets context
     currentLevelevel <- level
     case bMaybeLookup n tenv of
