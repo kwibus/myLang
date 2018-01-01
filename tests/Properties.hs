@@ -26,8 +26,8 @@ welFormd t0 = go t0 0
 welFormdType :: Type -> Bool
 welFormdType = go
     where go (TAppl t1 t2) = go t1 && go t2
-          go (TVar (Free i) ) = i >= 0
-          go (TPoly(Free i) ) = i >= 0
+          go (TVar (Free i) ()) = i >= 0
+          go (TPoly(Free i) ()) = i >= 0
           go TVal {} = True
 
 size :: LamTerm a i -> Int

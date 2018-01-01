@@ -570,7 +570,7 @@ testEvalProp = testGroup "propertys" $
                          "\n\npShow eval:\n" ++ pShow expr2 ++
                           "\n\t::" ++ T.pShow t2)
                         $ unifys t1
-                                 (T.mapVar (\ (Free i) -> Free (i + 10000)) t2)
+                                 (T.mapFree (\ (Free i) -> Free (i + 10000)) t2)
 -- you  can`t use t1 == t2  because
 -- "(\\g.(\\y.g)    ::(a -> b -> a) -> Double  evals to:    "(\\y f.1.0)        ::a -> Double
 --       (g                                   ============>   ((\\f.1.0)

@@ -16,6 +16,7 @@ import BruijnTerm
 import BruijnEnvironment
 import FreeEnvironment
 import Type
+import MakeType
 import Name
 import ArbiRef
 
@@ -107,7 +108,7 @@ elimanateLambda (Lambda () name term) = if go term then [term] else []
 elimanateLambda _ = []
 
 genTyped :: ArbiRef n => Gen (LamTerm () n )
-genTyped = fromJust <$> genTerm (Just (TVar (Free (-1))))
+genTyped = fromJust <$> genTerm (Just (tVar (-1)))
 
 genUnTyped :: ArbiRef n => Gen (LamTerm () n )
 genUnTyped = fromJust <$> genTerm Nothing
@@ -147,7 +148,7 @@ arbitraryTerm n mabeytype maxlist s
 arbitraryVar :: ArbiRef n => Maybe Type -> GenState n -> Generater (LamTerm () n)
 arbitraryVar t s = do
   (n, f) <- refFromState s
-  unifyGen t (TVar f)
+  unifyGen t (TVar f ())
   return $ Var () n
 
 arbitraryAppl :: ArbiRef n => Int -> Maybe Type -> [Type] ->
@@ -164,12 +165,12 @@ arbitraryAppl size mabeytype maxlist state = do
       newvar <- newFreeVar
       if sizeLeft < sizeRight
       then do
-        expr1 <- arbitraryTerm sizeLeft (Just (TAppl (TVar newvar) t)) (TVar newvar : maxlist) state
-        expr2 <- arbitraryTerm sizeRight (Just (TVar newvar)) maxlist state
+        expr1 <- arbitraryTerm sizeLeft (Just (TVar newvar () ~> t)) (TVar newvar (): maxlist) state
+        expr2 <- arbitraryTerm sizeRight (Just (TVar newvar ())) maxlist state
         return $ appl expr1 expr2
       else do
-        expr2 <- arbitraryTerm sizeRight (Just (TVar newvar)) (TAppl (TVar newvar) t : maxlist) state
-        expr1 <- arbitraryTerm sizeLeft (Just (TAppl (TVar newvar) t)) maxlist state
+        expr2 <- arbitraryTerm sizeRight (Just (TVar newvar ())) (TVar newvar () ~> t : maxlist) state
+        expr1 <- arbitraryTerm sizeLeft (Just (TVar newvar () ~> t)) maxlist state
         return $ appl expr1 expr2
 
 arbitraryLambda :: ArbiRef n => Int -> Maybe Type -> [Type] ->
@@ -178,9 +179,9 @@ arbitraryLambda size t maxlist state = do
   var1 <- newFreeVar
   var2 <- newFreeVar
   (n, newState) <- lift $ lift $ newVarRef state var1
-  unifyGen t $ TAppl (TVar var1) (TVar var2)
+  unifyGen t $ TAppl (TVar var1 ()) (TVar var2 ())
   expr <- case t of
-    Just _ -> arbitraryTerm (size - 1) (Just (TVar var2 )) maxlist newState --TODO remove reption
+    Just _ -> arbitraryTerm (size - 1) (Just (TVar var2 ())) maxlist newState --TODO remove reption
     Nothing -> arbitraryTerm (size - 1) Nothing [] newState
   return $ lambda n expr
 
@@ -199,12 +200,12 @@ arbitraryLet size t maxlist state =
             let (resultSize : varSize) = map (minmalSize +) randomextra
             vars <- replicateM (numberDefs - 1) newFreeVar
             (varNames, newState) <- lift $ lift $ makeVars state vars
-            let newmaxlist = maxlist ++ map TVar vars
+            let newmaxlist = maxlist ++ map (\f -> TVar f ()) vars
             let (mkSmalDefsArgs,mkBigDefsArgs) = partition (\(_,_,defSize) -> defSize< resultSize) $ zip3 vars (map Name varNames) $ sort varSize
             let mkDefs (v,name,sizeTerm)= do
                     -- TODO remove self from maxlist
                     -- TODO dont make self refrence values
-                    termN <- arbitraryTerm sizeTerm (fmap (const (TVar v)) t) maxlist newState
+                    termN <- arbitraryTerm sizeTerm (fmap (const (TVar v ())) t) maxlist newState
                     return $ Def () name termN
             smalDefs <- mapM mkDefs mkSmalDefsArgs
             term <- arbitraryTerm resultSize t newmaxlist newState

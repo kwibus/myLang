@@ -16,6 +16,7 @@ import qualified Data.Map as M
 import Data.Char
 import Data.List (foldl')
 
+import Info
 import Name
 import BruijnEnvironment
 import Lambda
@@ -36,8 +37,8 @@ type BruijnTerm i = LamTerm i Bound
 data UndefinedVar i n = UndefinedVar i n -- ^ i is extra information (location of variable) and n is the name
     deriving (Show, Eq)
 
-pShow :: BruijnTerm () -> String
-pShow a = either (const (show a)) Lambda.pShow $ bruijn2Lam a
+pShow :: BruijnTerm i -> String
+pShow a = either (const (show $ removeInfo a)) Lambda.pShow $ bruijn2Lam a
 
 -- | Converts 'BruijnTerm' to a 'LambTerm'
 --

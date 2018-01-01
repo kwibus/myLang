@@ -26,6 +26,7 @@ testshrink = testGroup "shrink"
     , testProperty "all typeable" $
        noShrinking $ forAllTypedBruijn $ \ e -> conjoin (map (\en ->counterexample (pShow en) $ hasSucces $ solver en ) $ shrinkTypedBruijn  e )
     ]
+
 testGeneration :: TestTree
 testGeneration = testGroup "genration"
     [ testProperty "corect size type" $
