@@ -56,17 +56,16 @@ unfoldM f b a = do
     (ApplF t1 t2, b1) -> Lam.Appl <$> unfoldM f b1 t1 <*> unfoldM f b1 t2
     (LetF i defs t, b1) -> Lam.Let i <$> mapM (mapM$ unfoldM f b1)defs <*> unfoldM f b1 t
 
+wrap :: LamTerm i n -> LamTermF i n (LamTerm i n)
+wrap (Lam.Var i n) = VarF i n
+wrap (Lam.Val i v) = ValF i v
+wrap (Lam.Lambda i n t) = LambdaF i n t
+wrap (Lam.Appl t1 t2) = ApplF t1 t2
+wrap (Lam.Let i defs t) = LetF i defs t
 
-unwrap :: LamTerm i n -> LamTermF i n (LamTerm i n)
-unwrap (Lam.Var i n) = VarF i n
-unwrap (Lam.Val i v) = ValF i v
-unwrap (Lam.Lambda i n t) = LambdaF i n t
-unwrap (Lam.Appl t1 t2) = ApplF t1 t2
-unwrap (Lam.Let i defs t) = LetF i defs t
-
-
-bottumUpWithM :: Monad m => (context -> LamTerm i  n -> m context)
-              -> (context -> LamTermF i n a -> m a)
+bottumUpWithM :: Monad m
+              => (context -> LamTerm i n -> m context)
+              -> (context -> LamTerm i n -> LamTermF i n a -> m a) -- TODO maybe change to LamTerm i n (m a) so you can change orer
               -> context
               -> LamTerm i n
               -> m a
@@ -75,17 +74,17 @@ bottumUpWithM updateContext f context0 ast0 = go context0 ast0
    -- go :: context -> LamTerm i n -> m a
    go context ast = do
       newContext <- updateContext context ast
-      astF <- traverse (go newContext) (unwrap ast)
-      f newContext astF
+      astF <- traverse (go newContext) (wrap ast)
+      f newContext ast astF
 
 bottumUpWith :: (context -> LamTerm i  n -> context)
-             -> (context -> LamTermF i n a -> a)
+             -> (context -> LamTerm i n -> LamTermF i n a -> a)
              -> context
              -> LamTerm i n
              -> a
 bottumUpWith updateContext f context0 ast0 = go context0 ast0
   where
    -- go :: context -> LamTerm i n -> a
-   go context ast = f newContext $ undefined-- fmap (go newContext) $ unwrap ast
+   go context ast = f newContext ast (go newContext <$> wrap ast)
     where
       newContext = updateContext context ast

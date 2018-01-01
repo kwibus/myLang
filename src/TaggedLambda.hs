@@ -9,7 +9,7 @@ import Value
 import qualified Lambda as Lam
 import Unsafe.Coerce
 import Lambda (Def(..))
-
+import LambdaF
 data LamTerm i n t = Lambda i Name (LamTerm i n t)
             | Appl (LamTerm i n t) (LamTerm i n t)
             | Var i n
@@ -27,6 +27,13 @@ tag = unsafeCoerce
 -- tag (Lam.Let i defs t ) = Let i (map tagDef defs) $ tag t
 --   where
 --     tagDef (Lam.Def  i' n' t')  = Def i' n' $ tag t'
+
+unwrap :: LamTermF i n (LamTerm i n t) -> LamTerm i n t
+unwrap (VarF i n) = Var i n
+unwrap (ValF i v) = Val i v
+unwrap (LambdaF i n t) = Lambda i n t
+unwrap (ApplF t1 t2) = Appl t1 t2
+unwrap (LetF i defs t) = Let i defs t
 
 getVal :: LamTerm i n t-> Maybe Value
 getVal (Tag _ t) = getVal t
