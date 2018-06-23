@@ -179,7 +179,7 @@ typeResultLevel (TAppl _ t) = typeResultLevel t
 
 -- | instantiate copys all variabls and replace them with new vars
 --
--- >>> runInfer $ instantiate (TVar (Free (-1)) 0 ~> (TPoly (Free (-1)) 0 ))
+-- >>> runInfer $ instantiate 0 (TVar (Free (-1)) 0 ~> (TPoly (Free (-1)) 0 ))
 -- (Result (TAppl (TVar (Free (-1)) 0) (TVar (Free 0) 0)),fromList [])
 --
 -- need to be applied to work corretly
