@@ -212,6 +212,11 @@ testBasic = testGroup "Solver"
         @?=
         return ((tVar 0 ~> tVar 0) ~> (tVar 0 ~>tVar 0))
 
+  , testCase "let a = 1 in a" $
+        solver (mkLet [("a",double 1)
+                      ] $ bvar 0)
+        @?= return tDouble
+
   , testCase "let id = \\a .a in id id" $
         solver (mkLet [("id",lambda "a" (bvar 0))] (appl (bvar 0) (bvar 0)))
         @?= return (tVar 0 ~> tVar 0)
