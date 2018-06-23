@@ -55,7 +55,7 @@ pShow = show . go True lowPrec
   go _ _ (Val _ v) = text $ pShowVal v
 
   go topLeft _ e@Lambda {} =
-    let (vars, nextTerm) = accumulateVars e
+    let (vars, nextTerm) = accumulateVarNames e
         lambda = if null vars then text ""
                  else backslash <>
                     text ( unwords ( fmap toString vars)) <>
@@ -72,7 +72,7 @@ pShow = show . go True lowPrec
             <>
             go True lowPrec t' <>
             text ";"
-              where  (args, t') = accumulateVars t
+              where  (args, t') = accumulateVarNames t
 
   go topLeft p t@Appl {}
     | isInfix function = case arguments of
@@ -122,9 +122,8 @@ isNotFullAplliedInfix :: LamTerm i Name -> Bool
 isNotFullAplliedInfix (Appl t1 _) = isInfix t1
 isNotFullAplliedInfix t = isInfix t
 
-accumulateVars :: LamTerm i Name -> ([Name], LamTerm i Name)
-accumulateVars = go []
- where go names (Lambda _ name t ) = go (name : names) t
-       go names t = (reverse $ filter (\e-> e/=DummyBegin && e/= DummyEnd) names, t)
-    -- TODO you can optimize this by only check first for dummy?
+  -- TODO you can optimize this by only check first for dummy?
+accumulateVarNames :: LamTerm i Name -> ([Name], LamTerm i Name)
+accumulateVarNames term = ( filter (\e-> e/=DummyBegin && e/= DummyEnd) vars, subTerm)
+ where (vars,subTerm) = accumulateVars term
 
