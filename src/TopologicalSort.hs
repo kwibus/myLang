@@ -25,7 +25,7 @@ import LambdaF
 --
 -- * The Let defenitions where  cycle ocure
 -- * the chain of dependencies that that let to cycle (exampel [Bound 0, Bound 1, Bound 0])
-data DataCycle i = DataCycle (BruijnTerm i) [Bound] deriving (Eq, Show)
+data DataCycle i j = DataCycle (BruijnTerm i j) [Bound] deriving (Eq, Show)
 
 --TODO rename (current name refers how to i use it, no on how it can be used)
 type FreeVars = Set.Set Int
@@ -55,28 +55,28 @@ type FreeVars = Set.Set Int
 --
 --      topologicalSort expect normal naming scheme, no relative (bruij-index's)
 --      but if you only work in fixed scope/depth the naming is fixed
-updateDepthM :: Monad m => Int -> BruijnTerm i -> m Int
+updateDepthM :: Monad m => Int -> BruijnTerm i j -> m Int
 updateDepthM i t = return $ updateDepth i t
 
-updateDepth :: Int -> BruijnTerm i -> Int
+updateDepth :: Int -> BruijnTerm i j -> Int
 updateDepth i Lam.Lambda {} = i+1
 updateDepth i (Lam.Let _ defs _) = i+length defs
 updateDepth i _ = i
 
-freevars :: BruijnTerm i -> [Bound]
+freevars :: BruijnTerm i j -> [Bound]
 freevars = freeVarsToList 0 . bottumUpWith updateDepth (\depth _ astF -> updateFreeVars depth astF)0
 
-updateFreeVars :: Int -> LamTermF i Bound FreeVars -> FreeVars
+updateFreeVars :: Int -> LamTermF i j Bound FreeVars -> FreeVars
 updateFreeVars  _ ValF {} = Set.empty
 updateFreeVars depth (VarF _ b) = singlton depth b
 updateFreeVars depth (LambdaF _ _ t) = removeOutScope (depth-1) t -- TODO maybe it better to keep out of scoop and down show them when queryed
 updateFreeVars _ (ApplF free1 free2) = Set.union free1 free2
 updateFreeVars depth (LetF _ defs freeT) = removeOutScope (depth-length defs) $ mconcat (freeT:map implementation defs)
 
-sortTerm :: BruijnTerm i -> Either (DataCycle i) (LamTerm i )
+sortTerm :: BruijnTerm i j -> Either (DataCycle i j) (LamTerm i j)
 sortTerm term = snd <$> bottumUpWithM updateDepthM go 0 term
   where
-    go :: Int -> BruijnTerm i -> LamTermF i Bound (FreeVars, LamTerm i) -> Either (DataCycle i) (FreeVars, LamTerm i)
+    go :: Int -> BruijnTerm i j -> LamTermF i j Bound (FreeVars, LamTerm i j) -> Either (DataCycle i j) (FreeVars, LamTerm i j)
     go depth orignal (LetF i defs (freeT,t)) =
         let oldDepth = depth - length defs
             (freeDefs,defs',depencys) = unzip3 $ map  ( \(b, Lam.Def i_ n_ (freeIndDef, newDef)) ->
@@ -104,7 +104,7 @@ sortTerm term = snd <$> bottumUpWithM updateDepthM go 0 term
 --
 -- TODO move to other module
 -- | is used to deterime if the term is allowed to depend on its self
-isFunction :: LamTerm i -> Bool
+isFunction :: LamTerm i j -> Bool
 isFunction term = case term of
         Tag.Lambda {} -> True
         Tag.Tag _ t -> isFunction t
@@ -226,5 +226,5 @@ topologicalSort strong weak = reverse . snd <$> foldM visit (initTags, []) tasks
         Just (StrongDepencys _) -> visit (Map.insert parrent Forbidden tags, order) a
         _ -> visit (tags, order) a
 
-makeDataCycle :: BruijnTerm i -> [Bound] -> DataCycle i
+makeDataCycle :: BruijnTerm i j -> [Bound] -> DataCycle i j
 makeDataCycle term chain = DataCycle term $ dropWhile (/= last chain ) chain

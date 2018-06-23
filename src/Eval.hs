@@ -29,22 +29,22 @@ import qualified Data.DList as DList
 
 -- |eval term in accordance with call by value.
 -- If a term can't be further be evaluated it will return 'Nothing'
-eval :: BruijnTerm () -> Maybe (BruijnTerm ())
+eval :: BruijnTerm () () -> Maybe (BruijnTerm () () )
 eval = listToMaybe . evalSteps
 
 -- | Big stap semantics for eval by value.
 --
 --  can diverg
-fullEval :: BruijnTerm () -> BruijnTerm ()
+fullEval :: BruijnTerm () ()-> BruijnTerm () ()
 fullEval = dToBruijn .fst . evalStepsW
 
 -- | Small step semantics for eval
 --
 -- If evaluation is convergent the list is infinit
-evalSteps :: BruijnTerm () -> [BruijnTerm ()]
+evalSteps :: BruijnTerm () () -> [BruijnTerm () ()]
 evalSteps ast = snd $ evalStepsW  ast
 
-evalStepsW :: BruijnTerm () -> (D,[BruijnTerm()])
+evalStepsW :: BruijnTerm () () -> (D,[BruijnTerm () ()])
 evalStepsW term = runStep $ evalW bEmtyEnv $ Un empty term
 
 -- TODO
@@ -67,7 +67,7 @@ evalStepsW term = runStep $ evalW bEmtyEnv $ Un empty term
 -- this does not work well with incrementalM
 -- and makes it easy to exedenaly peekM with not match MTable
 
-evalW :: Env -> Unprocessed -> Step (BruijnTerm()) D
+evalW :: Env -> Unprocessed -> Step (BruijnTerm() ()) D
 evalW env ast = case peek ast of
     (LambdaF _ n t) -> return $ Closure [] n t
     (VarF _ b) -> case maybeExtract b env of
@@ -83,7 +83,7 @@ evalW env ast = case peek ast of
       newT1 <- censors (`Appl` dToBruijn newT2) $ evalW env t1
       reduce env newT1 newT2
 
-reduce :: Env -> D -> D -> Step (BruijnTerm ()) D
+reduce :: Env -> D -> D -> Step (BruijnTerm () () ) D
 reduce env d1 d2 = case d1 of
   (Closure  defs _ t) ->
     let  depthdiff = length $ concat defs
@@ -104,7 +104,7 @@ reduce env d1 d2 = case d1 of
   Free {} -> error "apply a free variable. This is not implemented"
   -- shrink (addDefs defs d)
 
-shrink :: [[Def () D1]] -> D -> Step (BruijnTerm ()) D
+shrink :: [[Def () D1]] -> D -> Step (BruijnTerm () () ) D
 shrink oldDefs (Closure newDefs name t) = return $ Closure (newDefs ++ oldDefs) name t
 shrink def d  = go def
   where
@@ -114,13 +114,13 @@ shrink def d  = go def
         yield $ addPrefixLets defs_ $ dToBruijn $ incFreeD (negate $ length dropDefs) d
         go  defs_
 
-evalDefsW :: Env -> [Def () Unprocessed] ->  Step [Def () (BruijnTerm ())] (Env,[Def () D1] )
+evalDefsW :: Env -> [Def () Unprocessed] ->  Step [Def () (BruijnTerm () ())] (Env,[Def () D1] )
 evalDefsW env defs = do
     let procesedDef = map (fmap proces) defs
 
         dumyEnv = store (map (convert . implementation) procesedDef) env
 
-        convert :: BruijnTerm () -> D1
+        convert :: BruijnTerm () () -> D1
         convert (Lambda () name t) = Closure [] name t
         convert _ = error "depency on not yet evaluated defention"
 
@@ -128,7 +128,7 @@ evalDefsW env defs = do
     return (newEnv,map (fmap dToD1) defsS)
   where
     nDefs = length defs
-    go :: (Int,Env) -> Def () (BruijnTerm ()) -> Step (Def () (BruijnTerm ())) ((Int,Env),Def () D)
+    go :: (Int,Env) -> Def () (BruijnTerm () () ) -> Step (Def () (BruijnTerm () () )) ((Int,Env),Def () D)
     go (n,envN) (Def () b t) = do
       v <- S.map (Def () b) $ evalW envN $ reproces t
       return ((n-1,update (Bound n) v envN),Def () b v)
@@ -162,18 +162,18 @@ instance Functor DenotationValue where
 
 --TODO fix names
 type D = DenotationValue Unprocessed -- ^ short for Unprocessed DenotationValue
-type D1 = DenotationValue (BruijnTerm ()) -- ^ short for DenotationValue BruijnTerm
+type D1 = DenotationValue (BruijnTerm () ()) -- ^ short for DenotationValue BruijnTerm
 
-dToBruijn ::  D -> BruijnTerm ()
+dToBruijn ::  D -> BruijnTerm () ()
 dToBruijn = d1ToBruijn . dToD1
 
-d1ToBruijn :: D1 -> BruijnTerm ()
+d1ToBruijn :: D1 -> BruijnTerm () ()
 d1ToBruijn (Closure defs name t) = addPrefixLets defs $ Lambda () name t
 d1ToBruijn (Free b) = Var () b
 d1ToBruijn (DVal v) = Val () v
 
 -- | used to create 'BruijnTerm' from 'DenotationValue'
-addPrefixLets :: [[Def () D1]] -> BruijnTerm () -> BruijnTerm ()
+addPrefixLets :: [[Def () D1]] -> BruijnTerm () () -> BruijnTerm () ()
 addPrefixLets defss t = foldl (\t_ defs_ -> Let () (map (fmap d1ToBruijn) defs_) t_) t defss
 
 dToD1 :: D -> D1

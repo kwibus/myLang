@@ -13,7 +13,7 @@ import TestUtils
 
 testTopologicalSort :: TestTree
 testTopologicalSort = testGroup "topologicalSort"
-  [testFreeVars,testTopological, testNonCirculair, testCirculair, testSort]
+  [testTopological, testNonCirculair, testCirculair, testSort]
 
 testNonCirculair :: TestTree
 testNonCirculair = testGroup "noncircular" $ map
@@ -38,7 +38,7 @@ testFreeVars :: TestTree
 testFreeVars = testGroup "freeVars" $ map runTest testSet
   where
     runTest (term,bound) = testCase (pShow term) $  freevars term @?= map Bound bound
-    testSet :: [(BruijnTerm (),[Int])]
+    testSet :: [(BruijnTerm () (),[Int])]
     testSet =
       [(bvar 0 , [0])
       ,(lambda "a" $ bvar 0 , [])
@@ -48,7 +48,7 @@ testFreeVars = testGroup "freeVars" $ map runTest testSet
       ,(mkLet [("a", true)] $ bvar 0 `appl` bvar 1 `appl` bvar 2, [1,0])
       ]
 
-circular :: [BruijnTerm () ]
+circular :: [BruijnTerm () () ]
 circular =
   [ mkLet [("a", bvar 0)] $ bvar 0
   , mkLet [("a", bvar 0), ("b", bvar 1)] $ bvar 0
@@ -65,7 +65,7 @@ circular =
   , mkLet [("x", mkLet [("y", bvar 1)] $ bvar 0)] true
   ]
 
-noncircular :: [BruijnTerm () ]
+noncircular :: [BruijnTerm () ()]
 noncircular =
     [ mkLet [("f", lambda "a" $ bvar 0), ("g", lambda "a" $ bvar 1)] $ bvar 0
     , mkLet [("f", lambda "x" $ lambda "y" (bvar 2)), ("y", true)] false
@@ -74,7 +74,7 @@ noncircular =
     , mkLet [("f", lambda "x" $ mkLet [("y", bvar 2)] $ bvar 0)] true
     ]
 
-sortTermExample :: [(BruijnTerm (), Either (DataCycle ()) (BruijnTerm ()))]
+sortTermExample :: [(BruijnTerm () (), Either (DataCycle () ()) (BruijnTerm () ()))]
 sortTermExample =
   [ ( mkLet [("a", bvar 0), ("b", true)] $ bvar 0
     , return $ mkLet [("b", true), ("a", bvar 1)] $ bvar 1)

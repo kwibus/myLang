@@ -1,4 +1,4 @@
-{-#LANGUAGE FlexibleContexts #-}
+{-# LANGUAGE MonoLocalBinds#-}
 module TypeCheck where
 
 import Control.Exception.Base (assert)
@@ -27,7 +27,7 @@ close t = fst $ go t fEmtyEnv 0
        finedNewName f env n = case fMaybeLookup f env of
              Just fname  -> (fname, (env, n))
              Nothing -> (Free n, (finsertAt (Free n ) f env, n + 1))
-       go :: TypeA a -> FreeEnv Free -> Int -> (Type,(FreeEnv Free,Int))
+       -- go :: Type -> FreeEnv Free -> Int -> (Type,(FreeEnv Free,Int))
        go (TVar f _) env n = first (\f_ -> TVar f_ ()) (finedNewName f env n)
        go (TPoly f _) env n = first (\f_ -> TPoly f_ ())(finedNewName f env n)
        go (TAppl t1 t2 ) env n = let (t1', ( env', n' )) = go t1 env n
@@ -38,20 +38,18 @@ close t = fst $ go t fEmtyEnv 0
 fst3 :: (a, b, c) -> a
 fst3 (a, _, _) = a
 
-solver :: BruijnTerm i -> ErrorCollector [TypeError i] Type
+solver :: BruijnTerm i j -> ErrorCollector [TypeError i j] Type
 solver e =
   let (result,subs) = runInfer $ typecheck e
   in fmap (close . apply subs) result
 
 -- TODO better name
 type TypeL = TypeA Int -- ^ type anotated with bruijnen level of the variabe it refers to
-type Infer i a = ErrorCollectorT [TypeError i] ( State InferState) a -- TODO check is this option order of transformers
+type Infer i j a = ErrorCollectorT [TypeError i j] ( State InferState) a -- TODO check is this option order of transformers
 data InferState = InferState { fresh :: Int
                              , substitution :: TSubst TypeL
                              , context :: TEnv -- TODO betername
                              }
-
-type TSubst a = FreeEnv a
 
 -- | stores the type of the variables in scope
 --
@@ -60,20 +58,21 @@ type TSubst a = FreeEnv a
 --          The place holder is stored so correct use can be checked when type become know
 type TEnv = BruijnEnv (Either (Int, [Free]) TypeL)
 
+type TSubst a = FreeEnv a
+
 toType :: TypeA a -> Type
 toType = mapVar (const ())
 
-runInfer :: Infer i a -> (ErrorCollector [TypeError i] a,TSubst TypeL)
+runInfer :: Infer i j a -> (ErrorCollector [TypeError i j] a,TSubst TypeL)
 runInfer infer = second substitution $ runState (runErrorT infer) $ InferState 0 fEmtyEnv bEmtyEnv
 
--- TODO get rid of free in name
-newFreeVar :: Infer i Free
+newFreeVar :: Infer i j Free
 newFreeVar = do
     i <- gets fresh
     modify' $ \s->s{fresh = i + 1}
     return $ Free i
 
-newVar  ::  Infer i TypeL
+newVar  ::  Infer i j TypeL
 newVar = do
   f <- newFreeVar
   l <- level
@@ -82,10 +81,10 @@ newVar = do
 -- TODO level is depend on size env, make code dependent on when you insert britel (instantiate level,)
 --      define level more prescie
 --      agument why whe need it this way
-level :: Infer i Int
+level :: Infer i j Int
 level = bruijnDepth <$> gets context
 
-solveDef :: Int -> BruijnTerm i -> Bound -> Def i TypeL -> Infer i ()
+solveDef :: Int -> BruijnTerm i j -> Bound -> Def i TypeL -> Infer i j ()
 solveDef currentLevel orignal b (Def _ n t) = do
       -- currentLevel <- level
       poly <- generalize currentLevel <$> applyM t
@@ -97,7 +96,7 @@ solveDef currentLevel orignal b (Def _ n t) = do
                 unifyM orignal newt $ TVar f currentLevel
       modify' $ \s ->  s{context = bReplace b (Right poly) (context s)}
 
-solve :: BruijnTerm i -> LamTermF i Bound TypeL -> Infer i TypeL
+solve :: BruijnTerm i j -> LamTermF i j Bound TypeL -> Infer i j TypeL
 solve _ (LetF _ _ result) = return result
 
 solve _ (LambdaF ns t) = do --TODO
@@ -133,10 +132,10 @@ solve _ (VarF i n) = do
 --- TODO add comments (name algoritme symtrye asumptions (apply))
 ---      *  use unionfind
 ---      *  consider other order checks
-walk :: BruijnTerm i
-     -> (BruijnTerm i -> LamTermF i Bound a -> Infer i a)
-     -> (Int -> BruijnTerm i -> Bound -> Def i a ->Infer i b)
-     -> Infer i a
+walk :: BruijnTerm i j
+     -> (BruijnTerm i j -> LamTermF i j Bound a -> Infer i j a)
+     -> (Int -> BruijnTerm i j -> Bound -> Def i a ->Infer i j b)
+     -> Infer i j a
 walk ast0 f fdef  =  go ast0
   where
     -- go :: BruijnTerm i -> Infer i a
@@ -168,7 +167,7 @@ walk ast0 f fdef  =  go ast0
       astfm <- sequence (go <$> wrap ast)
       f ast astfm
 
-typecheck :: BruijnTerm i -> Infer i TypeL
+typecheck :: BruijnTerm i j -> Infer i j TypeL
 typecheck term = walk term solve solveDef
 
 typeResultLevel :: TypeL -> Int
@@ -184,13 +183,13 @@ typeResultLevel (TAppl _ t) = typeResultLevel t
 -- (Result (TAppl (TVar (Free (-1)) 0) (TVar (Free 0) 0)),fromList [])
 --
 -- need to be applied to work corretly
-instantiate :: Int -> TypeL -> Infer a TypeL
+instantiate :: Int -> TypeL -> Infer i j TypeL
 instantiate originLevel = fmap snd . toTVar fEmtyEnv
   where
-    toTVar :: FreeEnv Free -> TypeL -> Infer a (FreeEnv Free, TypeL)
-    toTVar conversion (TPoly (Free i)_) = case IM.lookup i conversion of -- TODO does this use the right level?
-             Just j -> return (conversion, TVar j originLevel )
-             Nothing -> newFreeVar >>= ( \  f -> return (IM.insert i f conversion, TVar f originLevel ))
+    toTVar :: FreeEnv Free -> TypeL -> Infer i j (FreeEnv Free, TypeL)
+    toTVar conversion (TPoly (Free i) _) = case IM.lookup i conversion of
+             Just j -> return (conversion, TVar j originLevel)
+             Nothing -> newFreeVar >>= ( \ f -> return (IM.insert i f conversion, TVar f originLevel))
 
     toTVar conversion (TAppl t1 t2) = do
          (conversion', t1') <- toTVar conversion t1
@@ -199,7 +198,7 @@ instantiate originLevel = fmap snd . toTVar fEmtyEnv
 
     toTVar conversion t = return (conversion, t)
 
-dropVars :: Int -> Infer i ()
+dropVars :: Int -> Infer i j ()
 dropVars n = modify' $ \s -> s {context = bDrop n (context s) }
 
 -- | generalize takes a type and converts it to its most polymorfic form/ principle form
@@ -223,7 +222,7 @@ generalize currentLevel = toPoly
     toPoly (TVar f levelorigin) | levelorigin > currentLevel = TPoly f levelorigin
     toPoly t = t
 
-unifyM :: BruijnTerm i -> TypeL -> TypeL -> Infer i ()
+unifyM :: BruijnTerm i j -> TypeL -> TypeL -> Infer i j ()
 unifyM origin t1 t2 = do
   t1' <- applyM t1 --TODO writght fast one
   t2' <- applyM t2
@@ -266,7 +265,7 @@ unify t1@(TVal v1) t2@(TVal v2) = if v1 == v2
 unify t1 t2 = throw [Unify (toType t1) (toType t2)]
 
 -- TODO make apply that optimize subst map
-applyM :: TypeL -> Infer i TypeL
+applyM :: TypeL -> Infer i j TypeL
 applyM t = do
   subs <- gets substitution
   return $ apply subs t

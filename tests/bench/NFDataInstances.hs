@@ -17,7 +17,7 @@ import Type
 import FreeEnvironment
 import Associativity
 import InfixFix
-import Info
+import SourcePostion
 import BruijnTerm
 import TypeError
 import ErrorCollector
@@ -42,8 +42,8 @@ deriving instance  Generic Bound
 instance NFData Bound where
     rnf = genericRnf
 
-deriving instance  Generic (TypeError i)
-instance NFData i => NFData (TypeError i)where
+deriving instance  Generic (TypeError i j)
+instance (NFData i, NFData j) => NFData (TypeError i j)where
     rnf = genericRnf
 
 deriving instance  Generic (UndefinedVar i b)
@@ -94,7 +94,6 @@ deriving instance  Generic Value
 instance NFData Value where
     rnf v = seq v ()
 
-
-deriving instance  Generic (LamTerm i n )
-instance  (NFData i, NFData n) => NFData (LamTerm i n) where
+deriving instance  Generic (LamTerm i j n )
+instance  (NFData i, NFData j, NFData n) => NFData (LamTerm i j n) where
     rnf = genericRnf

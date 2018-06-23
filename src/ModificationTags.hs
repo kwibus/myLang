@@ -12,9 +12,10 @@ import BruijnTerm (BruijnTerm)
 import qualified TaggedLambda  as Tag
 import BruijnEnvironment
 
+-- TODO why tag with i
 data Modify i = Reorder Int [Bound] -- ^ @[1, 0, 2]@ will make bound 0 -> 1, 1 -> 0 2 -> 2
-              | SubstitutT Int (Tag.LamTerm () Bound (Modify())) -- ^ wil Substitut Bound 0 term. If higher index if deeper
-              | Substitut Int (BruijnTerm i) -- ^ wil Substitut Bound 0 term. If higher index if deeper
+              | SubstitutT Int (Tag.LamTerm () () Bound (Modify())) -- ^ wil Substitut Bound 0 term. If higher index if deeper
+              | Substitut Int (BruijnTerm i ()) -- ^ wil Substitut Bound 0 term. If higher index if deeper
               | IncFree Int Int
               deriving (Eq, Show)
 
@@ -25,7 +26,7 @@ data Modify i = Reorder Int [Bound] -- ^ @[1, 0, 2]@ will make bound 0 -> 1, 1 -
 --
 --    |____|
 
-type LamTerm i = Tag.LamTerm i Bound (Modify i)
+type LamTerm i j = Tag.LamTerm i j Bound (Modify i)
 
 remember :: Modify () -> MTable -> MTable
 remember (Reorder n order) mtable = reorder n order mtable
@@ -47,7 +48,7 @@ remember  (IncFree 0 inc ) mtable = incFree inc mtable
 -- * if peek encounters a 'Tag' that specify a modification that should be done on its subtree
 --   that is stored in mtable
 -- but this is not enforced, if you want a save variant use "Unprocessed"
-peek :: MTable -> LamTerm () -> (LamTermF () Bound (LamTerm ()), MTable)
+peek :: MTable -> LamTerm () ()-> (LamTermF () () Bound (LamTerm () ()), MTable)
 peek modifications term = case term of
   Tag.Tag m t -> peek (remember m modifications ) t
   Tag.Val i v -> (ValF i v,modifications)
@@ -58,13 +59,13 @@ peek modifications term = case term of
   Tag.Lambda i n t -> (LambdaF i n t,extraSparceInsertUndefind 1  modifications)
   Tag.Let i defs t -> ( LetF i defs t,extraSparceInsertUndefind (length defs) modifications )
 
-applyModify :: LamTerm () -> BruijnTerm ()
+applyModify :: LamTerm () () -> BruijnTerm () ()
 applyModify term = proces empty term
 
-proces ::  MTable  -> LamTerm () -> BruijnTerm ()
+proces ::  MTable  -> LamTerm () () -> BruijnTerm () ()
 proces = unfold peek
 
-deepin :: LamTerm ()  -> LamTermF () Bound (LamTerm())
+deepin :: LamTerm () () -> LamTermF () () Bound (LamTerm() () )
 deepin (Tag.Var i n) = VarF i n
 deepin (Tag.Appl t1 t2) = ApplF t1 t2
 deepin (Tag.Val i v) = ValF i v
@@ -72,7 +73,7 @@ deepin (Tag.Lambda i n t) = LambdaF i n t
 deepin (Tag.Tag m t) = deepinTags [m] t
 deepin (Tag.Let i defs t) = LetF i defs t
 
-deepinTags :: [Modify ()] -> LamTerm ()  -> LamTermF () Bound (LamTerm())
+deepinTags :: [Modify ()] -> LamTerm () () -> LamTermF () () Bound (LamTerm () ())
 deepinTags tags (Tag.Tag m t) = deepinTags (m:tags) t
 deepinTags tags (Tag.Var _ b) = case peekVar (foldr remember empty tags) b of
   (Left newB) -> VarF () newB
@@ -88,7 +89,7 @@ deepinTag :: Int -> Modify i -> Modify i
 deepinTag n (Reorder d order) = Reorder (d+n) order
 deepinTag _ _ = error "afsd"
 
-depthChange :: Tag.LamTerm i n (Modify i)  -> Int
+depthChange :: Tag.LamTerm i j n (Modify i)  -> Int
 depthChange (Tag.Tag _ t) = depthChange t -- could be faster
 depthChange Tag.Lambda {} = 1
 depthChange (Tag.Let _ defs _) = length defs

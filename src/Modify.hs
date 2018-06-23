@@ -17,7 +17,7 @@ import LambdaF
 --   mtable keep track of this.
 --
 
-peek :: MTable -> BruijnTerm ()-> (LamTermF () Bound (BruijnTerm ()), MTable)
+peek :: MTable -> BruijnTerm () () -> (LamTermF () () Bound (BruijnTerm () () ), MTable)
 peek modifications term = case term of
   Val i v -> (ValF i v,modifications)
   Var _ b -> case peekVar modifications b of
@@ -28,7 +28,7 @@ peek modifications term = case term of
   Let i defs t -> (LetF i defs t,extraSparceInsertUndefind (length defs) modifications )
 
 -- | will apply the modifications stored in mtable
-proces ::  MTable  -> BruijnTerm ()-> BruijnTerm ()
+proces ::  MTable  -> BruijnTerm () () -> BruijnTerm () ()
 proces m t = if isNull m
              then t
              else unfold peek m t

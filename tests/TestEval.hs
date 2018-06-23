@@ -82,13 +82,13 @@ testEvalUtils = testGroup "eval utils"
 
   ]
 
-testEvalStepsExample :: (BruijnTerm() ,[BruijnTerm()]) -> TestTree
+testEvalStepsExample :: (BruijnTerm () (),[BruijnTerm () ()]) -> TestTree
 testEvalStepsExample (input,expected) = testCase (removeNewLines $ pShow input) $ evalSteps input @?= expected
 
-testFullEvalExample :: (BruijnTerm() ,BruijnTerm()) -> TestTree
+testFullEvalExample :: (BruijnTerm () () ,BruijnTerm () ()) -> TestTree
 testFullEvalExample (input,expected) =  testCase (removeNewLines $ pShow input) $ Simple.fullEval' input @?= expected
 
-mkFullEvalCompatable :: [(BruijnTerm() ,[BruijnTerm()])] -> [(BruijnTerm() ,BruijnTerm())]
+mkFullEvalCompatable :: [(BruijnTerm () () ,[BruijnTerm () ()])] -> [(BruijnTerm () () ,BruijnTerm () ())]
 mkFullEvalCompatable set = filter isValue $ map (\(input, expected) -> (input,last $input:expected)) set
   where
     isValue (_,t) = case t of
@@ -117,7 +117,7 @@ testconvergentSteps = testGroup "convergent" $ map test convergingSet
   where
   test (input,expected)= testCase (removeNewLines $ pShow input) $ (take (length expected) $ evalSteps input) @?= expected
 
-basicSet :: [(BruijnTerm () , [BruijnTerm ()])]
+basicSet :: [(BruijnTerm () () , [BruijnTerm () ()])]
 basicSet =
   [ ( double 1, [])
 
@@ -168,7 +168,7 @@ basicSet =
         ])
   ]
 
-buildinSet :: [(BruijnTerm () , [BruijnTerm ()])]
+buildinSet :: [(BruijnTerm () () , [BruijnTerm () ()])]
 buildinSet =
   [ (lambda "#" (appl (appl (val plus) (bvar 0)) (double 1.0)) ,[])
   , (appl (val plus) (double 1.0), [plus1])
@@ -188,7 +188,7 @@ buildinSet =
         ])
   ]
 
-freeSet :: [(BruijnTerm () , [BruijnTerm ()])]
+freeSet :: [(BruijnTerm () () , [BruijnTerm () ()])]
 freeSet =
   [ (bvar 0, [])
 
@@ -202,11 +202,11 @@ freeSet =
       , [bvar 0])
   ]
 
-plus1 :: BruijnTerm ()
+plus1 :: BruijnTerm () ()
 plus1 = val $ applyValue plus (Prim $ MyDouble 1)
 
 -- TODO  sort and cleanup test description
-letSet ::  [(BruijnTerm () , [BruijnTerm ()])]
+letSet ::  [(BruijnTerm () () , [BruijnTerm () ()])]
 letSet =
   [ (mkLet [("a", double 1) ] (bvar 0)
       , [ mkLet [("a", double 1) ] (double 1)
@@ -505,7 +505,7 @@ letSet =
     ])
   ]
 
-convergingSet :: [(BruijnTerm () , [BruijnTerm ()])]
+convergingSet :: [(BruijnTerm () () , [BruijnTerm () () ])]
 convergingSet =
   [(appl B.omega B.omega ,
   [appl B.omega B.omega])

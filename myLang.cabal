@@ -54,6 +54,7 @@ library
                       ,BruijnEnvironment
                       ,InfixFix
                       ,Info
+                      ,SourcePostion
                       ,TypeError
                       ,ErrorCollector
                       ,Name

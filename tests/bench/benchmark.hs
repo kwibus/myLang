@@ -20,7 +20,7 @@ fixandsized size (MkGen g) = return (g fixedseed size)
 untypeString:: Int -> IO String
 untypeString size = fmap PrettyPrint.pShow (fixandsized size genUnTyped)
 
-typedAST :: Int -> IO (BruijnTerm ())
+typedAST :: Int -> IO (BruijnTerm () ())
 typedAST size =  fixandsized size genTyped
 
 main :: IO()

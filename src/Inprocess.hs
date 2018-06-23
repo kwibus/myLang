@@ -22,8 +22,8 @@ data LamTermFT = App InProcess InProcess
                deriving Show
 
 data InProcess = Inproc LamTermFT
-              | Unproc (Tag.LamTerm ())
-              | New (Tag.LamTerm ())
+              | Unproc (Tag.LamTerm () ())
+              | New (Tag.LamTerm () ())
               deriving Show
 
 addTag :: Modify () -> InProcess -> InProcess
@@ -51,7 +51,7 @@ lambda n (Unproc t) = Unproc $ Tag.Lambda () n t
 lambda n (Inproc t) = Inproc $ Lambda n $ Inproc t
 
 -- TODO rename mod
-peek :: MTable -> InProcess -> (LamTermF () Bound InProcess, MTable)
+peek :: MTable -> InProcess -> (LamTermF () () Bound InProcess, MTable)
 peek modification (Inproc term)= case term of
   (App t1 t2) -> (ApplF t1 t2,modification)
   (Lambda n t) -> (LambdaF () n t,modification)
@@ -60,5 +60,5 @@ peek modification (Inproc term)= case term of
 peek _ (New term) = peek empty $ Unproc term
 peek modifications (Unproc term) =first (fmap Unproc) $  Tag.peek modifications term
 
-proces ::  MTable  -> InProcess -> Lam.BruijnTerm ()
+proces ::  MTable  -> InProcess -> Lam.BruijnTerm () ()
 proces = unfold peek

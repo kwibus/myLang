@@ -4,7 +4,7 @@ module InfixFix
   ) where
 
 import Lambda
-import Info
+import SourcePostion
 import Name
 import Associativity
 

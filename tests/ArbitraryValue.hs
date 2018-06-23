@@ -16,24 +16,24 @@ shrinkValue :: Value -> [Value]
 shrinkValue (Prim (MyDouble n)) = if n == 1.0 then [] else [Prim $ MyDouble 1.0]
 shrinkValue _ = []
 
-arbitraryValue :: Maybe Type -> Generater ( LamTerm () n)
+arbitraryValue :: Maybe Type -> Generater ( LamTerm () () n)
 arbitraryValue t = oneOfLogic [ arbitraryPrimatives t
                               , arbitraryBuildIn t
                               ]
 --TODO check if type check can be move up to arbitraryValue
-arbitraryBuildIn :: Maybe Type -> Generater ( LamTerm () n)
+arbitraryBuildIn :: Maybe Type -> Generater ( LamTerm () () n)
 arbitraryBuildIn t = do
     operator <- elementsLogic operators
     unifyGen t (getType operator )
     return $ val operator
 
-arbitraryPrimatives :: Maybe Type -> Generater (LamTerm () n)
+arbitraryPrimatives :: Maybe Type -> Generater (LamTerm () () n)
 arbitraryPrimatives t = oneOfLogic $ map ($ t)
   [ mkArbitraryPrimative MyDouble
   , mkArbitraryPrimative MyBool
   ]
 
-mkArbitraryPrimative :: (Arbitrary a ) => (a -> Primative ) -> Maybe Type -> Generater (LamTerm () n)
+mkArbitraryPrimative :: (Arbitrary a ) => (a -> Primative ) -> Maybe Type -> Generater (LamTerm () () n)
 mkArbitraryPrimative constructor t = do
   unifyGen t $ getTypePrimative $ constructor (error "should never be used")
   d <- lift $ lift arbitrary
