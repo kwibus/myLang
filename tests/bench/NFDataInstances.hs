@@ -42,8 +42,8 @@ deriving instance  Generic Bound
 instance NFData Bound where
     rnf = genericRnf
 
-deriving instance  Generic (TypeError i)
-instance NFData i => NFData (TypeError i)where
+deriving instance  Generic (TypeError i j)
+instance (NFData i, NFData j) => NFData (TypeError i j)where
     rnf = genericRnf
 
 deriving instance  Generic (UndefinedVar i b)

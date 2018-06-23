@@ -37,17 +37,17 @@ close t = fst $ go t fEmtyEnv 0
 fst3 :: (a, b, c) -> a
 fst3 (a, _, _) = a
 
-solver :: BruijnTerm i i -> ErrorCollector [TypeError i] Type
+solver :: BruijnTerm i j -> ErrorCollector [TypeError i j] Type
 solver e = fmap ( close . uncurry (flip apply) ) $ runInfer $ solveWith e fEmtyEnv bEmtyEnv
 
-type Infer i a = ErrorCollectorT [TypeError i] ( State Int ) a
+type Infer i j a = ErrorCollectorT [TypeError i j] ( State Int ) a
 type TSubst = FreeEnv Type
 type TEnv = BruijnEnv Type
 
-runInfer :: Infer i a -> ErrorCollector [TypeError i] a
+runInfer :: Infer i j a -> ErrorCollector [TypeError i j] a
 runInfer infer = evalState ( runErrorT infer) 0
 
-newFreeVar :: Infer i Free
+newFreeVar :: Infer i j Free
 newFreeVar = do
     i <- get
     put (i + 1)
@@ -63,7 +63,7 @@ newFreeVar = do
 --              this is inconsistend with check of final term let
 --              where the correct type of defs is input
 --              which one gives best error messages or is fastest
-solveWith :: BruijnTerm i i -> TSubst -> TEnv -> Infer i (Type, TSubst)
+solveWith :: BruijnTerm i j -> TSubst -> TEnv -> Infer i j (Type, TSubst)
 solveWith e@(Let _ defs e2) sub tenv = do -- TODO vorbid type some type of self refrence
   newVars <- replicateM (length defs) newFreeVar
   let tempTEnv = foldl ( flip ( bInsert . TVar)) tenv newVars
@@ -120,10 +120,10 @@ foldM1 f (x : xs) = foldM f x xs
 -- >>> runInfer $ instantiate ((tVar (-1)) ~> (TPoly $ Free (-1)))
 -- Result (TAppl (TVar (Free (-1))) (TVar (Free 0)))
 
-instantiate :: Type -> Infer a Type
+instantiate :: Type -> Infer i j Type
 instantiate = fmap snd . toTVar fEmtyEnv
   where
-    toTVar :: FreeEnv Free -> Type -> Infer a (FreeEnv Free, Type)
+    toTVar :: FreeEnv Free -> Type -> Infer i j (FreeEnv Free, Type)
     toTVar conversion (TPoly (Free i)) = case IM.lookup i conversion of
              Just j -> return (conversion, TVar j)
              Nothing -> newFreeVar >>= ( \ j -> return (IM.insert i j conversion, TVar j))

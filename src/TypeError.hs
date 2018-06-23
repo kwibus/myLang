@@ -9,11 +9,11 @@ import BruijnTerm
 import SourcePostion
 import Lexer (toChar, reservedSymbols)
 
-data TypeError i =
-      UnifyAp (BruijnTerm i i) Type Type [UnificationError]
-    | UnifySubs (BruijnTerm i i) [UnificationError]
+data TypeError i j =
+      UnifyAp (BruijnTerm i j) Type Type [UnificationError]
+    | UnifySubs (BruijnTerm i j) [UnificationError]
     | UnifyDef Type Type [UnificationError] -- TODO store more information for good error messages
-    | ICE (UndefinedVar Bound i)
+    | ICE (UndefinedVar Bound j)
     deriving Show
 
 data UnificationError =
@@ -22,7 +22,7 @@ data UnificationError =
     deriving Show
 
 -- TODO better EqalitieA / remove and make seperate for unittest
-instance Eq (TypeError i) where
+instance Eq (TypeError i j) where
   (==) (UnifyDef t11 t12 _) (UnifyDef t21 t22 _) = t11 == t21 && t12 == t22
   (==) (UnifyAp _ _ _ err1) (UnifyAp _ _ _ err2) = err1 == err2
   (==) (UnifySubs _ _) (UnifySubs _ _ ) = True
@@ -34,10 +34,10 @@ instance Eq UnificationError where
    Unify {} == Unify {} = True
    (==) _ _ = False
 
-showErrors :: String -> [TypeError SourcePos] -> Doc
+showErrors :: String -> [TypeError SourcePos SourcePos] -> Doc
 showErrors str = vcat . map (showError str)
 
-showError :: String -> TypeError SourcePos -> Doc
+showError :: String -> TypeError SourcePos SourcePos -> Doc
 showError str (UnifyAp expr t1 t2 err ) = text (showPosition (getPosition expr)) <+> text "TypeError " <$>
         indent 4 ( showUnifyApError str expr t1 t2 err)
 showError _ _ = text "No error messages implemented"
