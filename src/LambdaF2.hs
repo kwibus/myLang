@@ -52,7 +52,7 @@ mapLambdaM :: Monad m
            -> m a
 mapLambdaM  f ast0 = go ast0
   where
-    go ast = f ast $ fmap go $ wrap ast
+    go ast = f ast ( go <$>  wrap ast)
 
 foldLambdaM :: Monad m
             => (context -> LamTerm i n ->  LamTermF i n (context -> m a) -> m a)

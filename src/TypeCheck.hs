@@ -6,6 +6,7 @@ import qualified Data.IntMap as IM
 import Control.Monad.State hiding ()
 import Data.Bifunctor
 import Data.Maybe
+import Data.Either
 
 import ErrorCollector
 import Value
@@ -39,7 +40,7 @@ fst3 (a, _, _) = a
 
 solver :: BruijnTerm i -> ErrorCollector [TypeError i] Type
 solver e =
-  let (result,subs) = runInfer $ mapLambdaM solveWith e
+  let (result,subs) = runInfer $ typecheck e
   in fmap (close . apply subs) result
 
 -- TODO better name
@@ -79,51 +80,43 @@ newVar = do
   return $ TVar f l
 
 -- TODO level is depend on size env, make code dependent on when you insert britel (instantiate level,)
+--      define level more prescie
+--      agument why whe need it this way
 level :: Infer i Int
 level = bruijnDepth <$> gets context
 
--- TODO which types whould be poly and test
--- TODO add comments (name algoritme symtrye asumptions (apply))
--- TODO maybe need a rewrite
---      *  use unionfind
---      *  consider order checks
-solveWith :: BruijnTerm i -> LamTermF i Bound (Infer i TypeL) -> Infer i TypeL
-solveWith orignal (LetF _ defs result) = do
-  currentLevel <- level
-  modify' $ \s -> s{context = bInserts (replicate (length defs) $ Left (currentLevel, [])) (context s)}
-  zipWithM_ (\ b (Def _ _ t) -> do
-      typeDef <- preserve t
-      poly <- generalize currentLevel <$> applyM typeDef
+solveDef :: Int -> BruijnTerm i -> Bound -> Def i TypeL -> Infer i ()
+solveDef currentLevel orignal b (Def _ n t) = do
+      -- currentLevel <- level
+      poly <- generalize currentLevel <$> applyM t
       tenv <- gets context
       void $ case bLookup b tenv of
           Right _ -> error "already devined"
-          Left (originLevel,uses) -> assert (originLevel == currentLevel) $forM uses $ \f-> do
+          Left (originLevel,uses) ->assert (originLevel == currentLevel ) forM uses $ \f-> do
                 newt <- instantiate currentLevel poly
                 unifyM orignal newt $ TVar f currentLevel
       modify' $ \s ->  s{context = bReplace b (Right poly) (context s)}
-    ) (defsBounds defs) defs
-  result
 
-solveWith _ (LambdaF ns e) = do --TODO
-    vs <- replicateM (length ns) newVar
-    modify' $ \s -> s {context = bInserts (map Right vs) (context s)}
-    t  <- e
+solve :: BruijnTerm i -> LamTermF i Bound TypeL -> Infer i TypeL
+solve _ (LetF _ _ result) = return result
+
+solve _ (LambdaF ns t) = do --TODO
+    (_,vs) <- bSplitAt (length ns ) <$> gets context
     -- applyM (TAppl k t)
-    return (foldr TAppl t vs)
+    -- modify' $ \s ->s{context = newContext }
+    return $ foldr TAppl t (rights vs)
 
-solveWith orignal (ApplF function args) = do
-    functionTyp <- preserve function
-    argsTyps <- mapM preserve args
+solve orignal (ApplF functionType argsTypes) = do
     f <- newFreeVar
-    let var = TVar f $ typeResultLevel functionTyp
-    let typeArg = foldr1 TAppl (argsTyps ++ [var])
-    unifyM orignal functionTyp typeArg
+    let var = TVar f $ typeResultLevel functionType
+    let typeArg = foldr1 TAppl (argsTypes ++ [var])
+    unifyM orignal functionType typeArg
     -- applyM var
     return var
 
-solveWith _ (ValF _ v) = return (mapVar (const 0) $ getType v)
+solve _ (ValF _ v) = return (mapVar (const 0) $ getType v)
 
-solveWith _ (VarF i n) = do
+solve _ (VarF i n) = do
     tenv <- gets context
     currentLevelevel <- level
     case bMaybeLookup n tenv of
@@ -136,16 +129,54 @@ solveWith _ (VarF i n) = do
           return (TVar f orginLevel)
       Nothing -> throwT [ICE $ UndefinedVar n i]
 
+--- TODO which types whould be poly and test
+--- TODO add comments (name algoritme symtrye asumptions (apply))
+---      *  use unionfind
+---      *  consider other order checks
+walk :: BruijnTerm i
+     -> (BruijnTerm i -> LamTermF i Bound a -> Infer i a)
+     -> (Int -> BruijnTerm i -> Bound -> Def i a ->Infer i b)
+     -> Infer i a
+walk ast0 f fdef  =  go ast0
+  where
+    -- go :: BruijnTerm i -> Infer i a
+    go ast@Lambda {} = do
+      let (ns,_ ) = accumulateVars ast
+      let nvars = length ns
+      vs <- replicateM nvars newVar
+      modify' $ \s -> s {context = bInserts (map Right vs) (context s)}
+
+      astfm <- sequence (go <$> wrap ast)
+      astf <- f ast astfm
+      dropVars nvars
+
+      return astf
+
+    go ast@(Let _ defs term) = do
+      let nvars = length defs
+      currentLevel <- level
+      modify' $ \s -> s{context = bInserts (replicate (length defs) $ Left (currentLevel, [])) (context s)}
+      zipWithM_ (\b (Def i n body) -> do
+          astf <- go body
+          fdef currentLevel ast b $ Def i n astf
+        ) (defsBounds defs) defs
+      t <- go term
+      dropVars nvars
+      return t
+
+    go ast = do
+      astfm <- sequence (go <$> wrap ast)
+      f ast astfm
+
+typecheck :: BruijnTerm i -> Infer i TypeL
+typecheck term = walk term solve solveDef
+
 typeResultLevel :: TypeL -> Int
 typeResultLevel (TVar _ l) = l
 typeResultLevel (TPoly _ l) = l
 typeResultLevel TVal {} = 0
 typeResultLevel (TAppl _ t) = typeResultLevel t
 
--- foldM1 :: Monad m => (a -> a -> m a) -> [a] -> m a
--- foldM1 _ [] = error " foldM1 empty List"
--- foldM1 _ [a] = return a
--- foldM1 f (x : xs) = foldM f x xs
 
 -- | instantiate copys all variabls and replace them with new vars
 --
@@ -168,13 +199,8 @@ instantiate originLevel = fmap snd . toTVar fEmtyEnv
 
     toTVar conversion t = return (conversion, t)
 
--- TODO better name
-preserve :: Infer i a -> Infer i a
-preserve m = do
-  originalSize <- bSize <$> gets context
-  a <- m
-  modify' $ \s -> s {context = bDrop (bSize (context s) - originalSize )(context s) }
-  return a
+dropVars :: Int -> Infer i ()
+dropVars n = modify' $ \s -> s {context = bDrop n (context s) }
 
 -- | generalize takes a type and converts it to its most polymorfic form/ principle form
 -- it should not quantife over variable that are already quantified in the env
@@ -220,6 +246,7 @@ unifySubs sub1 sub2 = IM.foldrWithKey f (return sub1) sub2
             Just typ2 -> throw err *> unify (apply sub1 typ1) (apply sub1 typ2)
 
 --TODO only changes?
+--     use unionfind
 unify :: Ord a => TypeA a -> TypeA a  -> ErrorCollector [UnificationError] (TSubst (TypeA a))
 -- unify (TVar n1 level1) (TVar n2 level2) = --TODO test if this is needed
 --   if level1 < level2
