@@ -22,33 +22,15 @@ import TypeError
 -- $setup
 -- >>> import MakeType
 
--- TODO update comments
--- TODO make every variable poly, and maybe enforce in type
-close :: TypeA a -> Type
-close t = fst $ go t fEmtyEnv 0
- where finedNewName :: Free -> FreeEnv Free -> Int -> (Free, (FreeEnv Free, Int))
-       finedNewName f env n = case fMaybeLookup f env of
-             Just fname  -> (fname, (env, n))
-             Nothing -> (Free n, (finsertAt (Free n ) f env, n + 1))
-       -- go :: Type -> FreeEnv Free -> Int -> (Type,(FreeEnv Free,Int))
-       go (TVar f _) env n = first (\f_ -> TVar f_ ()) (finedNewName f env n)
-       go (TPoly f _) env n = first (\f_ -> TPoly f_ ())(finedNewName f env n)
-       go (TAppl t1 t2 ) env n = let (t1', ( env', n' )) = go t1 env n
-                                     (t2', ( env'', n'')) = go t2 env' n'
-                                 in (TAppl t1' t2', ( env'', n''))
-       go (TVal t1) e n = (TVal t1, (e, n))
-
-fst3 :: (a, b, c) -> a
-fst3 (a, _, _) = a
-
+-- -- TODO make every variable poly, and maybe enforce in type?
 solver :: BruijnTerm i j -> ErrorCollector [TypeError i j] Type
 solver e =
   let (result,subs) = runInfer $ typecheck e
-  in fmap (close . apply subs) result
+  in fmap (normalise . toType. apply subs) result --TODO do we always want to normalise
 
 annotate :: BruijnTerm i j -> ErrorCollector [TypeError i j] (BruijnTerm Type j)
 annotate e = let (ast,subs) = runInfer $ annotateType e
-             in fmap (mapI (toType .apply subs.dePoly ).fst ) ast
+             in fmap (mapI (toType .apply subs.dePoly ).fst ) ast -- TODO
 
 -- TODO remove boilerplate
 dePoly :: TypeA i -> TypeA i

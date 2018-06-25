@@ -13,7 +13,6 @@ import MakeTerm
 import MakeType
 import ArbitraryType ()
 import ArbitraryLambda
-import Properties
 
 import Type (Type,normalise)
 import TypeCheck
@@ -27,7 +26,6 @@ testTypeChecker = testGroup "typeChecker"
                     [ testApply
                     , testUnify
                     , testUnifySubs
-                    , testClose
                     , testTypeCheck
                     , testAnnotate
                     , testReadType
@@ -112,10 +110,6 @@ testUnifySubs = testGroup " UnifySubs "
             sub1 = fromList [(2,tVar 1 ~> tVar 3)]
         in hasSucces (unifySubs sub1 sub2 ) @?= False
     ]
-
-testClose :: TestTree
-testClose = testGroup "close"
-    [testProperty "welformd close" $ welFormdType . (close :: Type -> Type) ]
 
 testTypeCheck :: TestTree
 testTypeCheck = testGroup "Type checker"

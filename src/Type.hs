@@ -22,9 +22,13 @@ data TypeA i = TVal TypeInstance
             | TPoly Free i
             | TAppl (TypeA i) (TypeA i) deriving (Eq, Show)
 
-normalise :: Type -> (Type)
+normalise :: Type -> Type
 normalise = snd .normaliseWith IM.empty
 
+-- TODO not a save interface unMapped types get number assignd base on size map, which already can be use
+--      you could use list instead, or only use normalise
+-- TODO rename match function closer
+-- TODO it recalculates size every time, could be more efficent. but wont matter in practice
 normaliseWith :: IM.IntMap Type -> Type -> (IM.IntMap Type, Type)
 normaliseWith env t@TVal {} = (env,t)
 normaliseWith env (TPoly (Free f) _) = case IM.lookup f env of
