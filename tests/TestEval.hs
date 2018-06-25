@@ -14,12 +14,10 @@ import qualified ExampleBruijn as B
 import Properties
 import ArbitraryLambda
 
-import TopologicalSort
 import Eval hiding (Free)
 import qualified Eval
 import FreeEnvironment
 import MakeTerm
-import ModificationTags (applyModify)
 import Operator
 import Value
 import Name
@@ -537,11 +535,6 @@ convergingSet =
   ]
 testEvalProp :: TestTree
 testEvalProp = testGroup "propertys" $
-      -- TODO dont why again is need here but otwersie test will stop after discard
-  let forAllNonCiculair prop = again $ forAllTypedBruijn $ \ e -> case sortTerm e of
-          Left {} -> discard
-          (Right newT) -> prop $ applyModify newT
-  in
   [ testProperty "evalSteps == unfold eval" $ forAllNonCiculair $ \ e ->
         take 10 (evalSteps e) === take 10 (unfoldr (\ e0 -> let nextE = eval e0
                                                                 clone a = (a, a)

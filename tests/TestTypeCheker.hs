@@ -6,12 +6,16 @@ import Test.Tasty.QuickCheck
 import Data.IntMap
 
 import qualified ExampleBruijn as B
+
+import Info
+import qualified MakeTypedTerm as T
 import MakeTerm
 import MakeType
 import ArbitraryType ()
+import ArbitraryLambda
 import Properties
 
-import Type (Type)
+import Type (Type,normalise)
 import TypeCheck
 import Operator
 import FreeEnvironment
@@ -25,6 +29,8 @@ testTypeChecker = testGroup "typeChecker"
                     , testUnifySubs
                     , testClose
                     , testTypeCheck
+                    , testAnnotate
+                    , testReadType
                     ]
 
 testApply :: TestTree
@@ -254,6 +260,10 @@ testBasic = testGroup "Solver"
       solver (mkLet [("f",lambda "a" true),("b",appl (bvar 1) true)] $ bvar 0 )
       @?= return tBool
 
+  , testCase "let a =  true; b c = a in \\c.a" $
+      solver (mkLet [("a", true), ("b", lambda "c" $ bvar 2)] $ lambda "c" $ bvar 2)
+      @?= return ( tVar 0 ~> tBool)
+
   , testCase "let f a = id 1; id a = a in f 2" $
       solver (mkLet [("f", lambda "a" $ appl (bvar 1) (double 1)), ("id", B.id)] $ appl (bvar 1) (double 2))
       @?= return tDouble
@@ -267,8 +277,32 @@ testBasic = testGroup "Solver"
           $ bvar 0 `appl` (bvar 0 `appl` val plus `appl` double 1)`appl` double 2.0 )
       @?= return tDouble
 
+  , testCase "let f a = a (f a) in f" $
+      solver (mkLet [("f", lambda "a" $ appl (bvar 0) (appl (bvar 1) (bvar 0)))] $ bvar 0)
+      @?= return ((tVar 0 ~> tVar 1) ~> tVar 1)
+
   , testCase "let f a = g; g = f in f" $
       solver (mkLet [("f", lambda "a" $ bvar 1 ), ("g", bvar 1)] $ bvar 1)
       @?= throw [UnifyAp undefined undefined undefined [Infinit (Free 1)(tVar 3 ~> tVar 1) ]]
+  ]
 
+testAnnotate :: TestTree
+testAnnotate = testGroup "anotate"
+  [ testProperty "anotate ast ~ ast" $ forAllTypedBruijn $ \ast  ->
+    case annotate ast of
+        (Result typedAst) -> removeInfo  typedAst === ast
+        (Error e) -> property $ counterexample ("fail anotate: " ++show e) False
+
+  , testProperty "readType anotate = TypeCheck ast " $ forAllNonCiculair $ \ast  ->
+    let anotated = annotate ast in counterexample (show anotated ) $ (normalise <$> solver ast) === fmap (normalise . readType) anotated
+  ]
+
+testReadType :: TestTree
+testReadType = testGroup "readType"
+  -- TODO use types from typechck
+  [ testCase "\\a.let b c = c in b a" $
+    readType (T.lambda "a" (tVar 0) $ T.appl
+        (T.mkLet [("b",tVar 1 ~> tVar 1, T.lambda "c" (tVar 1) (T.bvar 0 ))] $ T.bvar 0)
+        (T.bvar 0))
+      @?=  tVar 0 ~> tVar 0
   ]

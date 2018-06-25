@@ -22,6 +22,24 @@ data TypeA i = TVal TypeInstance
             | TPoly Free i
             | TAppl (TypeA i) (TypeA i) deriving (Eq, Show)
 
+normalise :: Type -> (Type)
+normalise = snd .normaliseWith IM.empty
+
+normaliseWith :: IM.IntMap Type -> Type -> (IM.IntMap Type, Type)
+normaliseWith env t@TVal {} = (env,t)
+normaliseWith env (TPoly (Free f) _) = case IM.lookup f env of
+      Just t@TPoly {} -> (env,t)
+      Just _ -> error "key clash"
+      Nothing -> let t =  TPoly (Free $ IM.size env) () in (IM.insert f t env,t)
+normaliseWith env (TVar (Free f) _) = case IM.lookup f env of
+      Just t@TVar {} -> (env,t)
+      Just _ -> error "keyclash"
+      Nothing -> let t =  TVar (Free $ IM.size env) () in (IM.insert f t env,t)
+normaliseWith env (TAppl t1 t2) =
+  let (env', t1') = normaliseWith env t1
+      (env'',t2') = normaliseWith env' t2
+  in (env'', TAppl t1' t2')
+
 mkDictonarie :: [Type] -> Dictionary
 mkDictonarie = mkDictonarieWithReserved IM.empty
 
@@ -54,7 +72,6 @@ pShowWithDic = go
       in string1 ++ " -> " ++ string2
     go (TVal v) _ = showTypeInstance v
 
-
 typeVars :: Eq i => TypeA i -> [Free]
 typeVars = nub . getTvars
   where getTvars (TVar i _) = [i]
@@ -67,7 +84,7 @@ typeSize (TAppl t1 t2) = typeSize t1 + typeSize t2
 typeSize _ = 1
 
 -- TODO rename it does not map var anymore but anotation
-mapVar :: (i -> j) -> TypeA i -> TypeA j --T
+mapVar :: (i -> j) -> TypeA i -> TypeA j
 mapVar f (TAppl t1 t2) = TAppl (mapVar f t1) (mapVar f t2)
 mapVar f (TPoly i j) = TPoly i $ f j
 mapVar f (TVar i j) = TVar i $ f j
@@ -83,11 +100,15 @@ showTypeInstance :: TypeInstance -> String
 showTypeInstance TDouble = "Double"
 showTypeInstance TBool = "Bool"
 
-dropTypeArg :: TypeA i -> TypeA i
+dropTypeArg :: Show i => TypeA i -> TypeA i
 dropTypeArg (TAppl _ t ) = t
-dropTypeArg _ = error "apply non function"
+dropTypeArg t = error $ "cant drop targ with"  ++ show t
 
 typeFreeVars ::Type -> Set.Set Free
 typeFreeVars (TVar v _ ) = Set.singleton v
 typeFreeVars (TAppl t1 t2) = typeFreeVars t1 `Set.union` typeFreeVars t2
 typeFreeVars _ = Set.empty
+
+accumulateTypes :: TypeA a -> [TypeA a]
+accumulateTypes (TAppl t1 t2) = t1 : accumulateTypes t2
+accumulateTypes t = [t]

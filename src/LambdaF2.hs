@@ -46,6 +46,13 @@ wrap t0@Lam.Appl {} = let (f:args)= accumulateArgs t0
                       in ApplF f args
 wrap (Lam.Let i defs t) = LetF i defs t
 
+unwrap :: LamTermF i j n (LamTerm i j n) -> LamTerm i j n
+unwrap (VarF i n) = Var i n
+unwrap (ValF i v) = Val i v
+unwrap (LambdaF ns t) = foldr (\(i, n) -> Lambda i n ) t ns
+unwrap (ApplF t1 ts) = foldl Appl t1 ts
+unwrap (LetF i defs t) = Let i defs t
+
 mapLambdaM :: Monad m
            => (LamTerm i j n ->  LamTermF i j n (m a) -> m a)
            -> LamTerm i j n

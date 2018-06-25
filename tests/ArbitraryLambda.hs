@@ -17,8 +17,18 @@ import BruijnEnvironment
 import FreeEnvironment
 import Type
 import MakeType
+import TopologicalSort
 import Name
 import ArbiRef
+import qualified ModificationTags as M
+
+-- TODO dont why again is need here but otwersie test will stop after discard
+-- TODO cleaner notation
+-- TODO generrate noncircular direct
+forAllNonCiculair:: Testable prop => (BruijnTerm () () -> prop) -> Property
+forAllNonCiculair prop = again $ forAllTypedBruijn $ \ e -> case sortTerm e of
+          Left {} -> discard
+          (Right newT) -> prop $ M.applyModify newT
 
 forAllTypedBruijn :: Testable prop => (BruijnTerm () () -> prop) -> Property
 forAllTypedBruijn = forAllShowShrink genTyped {-BruijnTerm.pShow-}show shrinkTypedBruijn

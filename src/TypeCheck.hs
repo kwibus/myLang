@@ -7,13 +7,16 @@ import Control.Monad.State hiding ()
 import Data.Bifunctor
 import Data.Maybe
 import Data.Either
+import Unsafe.Coerce
 
+import Info
 import ErrorCollector
 import Value
 import Type
+import MakeType
+import BruijnEnvironment
 import BruijnTerm
 import LambdaF2
-import BruijnEnvironment
 import FreeEnvironment
 import TypeError
 -- $setup
@@ -42,6 +45,17 @@ solver :: BruijnTerm i j -> ErrorCollector [TypeError i j] Type
 solver e =
   let (result,subs) = runInfer $ typecheck e
   in fmap (close . apply subs) result
+
+annotate :: BruijnTerm i j -> ErrorCollector [TypeError i j] (BruijnTerm Type j)
+annotate e = let (ast,subs) = runInfer $ annotateType e
+             in fmap (mapI (toType .apply subs.dePoly ).fst ) ast
+
+-- TODO remove boilerplate
+dePoly :: TypeA i -> TypeA i
+dePoly (TAppl t1 t2) = TAppl (dePoly t1) (dePoly t2)
+dePoly (TPoly i j) = TVar i j
+dePoly (TVar i j) = TVar i j
+dePoly (TVal a) = TVal a
 
 -- TODO better name
 type TypeL = TypeA Int -- ^ type anotated with bruijnen level of the variabe it refers to
@@ -84,8 +98,8 @@ newVar = do
 level :: Infer i j Int
 level = bruijnDepth <$> gets context
 
-solveDef :: Int -> BruijnTerm i j -> Bound -> Def i TypeL -> Infer i j ()
-solveDef currentLevel orignal b (Def _ n t) = do
+solveDef :: Int -> BruijnTerm i j -> Bound -> Def i TypeL -> Infer i j TypeL
+solveDef currentLevel orignal b (Def _ _ t) = do
       -- currentLevel <- level
       poly <- generalize currentLevel <$> applyM t
       tenv <- gets context
@@ -95,22 +109,20 @@ solveDef currentLevel orignal b (Def _ n t) = do
                 newt <- instantiate currentLevel poly
                 unifyM orignal newt $ TVar f currentLevel
       modify' $ \s ->  s{context = bReplace b (Right poly) (context s)}
+      return poly
 
 solve :: BruijnTerm i j -> LamTermF i j Bound TypeL -> Infer i j TypeL
 solve _ (LetF _ _ result) = return result
 
 solve _ (LambdaF ns t) = do --TODO
     (_,vs) <- bSplitAt (length ns ) <$> gets context
-    -- applyM (TAppl k t)
-    -- modify' $ \s ->s{context = newContext }
-    return $ foldr TAppl t (rights vs)
+    return $ foldr TAppl t $ rights vs
 
 solve orignal (ApplF functionType argsTypes) = do
     f <- newFreeVar
     let var = TVar f $ typeResultLevel functionType
     let typeArg = foldr1 TAppl (argsTypes ++ [var])
     unifyM orignal functionType typeArg
-    -- applyM var
     return var
 
 solve _ (ValF _ v) = return (mapVar (const 0) $ getType v)
@@ -134,7 +146,7 @@ solve _ (VarF i n) = do
 ---      *  consider other order checks
 walk :: BruijnTerm i j
      -> (BruijnTerm i j -> LamTermF i j Bound a -> Infer i j a)
-     -> (Int -> BruijnTerm i j -> Bound -> Def i a ->Infer i j b)
+     -> (Int -> BruijnTerm i j -> Bound -> Def i a ->Infer i j a) --TODO remove level and maybe original
      -> Infer i j a
 walk ast0 f fdef  =  go ast0
   where
@@ -146,23 +158,24 @@ walk ast0 f fdef  =  go ast0
       modify' $ \s -> s {context = bInserts (map Right vs) (context s)}
 
       astfm <- sequence (go <$> wrap ast)
-      astf <- f ast astfm
+      a <- f ast astfm
       dropVars nvars
 
-      return astf
+      return a
 
-    go ast@(Let _ defs term) = do
+    go ast@(Let i defs term) = do
       let nvars = length defs
       currentLevel <- level
       modify' $ \s -> s{context = bInserts (replicate (length defs) $ Left (currentLevel, [])) (context s)}
-      zipWithM_ (\b (Def i n body) -> do
+      defs2 <- zipWithM (\b (Def idef n body) -> do
           astf <- go body
-          fdef currentLevel ast b $ Def i n astf
+          Def idef n <$> fdef currentLevel ast b ( Def idef n astf)
         ) (defsBounds defs) defs
       t <- go term
-      dropVars nvars
-      return t
 
+      a <- f ast (LetF i defs2 t)
+      dropVars nvars
+      return a
     go ast = do
       astfm <- sequence (go <$> wrap ast)
       f ast astfm
@@ -170,12 +183,44 @@ walk ast0 f fdef  =  go ast0
 typecheck :: BruijnTerm i j -> Infer i j TypeL
 typecheck term = walk term solve solveDef
 
+annotateType :: BruijnTerm i j -> Infer i j (BruijnTerm TypeL j, TypeL )
+annotateType term = walk term annotate anotateDef
+  where
+    annotate :: BruijnTerm i j -> LamTermF i j Bound  (BruijnTerm TypeL j, TypeL) -> Infer i j (BruijnTerm TypeL j, TypeL)
+    annotate original astF = do
+      typ <- solve original $ snd  <$> astF
+      let typedAstF = case astF of
+            (LambdaF vars (body,_)) -> LambdaF (zipWith (\t (_,n) -> (t,n)) (accumulateTypes typ) vars ) body
+            (LetF i defs result ) -> LetF i (map (\(Def _ n (body, t)) -> Def t n body) defs ) (fst result)
+            t -> unsafeCoerce (fmap fst t)
+      return (unwrap typedAstF, typ)
+    anotateDef :: Int -> BruijnTerm i j -> Bound -> Def i  (BruijnTerm TypeL j, TypeL) -> Infer i j (BruijnTerm TypeL j, TypeL)
+    anotateDef currentLevel original b def@(Def _ _ (body, _)) = do
+      t <- solveDef currentLevel original b (snd  <$> def)
+      return (body ,t)
+
+-- TODO does not work with circulair devinions (you can make let varible with type a which can match a fucntino)
+-- TODO does not work well Appl, have to use unify to get specialisised van poly to work.
+--      But these supstitution are not applied to previos varible
+readType :: BruijnTerm Type j -> Type
+readType ast0 = go bEmtyEnv ast0
+  where
+    go :: BruijnEnv Type -> BruijnTerm Type j -> Type
+    go _    (Val _ v)  = getType v
+    go tEnv (Var _ b) = bLookup b tEnv
+    go tEnv (Lambda t _ ast) = t ~> go (bInsert t tEnv )ast
+    go tEnv (Appl e1 e2) = case go tEnv e1 of
+        (TAppl t1 t2) -> case unify t1 (go tEnv e2) of
+            Result subs -> apply subs t2
+            Error e -> error $ show e
+        _ -> error $ "not a fuction: " ++ show (removeInfo e1)
+    go tEnv (Let _ defs result ) = go (foldl (\_tEnv (Def t _ _ ) -> bInsert t _tEnv)tEnv  defs) result
+
 typeResultLevel :: TypeL -> Int
 typeResultLevel (TVar _ l) = l
 typeResultLevel (TPoly _ l) = l
 typeResultLevel TVal {} = 0
 typeResultLevel (TAppl _ t) = typeResultLevel t
-
 
 -- | instantiate copys all variabls and replace them with new vars
 --
