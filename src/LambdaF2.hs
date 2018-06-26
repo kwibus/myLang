@@ -54,12 +54,14 @@ unwrap (ApplF t1 ts) = foldl Appl t1 ts
 unwrap (LetF i defs t) = Let i defs t
 
 mapLambdaM :: Monad m
-           => (LamTerm i j n ->  LamTermF i j n (m a) -> m a)
+           => (LamTerm i j n ->  LamTermF i j n a -> m a)
            -> LamTerm i j n
            -> m a
-mapLambdaM  f ast0 = go ast0
+mapLambdaM f ast0 = go ast0
   where
-    go ast = f ast ( go <$>  wrap ast)
+    go ast = do
+      astF <- traverse go $ wrap ast
+      f ast astF
 
 foldLambdaM :: Monad m
             => (context -> LamTerm i j n ->  LamTermF i j n (context -> m a) -> m a)
