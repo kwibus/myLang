@@ -51,7 +51,7 @@ bNull BruijnState {bruijnDepth = 0} = True
 bNull _ = False
 
 bEmtyEnv :: BruijnEnv a
-bEmtyEnv = BruijnState
+bEmtyEnv = BruijnState --TODO rename
     { bruijnDepth = 0
     , bruijnMap = IM.empty
     }
@@ -132,6 +132,12 @@ bInsertAt n a env = bInserts (a:right) left
 
 instance Functor BruijnEnv where
     fmap f b = b {bruijnMap = fmap f (bruijnMap b)}
+
+instance Traversable BruijnEnv where
+  traverse f (BruijnState dept intmap) = BruijnState dept <$> traverse f intmap
+
+instance Foldable BruijnEnv where
+  foldr f b (BruijnState _ intmap) = foldr f b intmap
 
 mapWithBound :: (Bound -> a -> b) -> BruijnEnv a -> BruijnEnv b
 mapWithBound f b@BruijnState {bruijnDepth = dept, bruijnMap = m} =

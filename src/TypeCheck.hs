@@ -3,6 +3,7 @@ module TypeCheck where
 
 import Control.Exception.Base (assert)
 import qualified Data.IntMap as IM
+import qualified Data.Set as Set
 import Control.Monad.State hiding ()
 import Control.Monad.Except
 import Data.Bifunctor
@@ -83,8 +84,11 @@ level = bruijnDepth <$> gets context
 solveDef :: Int -> BruijnTerm i j -> Bound -> Def i TypeL -> Infer i j TypeL
 solveDef currentLevel orignal b (Def _ _ t) = do
       -- currentLevel <- level
-      poly <- generalize currentLevel <$> applyM t
+
       tenv <- gets context
+      -- subs <- gets substitution
+      -- poly <- classicGeneralize b subs <$> applyEnv tenv <*> applyM t
+      poly <- generalize currentLevel <$> applyM t
       void $ case bLookup b tenv of
           Right _ -> error "already devined"
           Left (originLevel,uses) ->assert (originLevel == currentLevel ) forM uses $ \f-> do
@@ -181,8 +185,8 @@ annotateType term = walk term annotate anotateDef
       t <- solveDef currentLevel original b (snd  <$> def)
       return (body ,t)
 
--- TODO does not work with circulair devinions (you can make let varible with type a which can match a fucntino)
--- TODO does not work well Appl, have to use unify to get specialisised van poly to work.
+-- TODO does not work with circulair devinions (you can make let varible with type a which can match a fucntion)
+-- TODO does not work well Appl with let Polymorfism, have to use unify to get specialisised van poly to work.
 --      But these supstitution are not applied to previos varible
 readType :: BruijnTerm Type j -> Type
 readType ast0 = go bEmtyEnv ast0
@@ -240,14 +244,33 @@ dropVars n = modify' $ \s -> s {context = bDrop n (context s) }
 -- need to be applied with its substitutions to work correctly
 
 -- TODO which level is that? above scope
+-- generalize :: TEnv -> TypeL -> TypeL
 generalize :: Int -> TypeL -> TypeL
 generalize currentLevel = toPoly
   where
-    -- boundinEnv = Set.unions $ map (typeFreeVars. toType) . snd) $ bToList env
-    -- toPoly (TVar i levelorigin) | not $ Set.member i boundinEnv = TPoly i levelorigin
+
     toPoly (TAppl t1 t2 ) = TAppl (toPoly t1) (toPoly t2)
     toPoly (TVar f levelorigin) | levelorigin > currentLevel = TPoly f levelorigin
     toPoly t = t
+
+classicGeneralize :: Bound -> TSubst TypeL ->  TEnv -> TypeL -> TypeL
+classicGeneralize b subs env t = toPoly t
+  where
+    boundinEnv :: Set.Set Free
+    boundinEnv = Set.unions $ map (either
+      (Set.unions . map (typeFreeVars .toType. apply subs .flip TVar 0 ). snd )
+      (typeFreeVars . toType)) $
+      map snd $ bToList $ removeCurrent env
+
+    removeCurrent :: TEnv ->  TEnv
+    removeCurrent = bReplace b (Left (0 ,[]))
+
+    toPoly (TVar i levelorigin) | not $ Set.member i boundinEnv = TPoly i levelorigin
+    toPoly (TAppl t1 t2 ) = TAppl (toPoly t1) (toPoly t2)
+    toPoly t = t
+
+applyEnv :: TEnv -> Infer i j  TEnv
+applyEnv tenv = mapM (mapM applyM) tenv
 
 unifyM :: BruijnTerm i j -> TypeL -> TypeL -> Infer i j ()
 unifyM origin t1 t2 = do
@@ -318,6 +341,7 @@ bind n1 t
     | infinit n1 t = Left $ Infinit n1 $ toType t
     | otherwise = return $ finsertAt t n1 fEmtyEnv
 
+-- TODO rename occurs check?
 infinit :: Free -> TypeA a -> Bool
 infinit var (TAppl t1 t2) = isIn var t1 || isIn var t2
 infinit _ _ = False
