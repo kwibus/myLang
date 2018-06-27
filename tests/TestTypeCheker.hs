@@ -278,6 +278,12 @@ testBasic = testGroup "Solver"
   , testCase "let f a = g; g = f in f" $
       solver (mkLet [("f", lambda "a" $ bvar 1 ), ("g", bvar 1)] $ bvar 1)
       @?= throw [UnifyAp undefined undefined undefined [Infinit (Free 1)(tVar 3 ~> tVar 1) ]]
+
+  , testCase "let g f x = f (f f) ; c a b = a in g (c true) 1"  $
+      solver (mkLet [("twice", lambda "f" $ lambda "x" $ appl (bvar 1) (appl (bvar 0)(bvar 1)))
+                    ,("const", lambda "a" $ lambda "b" $ bvar 1 )] $
+                    appl (appl (bvar 1)(appl (bvar 0) true)) (double 1))
+      @?= throw [UnifyAp undefined undefined undefined [Unify undefined undefined ]]
   ]
 
 testAnnotate :: TestTree

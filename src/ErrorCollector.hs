@@ -46,9 +46,17 @@ instance (Monoid e, Monad m) => Monad (ErrorCollectorT e m) where
       Error e -> return $ Error e
       Result a -> runErrorT $ f a
 
-instance (Applicative m , Monoid e) => Applicative (ErrorCollectorT e m) where
+instance (Monad m , Monoid e) => Applicative (ErrorCollectorT e m) where
   pure = ErrorT . pure . Result
-  fa <*> fb = ErrorT ( (<*>) <$> runErrorT fa <*> runErrorT fb)
+  -- it would be nice if this would work: you coul coolect more then one errors
+  -- but this works only if fa and fb are independen and that is not always the case
+  -- this makes ErrorCollectorT useless
+  -- fa <*> fb = ErrorT ( (<*>) <$> runErrorT fa <*> runErrorT fb)
+  fa <*> fb = ErrorT $ do
+    fe <- runErrorT fa
+    case fe of
+      (Error e) -> return $ Error e
+      Result f -> fmap f <$> runErrorT fb
 
 instance Functor m => Functor (ErrorCollectorT e m) where
   fmap f ma = ErrorT $ fmap (fmap f ) (runErrorT ma)
