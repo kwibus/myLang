@@ -71,7 +71,6 @@ executable interperter
   hs-source-dirs:      src/Interperter/
   build-depends:       base >=4 && < 5
                       ,myLang
-                      ,either-unwrap
                       ,haskeline
                       ,transformers
                       ,ansi-wl-pprint

@@ -1,7 +1,7 @@
 module Main where
 
 import System.Console.Haskeline
-import Data.Either.Unwrap
+import Data.Bifunctor
 import Text.PrettyPrint.ANSI.Leijen as ANSI
 
 import Info
@@ -26,8 +26,8 @@ main = runInputT defaultSettings loop
 
 readEvalPrint :: String -> InputT IO ()
 readEvalPrint input = outPutDoc $ merge $ do
-    ast <- mapLeft (text . show) $ parseString input
-    bruijn <- mapLeft (text . show) $ lam2Bruijn ast
+    ast <- first (text . show) $ parseString input
+    bruijn <- first (text . show) $ lam2Bruijn ast
     t <- toEither $ mapError (showErrors input) $ solver bruijn
     let result = fullEval $ removeInfo bruijn
     return $ text ( Type.pShow t) ANSI.<$> text ( BruijnTerm.pShow result)
