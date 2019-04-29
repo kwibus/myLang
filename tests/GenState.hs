@@ -11,7 +11,6 @@ import FreeEnvironment
 import BruijnEnvironment
 import Type
 import TypeCheck
-import ErrorCollector
 import Control.Monad.State.Strict
 import SearchTree
 
@@ -44,8 +43,8 @@ unifyGen Nothing _ = return ()
 unifyGen (Just t1) t2 = do
     sub <- getSub
     case unify (apply sub t1) (apply sub t2) >>= unifySubs sub of
-        Error {} -> mzero
-        (Result sub1) -> setEnv sub1
+        Left {} -> mzero
+        (Right sub1) -> setEnv sub1
 
 getSub :: Generater (TSubst Type)
 getSub = liftM fst get

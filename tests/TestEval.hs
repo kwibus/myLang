@@ -6,6 +6,7 @@ import Test.Tasty
 import Test.Tasty.HUnit
 import Test.Tasty.QuickCheck
 import Data.Maybe
+import Data.Either
 import Data.List
 
 import TypeCheck
@@ -21,7 +22,6 @@ import MakeTerm
 import Operator
 import Value
 import Name
-import ErrorCollector
 import TestUtils
 import qualified Type as T
 import qualified SimpleEval as Simple
@@ -553,7 +553,7 @@ testEvalProp = testGroup "propertys" $
         -> let result = eval e
            in isJust result ==>
                 let expr2 = fromJust result
-                in errorCol2Bool $ do
+                in property . isRight $ do
                     t2 <- solver expr2
                     t1 <- solver e
                     return $ counterexample (
@@ -576,10 +576,6 @@ testEvalProp = testGroup "propertys" $
 --   TODO implement (this is only true if e1,e1 terminate and no self reference in e1 )
 -- , testProperty"let a = e1 in e2 == (\\a.e2)e1"  forAllTypedBruijn \e1 -> $ forAllTypedBruijn e2
   ]
-
-errorCol2Bool :: ErrorCollector e Property -> Property
-errorCol2Bool (Result p ) = p
-errorCol2Bool (Error _ ) = property False
 
 hasRelation :: (a -> a -> Bool) -> [a] -> Property
 hasRelation _ [] = property True

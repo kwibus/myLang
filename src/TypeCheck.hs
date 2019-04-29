@@ -4,13 +4,13 @@ module TypeCheck where
 import Control.Exception.Base (assert)
 import qualified Data.IntMap as IM
 import Control.Monad.State hiding ()
+import Control.Monad.Except
 import Data.Bifunctor
 import Data.Maybe
 import Data.Either
 import Unsafe.Coerce
 
 import Info
-import ErrorCollector
 import Value
 import Type
 import MakeType
@@ -22,13 +22,16 @@ import TypeError
 -- $setup
 -- >>> import MakeType
 
+liftEither :: MonadError e m => Either e a -> m a
+liftEither = either throwError return
+
 -- -- TODO make every variable poly, and maybe enforce in type?
-solver :: BruijnTerm i j -> ErrorCollector [TypeError i j] Type
+solver :: BruijnTerm i j -> Either [TypeError i j] Type
 solver e =
   let (result,subs) = runInfer $ typecheck e
   in fmap (normalise . toType. apply subs) result --TODO do we always want to normalise
 
-annotate :: BruijnTerm i j -> ErrorCollector [TypeError i j] (BruijnTerm Type j)
+annotate :: BruijnTerm i j -> Either [TypeError i j] (BruijnTerm Type j)
 annotate e = let (ast,subs) = runInfer $ annotateType e
              in fmap (mapI (toType .apply subs.dePoly ).fst ) ast -- TODO
 
@@ -41,7 +44,7 @@ dePoly (TVal a) = TVal a
 
 -- TODO better name
 type TypeL = TypeA Int -- ^ type anotated with bruijnen level of the variabe it refers to
-type Infer i j a = ErrorCollectorT [TypeError i j] ( State InferState) a -- TODO check is this option order of transformers
+type Infer i j a = ExceptT [TypeError i j] ( State InferState) a -- TODO check is this option order of transformers
 data InferState = InferState { fresh :: Int
                              , substitution :: TSubst TypeL
                              , context :: TEnv -- TODO betername
@@ -59,8 +62,8 @@ type TSubst a = FreeEnv a
 toType :: TypeA a -> Type
 toType = mapVar (const ())
 
-runInfer :: Infer i j a -> (ErrorCollector [TypeError i j] a,TSubst TypeL)
-runInfer infer = second substitution $ runState (runErrorT infer) $ InferState 0 fEmtyEnv bEmtyEnv
+runInfer :: Infer i j a -> (Either [TypeError i j] a,TSubst TypeL)
+runInfer infer = second substitution $ runState (runExceptT infer) $ InferState 0 fEmtyEnv bEmtyEnv
 
 newFreeVar :: Infer i j Free
 newFreeVar = do
@@ -120,7 +123,7 @@ solve _ (VarF i n) = do
           f  <- newFreeVar
           modify' $ \s ->s{context = bReplace n (Left (orginLevel ,f:uses))tenv}
           return (TVar f orginLevel)
-      Nothing -> throwT [ICE $ UndefinedVar n i]
+      Nothing -> throwError [ICE $ UndefinedVar n i]
 
 --- TODO which types whould be poly and test
 --- TODO add comments (name algoritme symtrye asumptions (apply))
@@ -193,8 +196,8 @@ readType ast0 = go bEmtyEnv ast0
     go tEnv (Lambda t _ ast) = t ~> go (bInsert t tEnv )ast
     go tEnv (Appl e1 e2) = case go tEnv e1 of
         (TAppl t1 t2) -> case unify t1 (go tEnv e2) of
-            Result subs -> apply subs t2
-            Error e -> error $ show e
+            Right subs -> apply subs t2
+            Left e -> error $ show e
         _ -> error $ "not a fuction: " ++ show (removeInfo e1)
     go tEnv (Let _ defs result ) = go (foldl (\_tEnv (Def t _ _ ) -> bInsert t _tEnv)tEnv  defs) result
 
@@ -254,7 +257,7 @@ unifyM origin t1 t2 = do
   t1' <- applyM t1 --TODO writght fast one
   t2' <- applyM t2
   oldSubs <- gets substitution
-  sub <- toExcept $ mapError (\ erro -> [UnifyAp origin (toType t1') (toType t2') erro]) $ do
+  sub <- withExceptT (\ erro -> [UnifyAp origin (toType t1') (toType t2') erro]) $ liftEither $ do
         newSubs <- unify t1 t2
         unifySubs oldSubs newSubs
   modify' $ \s-> s{substitution = sub  }
@@ -262,24 +265,24 @@ unifyM origin t1 t2 = do
 -- TODO can be replace when we use infer monad smart
 -- TODO add comments how it works
 -- insert second into the first
-unifySubs :: Ord a => TSubst (TypeA a) -> TSubst (TypeA a)-> ErrorCollector [UnificationError] (TSubst (TypeA a))
-unifySubs sub1 sub2 = IM.foldrWithKey f (return sub1) sub2
-    where f key typ1 (Result sub) = case IM.lookup key sub of
-            Nothing -> IM.union sub <$> fromEither (bind (Free key) (apply sub typ1))
+unifySubs :: Ord a => TSubst (TypeA a) -> TSubst (TypeA a)-> Either[UnificationError] (TSubst (TypeA a))
+unifySubs sub1 sub2 = IM.foldrWithKey f (Right sub1) sub2
+    where f key typ1 (Right sub) = case IM.lookup key sub of
+            Nothing ->  IM.union sub <$> first (:[]) ( bind (Free key) (apply sub typ1))
             Just typ2 -> IM.union sub <$> unify (apply sub typ1) (apply sub typ2)
-          f key typ1 (Error err ) = case IM.lookup key sub1 of
-            Nothing -> throw err
-            Just typ2 -> throw err *> unify (apply sub1 typ1) (apply sub1 typ2)
+          f key typ1 (Left err ) = case IM.lookup key sub1 of
+            Nothing -> Left err
+            Just typ2 -> first (err++) $ unify (apply sub1 typ1) (apply sub1 typ2)
 
 --TODO only changes?
 --     use unionfind
-unify :: Ord a => TypeA a -> TypeA a  -> ErrorCollector [UnificationError] (TSubst (TypeA a))
+unify :: Ord a => TypeA a -> TypeA a  -> Either [UnificationError] (TSubst (TypeA a))
 -- unify (TVar n1 level1) (TVar n2 level2) = --TODO test if this is needed
 --   if level1 < level2
---   then fromEither $ bind n2 (TVar n1 level1)
---   else fromEither $ bind n1 (TVar n2 level2)
-unify (TVar n _) t = fromEither $ bind n t
-unify t (TVar n _) = fromEither $ bind n t
+--   then LiftEither $ bind n2 (TVar n1 level1)
+--   else LiftEither $ bind n1 (TVar n2 level2)
+unify (TVar n _) t = first (:[]) $ bind n t
+unify t (TVar n _) = first(:[]) $ bind n t
 unify TPoly{} _ = return fEmtyEnv
 unify _ TPoly{} = return fEmtyEnv
 unify (TAppl t11 t12 ) (TAppl t21 t22) =
@@ -288,8 +291,8 @@ unify (TAppl t11 t12 ) (TAppl t21 t22) =
      unifySubs sub1 sub2 --TODO
 unify t1@(TVal v1) t2@(TVal v2) = if v1 == v2
     then return fEmtyEnv
-    else throw [Unify (toType t1) (toType t2) ]
-unify t1 t2 = throw [Unify (toType t1) (toType t2)]
+    else Left [Unify (toType t1) (toType t2) ]
+unify t1 t2 = throwError [Unify (toType t1) (toType t2)]
 
 -- TODO make apply that optimize subst map
 applyM :: TypeL -> Infer i j TypeL
@@ -329,4 +332,4 @@ isIn var (TAppl t1 t2) = isIn var t1 || isIn var t2
 isIn var1 (TVar var2 _) = var1 == var2
 
 unifys :: Ord a => TypeA a -> TypeA a -> Bool
-unifys t1 t2 = hasSucces $ unify t1 t2
+unifys t1 t2 = isRight $ unify t1 t2

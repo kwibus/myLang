@@ -3,6 +3,7 @@ module TestArbitrary (testArbitrary, size) where
 import Test.Tasty
 import Test.Tasty.QuickCheck
 import Data.Maybe
+import Data.Either
 
 import Properties
 import ArbitraryLambda
@@ -10,7 +11,6 @@ import ArbitraryLambda
 import BruijnTerm
 import MakeType
 import TypeCheck
-import ErrorCollector
 
 testArbitrary :: TestTree
 testArbitrary = testGroup "arbitrary" [testGeneration, testshrink]
@@ -24,7 +24,7 @@ testshrink = testGroup "shrink"
        forAllTypedBruijn $ \ e -> conjoin (map welFormd (shrinkTypedBruijn e ))
 
     , testProperty "all typeable" $
-       noShrinking $ forAllTypedBruijn $ \ e -> conjoin (map (\en ->counterexample (pShow en) $ hasSucces $ solver en ) $ shrinkTypedBruijn  e )
+       noShrinking $ forAllTypedBruijn $ \ e -> conjoin (map (\en ->counterexample (pShow en) $ isRight $ solver en ) $ shrinkTypedBruijn  e )
     ]
 
 testGeneration :: TestTree
@@ -38,12 +38,12 @@ testGeneration = testGroup "genration"
             (forAll (resize n genUnTyped ) (\ t -> size (t :: BruijnTerm () ()) == n)))
 
     , testProperty "typeable" $
-        forAllTypedBruijn $ \ e -> hasSucces $ solver e
+        forAllTypedBruijn $ \ e -> isRight $ solver e
 
     , testProperty "corect type" $
          forAll ( genTerm (Just tDouble ))
                 (\ e -> isJust e ==> case solver (fromJust (e :: Maybe (BruijnTerm () ()))) of
-                    (Result t) -> unifys t tDouble
+                    (Right t) -> unifys t tDouble
                     _ -> False
                 )
    ]

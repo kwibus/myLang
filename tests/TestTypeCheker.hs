@@ -4,6 +4,7 @@ import Test.Tasty
 import Test.Tasty.HUnit
 import Test.Tasty.QuickCheck
 import Data.IntMap
+import Data.Either
 
 import qualified ExampleBruijn as B
 
@@ -19,7 +20,6 @@ import TypeCheck
 import Operator
 import FreeEnvironment
 import TypeError
-import ErrorCollector
 
 testTypeChecker :: TestTree
 testTypeChecker = testGroup "typeChecker"
@@ -68,7 +68,7 @@ testUnifySubs = testGroup " UnifySubs "
     [testCase "unifySubs error" $
         let sub1 = fromList [(1, tDouble) ]
             sub2 = fromList [(1, tDouble ~> tDouble)]
-        in hasSucces (unifySubs sub1 sub2) @?= False
+        in isRight (unifySubs sub1 sub2) @?= False
 
     , testCase "unifySubs error sum" $
         let sub1 = fromList [ (1, tDouble)
@@ -76,7 +76,7 @@ testUnifySubs = testGroup " UnifySubs "
             sub2 = fromList [ (1, tDouble ~> tDouble)
                             , (2, tDouble ~> tDouble)]
         in (case unifySubs sub1 sub2 of
-                Error es -> length es == 2
+                Left es -> length es == 2
                 _ -> False
            ) @?= True
 
@@ -88,27 +88,27 @@ testUnifySubs = testGroup " UnifySubs "
     , testCase " unifysSubs [a/(b ->c)]  [b/a] failse" $
         let sub1 = fromList [(1,tVar 2 ~> tVar 3)]
             sub2 = fromList [(2,tVar 1)]
-        in hasSucces (unifySubs sub1 sub2 ) @?= False
+        in isRight (unifySubs sub1 sub2 ) @?= False
 
     , testCase " unifysSubs [a/(b ->c)]  [a/b] fails" $
         let sub1 = fromList [(1,tVar 2 ~> tVar 3)]
             sub2 = fromList [(1,tVar 2)]
-        in hasSucces (unifySubs sub1 sub2 ) @?= False
+        in isRight (unifySubs sub1 sub2 ) @?= False
 
     , testCase " unifysSubs [b/a] [a/(b ->c)] failse" $
         let sub2 = fromList [(1,tVar 2 ~> tVar 3)]
             sub1 = fromList [(2,tVar 1)]
-        in hasSucces (unifySubs sub1 sub2 ) @?= False
+        in isRight (unifySubs sub1 sub2 ) @?= False
 
     , testCase " unifysSubs [a/b] [a/(b ->c)] fails" $
         let sub2 = fromList [(1,tVar 2 ~> tVar 3)]
             sub1 = fromList [(1,tVar 2)]
-        in hasSucces (unifySubs sub1 sub2 ) @?= False
+        in isRight (unifySubs sub1 sub2 ) @?= False
 
     , testCase " unifysSubs [a/b->c] [b/(a ->c)] fails" $
         let sub2 = fromList [(1,tVar 2 ~> tVar 3)]
             sub1 = fromList [(2,tVar 1 ~> tVar 3)]
-        in hasSucces (unifySubs sub1 sub2 ) @?= False
+        in isRight (unifySubs sub1 sub2 ) @?= False
     ]
 
 testTypeCheck :: TestTree
@@ -189,18 +189,18 @@ testBasic = testGroup "Solver"
 
     , testCase "fail (+)\\a.a" $
         solver (appl (val plus) B.id ) @?=
-        throw [UnifyAp undefined undefined undefined [Unify undefined undefined ]]
+        Left [UnifyAp undefined undefined undefined [Unify undefined undefined ]]
 
     , testCase "fail \\a.a a" $
         solver (lambda "a" (appl (bvar 0 ) (bvar 0))) @?=
-        throw [UnifyAp undefined undefined undefined [Infinit undefined undefined ]]
+        Left [UnifyAp undefined undefined undefined [Infinit undefined undefined ]]
 
     , testCase "(\\x.(\\y z. z)(x 1.0)(x True))\\a.a" $
         solver (appl (lambda "x" (appl (appl (lambda "y" $lambda "z"(bvar 0))
                                              (appl (bvar 0) (double 1)))
                                          (appl (bvar 0) true)))
                B.id)
-        @?= throw [UnifyAp undefined undefined undefined  [Unify tDouble tBool]]
+        @?= Left [UnifyAp undefined undefined undefined  [Unify tDouble tBool]]
 
 
     , testCase "(\\x.(\\y.x)((\\z.x)(x(\\w.w))))\\a.a" $
@@ -248,7 +248,7 @@ testBasic = testGroup "Solver"
 
   , testCase "let a = true; b = a +; in b" $
       solver (mkLet [("a",true),("b",appl (val plus) (bvar 1))] $bvar 0 )
-      @?= throw [UnifyAp undefined undefined undefined [Unify tBool tDouble]]
+      @?= Left [UnifyAp undefined undefined undefined [Unify tBool tDouble]]
 
   , testCase "let f a = true; b = f True; in b" $
       solver (mkLet [("f",lambda "a" true),("b",appl (bvar 1) true)] $ bvar 0 )
@@ -277,21 +277,21 @@ testBasic = testGroup "Solver"
 
   , testCase "let f a = g; g = f in f" $
       solver (mkLet [("f", lambda "a" $ bvar 1 ), ("g", bvar 1)] $ bvar 1)
-      @?= throw [UnifyAp undefined undefined undefined [Infinit (Free 1)(tVar 3 ~> tVar 1) ]]
+      @?= Left [UnifyAp undefined undefined undefined [Infinit (Free 1)(tVar 3 ~> tVar 1) ]]
 
   , testCase "let g f x = f (f f) ; c a b = a in g (c true) 1"  $
       solver (mkLet [("twice", lambda "f" $ lambda "x" $ appl (bvar 1) (appl (bvar 0)(bvar 1)))
                     ,("const", lambda "a" $ lambda "b" $ bvar 1 )] $
                     appl (appl (bvar 1)(appl (bvar 0) true)) (double 1))
-      @?= throw [UnifyAp undefined undefined undefined [Unify undefined undefined ]]
+      @?= Left [UnifyAp undefined undefined undefined [Unify undefined undefined ]]
   ]
 
 testAnnotate :: TestTree
 testAnnotate = testGroup "anotate"
   [ testProperty "anotate ast ~ ast" $ forAllTypedBruijn $ \ast  ->
     case annotate ast of
-        (Result typedAst) -> removeInfo  typedAst === ast
-        (Error e) -> property $ counterexample ("fail anotate: " ++show e) False
+        (Right typedAst) -> removeInfo  typedAst === ast
+        (Left e) -> property $ counterexample ("fail anotate: " ++show e) False
 
   , testProperty "readType anotate = TypeCheck ast " $ forAllNonCiculair $ \ast  ->
     let anotated = annotate ast in counterexample (show anotated ) $ (normalise <$> solver ast) === fmap (normalise . readType) anotated

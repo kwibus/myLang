@@ -56,7 +56,6 @@ library
                       ,Info
                       ,SourcePostion
                       ,TypeError
-                      ,ErrorCollector
                       ,Name
                       ,Associativity
                       ,Modify
