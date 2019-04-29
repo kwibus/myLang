@@ -22,9 +22,6 @@ import TypeError
 -- $setup
 -- >>> import MakeType
 
-liftEither :: MonadError e m => Either e a -> m a
-liftEither = either throwError return
-
 -- -- TODO make every variable poly, and maybe enforce in type?
 solver :: BruijnTerm i j -> Either [TypeError i j] Type
 solver e =
