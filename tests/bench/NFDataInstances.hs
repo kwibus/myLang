@@ -20,7 +20,6 @@ import InfixFix
 import SourcePostion
 import BruijnTerm
 import TypeError
-import ErrorCollector
 
 deriving instance  Generic Name
 instance NFData Name where
@@ -52,10 +51,6 @@ instance (NFData i, NFData b) => NFData (UndefinedVar i b)where
 
 deriving instance  Generic UnificationError
 instance NFData UnificationError where
-    rnf = genericRnf
-
-deriving instance  Generic (ErrorCollector e a)
-instance (NFData e , NFData a) =>NFData (ErrorCollector e a) where
     rnf = genericRnf
 
 deriving instance  Generic Fixity
