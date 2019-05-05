@@ -1,4 +1,16 @@
 module ArbitraryLambda
+  ( forAllNonCiculair
+  , forAllTypedBruijn
+  , forAllUnTypedBruijn
+  , forAllUnTypedLambda
+  , genTyped
+  , genWithType
+  , genUnTyped
+  , genTerm
+  , shrinkTypedBruijn
+  , shrinkUntypedBruijn
+  , uniformBucket
+  )
 where
 
 import Data.List
