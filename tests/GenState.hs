@@ -6,7 +6,6 @@ import Control.Monad.State.Class
 import Control.Monad
 
 import Logic
-import Name
 import FreeEnvironment
 import BruijnEnvironment
 import Type
@@ -23,13 +22,14 @@ data GenState n = State
 defualtGenState :: GenState n
 defualtGenState = State
   { tEnv = bEmtyEnv
-  , freeNames = letters
+  , freeNames = [] --letters
   }
 
 
 disableFromEnv :: Bound -> GenState n -> GenState n
 disableFromEnv b s@State {tEnv = env } = s{tEnv = bDelete b env}
 
+-- TODO move to sepearte module
 type Generater a = LogicGen (Env, Int) SearchTree a
 type Env = FreeEnv Type
 
@@ -69,7 +69,7 @@ getMax = do
     (_, i) <- get
     return i
 
-typeSizeBigger :: Int -> Type -> Generater Bool
-typeSizeBigger i t = do
+typeSizeM :: Type -> Generater Int
+typeSizeM t = do
     sub <- getSub
-    return $ i < typeSize ( apply sub t)
+    return $ typeSize ( apply sub t)

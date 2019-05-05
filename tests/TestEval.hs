@@ -43,7 +43,7 @@ genD1= sized go
             ,Eval.Free . Bound <$>choose (100000,100010) ]
     genNames = Name . return <$> choose ('a','z')
     go n | n <= 1 = oneof gen1s
-         | n <= 4 = oneof $ (Closure [] <$> genNames <*> genTyped ):gen1s
+         | n <= 4 = oneof $ (Closure [] <$> genNames <*> (genTyped  defaultConf)):gen1s
          | otherwise = do
       nLets <- choose (1, min n 3)
       sizeLets<- uniformBucket nLets (n-1)

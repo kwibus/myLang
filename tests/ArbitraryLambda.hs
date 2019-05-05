@@ -10,6 +10,7 @@ module ArbitraryLambda
   , shrinkTypedBruijn
   , shrinkUntypedBruijn
   , uniformBucket
+  , defaultConf
   )
 where
 
@@ -35,15 +36,14 @@ import ArbiRef
 import qualified ModificationTags as M
 
 -- TODO dont why "again" is need here but otwersie test will stop after discard
--- TODO cleaner notation
 -- TODO generrate noncircular direct
 forAllNonCiculair :: Testable prop => (BruijnTerm () () -> prop) -> Property
-forAllNonCiculair prop =again $ forAllTypedBruijn $ \ e -> case sortTerm e of
+forAllNonCiculair prop =again $ forAllShowShrink (genTyped defaultConf{limitCirculair = True}) show shrinkTypedBruijn $ \ e -> case sortTerm e of
           Left {} -> discard
           (Right newT) -> prop $ M.applyModify newT
 
 forAllTypedBruijn :: Testable prop => (BruijnTerm () () -> prop) -> Property
-forAllTypedBruijn = forAllShowShrink genTyped {-BruijnTerm.pShow-}show shrinkTypedBruijn
+forAllTypedBruijn = forAllShowShrink (genTyped defaultConf) {-BruijnTerm.pShow-}show shrinkTypedBruijn
 
 forAllUnTypedLambda :: Testable prop => (LamTerm () () Name -> prop) -> Property
 forAllUnTypedLambda = forAllShrink genUnTyped shrinkUntypedLambda
@@ -129,42 +129,80 @@ elimanateLambda (Lambda () name term) = if go term then [term] else []
     elimanatedDef (Def _ _ t) = go t
 elimanateLambda _ = []
 
-genTyped :: ArbiRef n => Gen (LamTerm () () n )
-genTyped = fromJust <$> genTerm (Just (tVar (-1)))
+genTyped :: ArbiRef n => Conf -> Gen (LamTerm () () n )
+genTyped conf = fromJust <$> genTerm conf (Just (tVar (-1)))
 
 genUnTyped :: ArbiRef n => Gen (LamTerm () () n )
-genUnTyped = fromJust <$> genTerm Nothing
+genUnTyped = fromJust <$> genTerm defaultConf Nothing
 
 genWithType :: ArbiRef n => Type -> Gen (Maybe (LamTerm () () n))
-genWithType t = genTerm (Just t)
+genWithType t = genTerm defaultConf (Just t)
 
-genTerm :: ArbiRef n => Maybe Type -> Gen ( Maybe (LamTerm () () n ))
-genTerm t = sized $ \ n -> generateGen $ generateTerm n t
+data Conf = Conf
+    { maxTSize :: Int
+    , maxNumDefs :: Int
+    , limitCirculair:: Bool
+    }
 
-generateTerm :: ArbiRef n => Int -> Maybe Type -> Generater (LamTerm () () n)
-generateTerm n t = arbitraryTerm n t [] defualtGenState
+defaultConf :: Conf
+defaultConf = Conf
+  { maxTSize = 7
+  , maxNumDefs = 5
+  , limitCirculair = False
+  }
 
--- more qonsitent names
-arbitraryTerm :: ArbiRef n => Int -> Maybe Type -> [Type] ->
+--  TODO  stupid names
+genTerm :: ArbiRef n => Conf -> Maybe Type -> Gen ( Maybe (LamTerm () () n ))
+genTerm conf t = sized $ \ n -> generateGen $ generateTerm conf n t
+
+generateTerm :: ArbiRef n => Conf -> Int -> Maybe Type -> Generater (LamTerm () () n)
+generateTerm conf n t = arbitraryTerm conf n t [] defualtGenState
+
+-- TODO more qonsitent names
+-- arbitraryTerm should be arbitraryValue1 + arbitraryFunction
+arbitraryTerm :: ArbiRef n => Conf -> Int -> Maybe Type -> [Type] ->
       GenState n -> Generater (LamTerm () () n)
-arbitraryTerm n mabeytype maxlist s
-  | n <= 1 = oneOfLogic [ arbitraryValue mabeytype
-                        , arbitraryVar mabeytype s
+arbitraryTerm conf n maybeType maxlist s
+  | n <= 1 = oneOfLogic [ arbitraryValue maybeType
+                        , arbitraryVar maybeType s
                         ]
-    -- shorter and parmiterzerd size , rename abort
   | otherwise = do
-      b <- case mabeytype of
-        Just t -> do
-          b1 <- typeSizeBigger 7 t
-          b2 <- or <$> mapM (typeSizeBigger 7 ) maxlist
-          return $! b1 || b2
-        Nothing -> return False
-      if b
-      then mzero
-      else oneOfLogic [ arbitraryAppl n mabeytype maxlist s
-                      , arbitraryLambda n mabeytype maxlist s
-                      , arbitraryLet n mabeytype maxlist s
-                      ]
+      validateTypeSize conf maybeType maxlist
+      oneOfLogic [ arbitraryAppl conf n maybeType maxlist s
+                 , arbitraryLambda conf n maybeType maxlist s
+                 , arbitraryLet conf n maybeType maxlist s
+                 ]
+
+arbitraryFunction :: ArbiRef n => Conf -> Int -> Maybe Type -> [Type] ->
+      GenState n -> Generater (LamTerm () () n)
+arbitraryFunction conf n maybeType maxlist s
+  | n <= 1 = mzero
+  | otherwise  = do
+      validateTypeSize conf maybeType maxlist
+      -- TODO consider Lef [defs] function. see TopologicalSort
+      arbitraryLambda conf n maybeType maxlist s
+
+-- TODO rename arbitaryValue and rename arbitaryValue to arbitaryLit
+arbitraryValue1 :: ArbiRef n => Conf -> Int -> Maybe Type -> [Type] ->
+      GenState n -> Generater (LamTerm () () n)
+arbitraryValue1 conf n maybeType maxlist s
+  | n <= 1 = oneOfLogic [ arbitraryValue maybeType
+                        , arbitraryVar maybeType s
+                        ]
+  | otherwise = do
+      validateTypeSize conf maybeType maxlist
+      oneOfLogic [ arbitraryAppl conf n maybeType maxlist s
+                 , arbitraryLet conf n maybeType maxlist s
+                 ]
+validateTypeSize :: Conf -> Maybe Type -> [Type]-> Generater ()
+validateTypeSize _      Nothing _ = return ()
+validateTypeSize conf (Just  typeGoal) maxlist = do
+          let check t = do
+                  size <- typeSizeM t
+                  guard (size < maxTSize conf)
+          check typeGoal
+          mapM_ check maxlist
+
 
 -- TODO fix also genarate var Empty/Free
 arbitraryVar :: ArbiRef n => Maybe Type -> GenState n -> Generater (LamTerm () () n)
@@ -173,70 +211,95 @@ arbitraryVar t s = do
   unifyGen t (TVar f ())
   return $ Var () n
 
-arbitraryAppl :: ArbiRef n => Int -> Maybe Type -> [Type] ->
+arbitraryAppl :: ArbiRef n => Conf -> Int -> Maybe Type -> [Type] ->
      GenState n -> Generater (LamTerm () () n)
-arbitraryAppl size mabeytype maxlist state = do
+arbitraryAppl conf size mabeytype maxlist state = do
   sizeLeft <- chooseLogic (1, size - 2)
   let sizeRight = size - sizeLeft - 1
   case mabeytype of
     Nothing -> do
-      expr1 <- arbitraryTerm sizeLeft Nothing [] state
-      expr2 <- arbitraryTerm sizeRight Nothing [] state
+      expr1 <- arbitraryTerm conf sizeLeft Nothing [] state
+      expr2 <- arbitraryTerm conf sizeRight Nothing [] state
       return $ appl expr1 expr2
     Just t -> do
       newvar <- newFreeVar
       if sizeLeft < sizeRight
       then do
-        expr1 <- arbitraryTerm sizeLeft (Just (TVar newvar () ~> t)) (TVar newvar (): maxlist) state
-        expr2 <- arbitraryTerm sizeRight (Just (TVar newvar ())) maxlist state
+        expr1 <- arbitraryTerm conf sizeLeft (Just (TVar newvar () ~> t)) (TVar newvar (): maxlist) state
+        expr2 <- arbitraryTerm conf sizeRight (Just (TVar newvar ())) maxlist state
         return $ appl expr1 expr2
       else do
-        expr2 <- arbitraryTerm sizeRight (Just (TVar newvar ())) (TVar newvar () ~> t : maxlist) state
-        expr1 <- arbitraryTerm sizeLeft (Just (TVar newvar () ~> t)) maxlist state
+        expr2 <- arbitraryTerm conf sizeRight (Just (TVar newvar ())) (TVar newvar () ~> t : maxlist) state
+        expr1 <- arbitraryTerm conf sizeLeft (Just (TVar newvar () ~> t)) maxlist state
         return $ appl expr1 expr2
 
-arbitraryLambda :: ArbiRef n => Int -> Maybe Type -> [Type] ->
+arbitraryLambda :: ArbiRef n => Conf -> Int -> Maybe Type -> [Type] ->
     GenState n -> Generater ( LamTerm () () n)
-arbitraryLambda size t maxlist state = do
+arbitraryLambda conf size t maxlist state = do
   var1 <- newFreeVar
   var2 <- newFreeVar
   (n, newState) <- lift $ lift $ newVarRef state var1
   unifyGen t $ TAppl (TVar var1 ()) (TVar var2 ())
   expr <- case t of
-    Just _ -> arbitraryTerm (size - 1) (Just (TVar var2 ())) maxlist newState --TODO remove reption
-    Nothing -> arbitraryTerm (size - 1) Nothing [] newState
+    Just _ -> arbitraryTerm conf (size - 1) (Just (TVar var2 ())) maxlist newState --TODO remove reption
+    Nothing -> arbitraryTerm conf (size - 1) Nothing [] newState
   return $ lambda n expr
 
-arbitraryLet :: ArbiRef n => Int -> Maybe Type -> [Type] -> GenState n -> Generater (LamTerm () () n)
-arbitraryLet size t maxlist state =
-    let minmalSize = 1::Int
-        maxDefs = 5 :: Int
-        maxnumberDefs = min ((size - 1) `div` minmalSize) (maxDefs + 1)
+arbitraryLet :: ArbiRef n => Conf -> Int -> Maybe Type -> [Type] -> GenState n -> Generater (LamTerm () () n)
+arbitraryLet conf size t maxlist state =
+    let maxNumExpresion = min (size - 1) (maxNumDefs conf + 1)
     in do
-    numberDefs <- chooseLogic (1, maxnumberDefs)
-    if numberDefs <= 1
+    numExpresion  <- chooseLogic (1, maxNumExpresion)
+    if numExpresion <= 1
     then mzero
     else do
-            let totallExtra = (size - 1) - minmalSize * numberDefs
-            randomextra <- lift $ lift $ uniformBucket numberDefs totallExtra -- this will not backtrack
-            let (resultSize : varSize) = map (minmalSize +) randomextra
-            vars <- replicateM (numberDefs - 1) newFreeVar
-            (varNames, newState) <- lift $ lift $ makeVars state vars
-            let newmaxlist = maxlist ++ map (\f -> TVar f ()) vars
-            let (mkSmalDefsArgs,mkBigDefsArgs) = partition (\(_,_,_,defSize) -> defSize< resultSize) $ zip4 (defsBounds vars) vars (map Name varNames) $ sort varSize
-            let mkDefs (b,v,name,sizeTerm) = do
-                    -- TODO remove self from maxlist
-                    -- TODO dont make self refrence values
-                    termN <- arbitraryTerm sizeTerm (t >> Just (TVar v ())) maxlist (disableFromEnv b newState)
+            -- pick sizes
+            let totallExtra = (size - 1) -  numExpresion
+            randomextra <- lift $ lift $ uniformBucket numExpresion totallExtra -- this will not backtrack
+            let (resultSize : varSize) = map (1 +) randomextra
+
+            -- add type for defs in env
+            vars <- replicateM (numExpresion- 1) newFreeVar
+            (varNames, newState) <- lift $ lift $ makeVars state vars -- Does not need to backtrack only name is random
+
+            let newmaxs = map (\f -> TVar f ()) vars
+
+            -- tuple for mkDefs are sorted on size on size, So terms can be calcluated from small to big, to prevent extra work
+            let (mkSmalDefsArgs,mkBigDefsArgs) = partition (\(_,_,_,_,defSize) -> defSize< resultSize) $ zip5 (defsBounds vars) vars (map Name varNames) (unwrap newmaxs) (sort varSize)
+
+            -- TODO maybe separate function
+            let mkDefs (b,v,name,newMaxs,sizeTerm ) = do
+                    let newMaxList = newMaxs ++ maxlist
+                    termN <- if limitCirculair conf
+                      -- TODO this limits some circulair definitions, but can still refere to self indirect via env and a other def
+                      --      to prvent this you should add 5 empty to env,(does this work) and add real one to env after definition is generated
+                      --      if you want the same distrobution you have to exclude function from this proces
+                      then oneOfLogic
+                        [ arbitraryValue1 conf sizeTerm (t >> Just (TVar v ())) newMaxList (disableFromEnv b newState) --TODO use the correct frequency
+                        , arbitraryFunction conf sizeTerm (t >> Just (TVar v ())) newMaxList newState
+                        ]
+                      else arbitraryTerm conf sizeTerm (t >> Just (TVar v ())) newMaxList newState
                     return $ Def () name termN
+
             smalDefs <- mapM mkDefs mkSmalDefsArgs
-            term <- arbitraryTerm resultSize t newmaxlist newState
+            term <- arbitraryTerm conf resultSize t (newmaxs ++ maxlist) newState
             bigDefs <- mapM mkDefs mkBigDefsArgs
            -- TODO maybe shuffle  but expensive  with BruijnTerm and would it make a difference
             return $ Let () (smalDefs++ bigDefs) term
 
+-- TODO better name
+-- TODO droping original might be confusing
+unwrap :: [a]   -> [[a]]
+unwrap [] =  []
+unwrap (_:as)  = as : unwrap as
+
 --TODO should be a fold
 makeVars :: ArbiRef n => GenState n -> [Free] -> Gen ([String], GenState n)
+-- makeVars state0 fs = foldM (\(prevNames,state) f -> do
+--                         (name, newstate ) <- newVarRef state f
+--                         return (prevNames ++[name]  ,newstate))
+--     ([],state0) fs
+-- makeVars state0  fs = swap <$> mapAccumM (newVarRef1) state0 fs
 makeVars state [] = return ([], state)
 makeVars state (f : fs) = do
     (newVar, newState) <- newVarRef state f
