@@ -22,11 +22,11 @@ import Name
 import ArbiRef
 import qualified ModificationTags as M
 
--- TODO dont why again is need here but otwersie test will stop after discard
+-- TODO dont why "again" is need here but otwersie test will stop after discard
 -- TODO cleaner notation
 -- TODO generrate noncircular direct
-forAllNonCiculair:: Testable prop => (BruijnTerm () () -> prop) -> Property
-forAllNonCiculair prop = again $ forAllTypedBruijn $ \ e -> case sortTerm e of
+forAllNonCiculair :: Testable prop => (BruijnTerm () () -> prop) -> Property
+forAllNonCiculair prop =again $ forAllTypedBruijn $ \ e -> case sortTerm e of
           Left {} -> discard
           (Right newT) -> prop $ M.applyModify newT
 
@@ -139,7 +139,7 @@ arbitraryTerm n mabeytype maxlist s
   | n <= 1 = oneOfLogic [ arbitraryValue mabeytype
                         , arbitraryVar mabeytype s
                         ]
-    -- shorter and parmiterzerd size
+    -- shorter and parmiterzerd size , rename abort
   | otherwise = do
       b <- case mabeytype of
         Just t -> do
@@ -211,11 +211,11 @@ arbitraryLet size t maxlist state =
             vars <- replicateM (numberDefs - 1) newFreeVar
             (varNames, newState) <- lift $ lift $ makeVars state vars
             let newmaxlist = maxlist ++ map (\f -> TVar f ()) vars
-            let (mkSmalDefsArgs,mkBigDefsArgs) = partition (\(_,_,defSize) -> defSize< resultSize) $ zip3 vars (map Name varNames) $ sort varSize
-            let mkDefs (v,name,sizeTerm)= do
+            let (mkSmalDefsArgs,mkBigDefsArgs) = partition (\(_,_,_,defSize) -> defSize< resultSize) $ zip4 (defsBounds vars) vars (map Name varNames) $ sort varSize
+            let mkDefs (b,v,name,sizeTerm) = do
                     -- TODO remove self from maxlist
                     -- TODO dont make self refrence values
-                    termN <- arbitraryTerm sizeTerm (fmap (const (TVar v ())) t) maxlist newState
+                    termN <- arbitraryTerm sizeTerm (t >> Just (TVar v ())) maxlist (disableFromEnv b newState)
                     return $ Def () name termN
             smalDefs <- mapM mkDefs mkSmalDefsArgs
             term <- arbitraryTerm resultSize t newmaxlist newState

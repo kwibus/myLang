@@ -36,6 +36,7 @@ nameFromState s = do
    (_, (name, f)) <- elementsLogic $ bToList $ tEnv s
    return (Name name, f)
 
+-- TODO remove bool always remove name from list?
 updateStateName :: GenState n -> Bool -> String -> Free -> GenState n
 updateStateName state@State {tEnv = env } newVar name free = state {tEnv = newTEnv}
     where newTEnv :: BruijnEnv (String, Free)

@@ -46,4 +46,6 @@ testGeneration = testGroup "genration"
                     (Right t) -> unifys t tDouble
                     _ -> False
                 )
+   , testProperty "noncircular" $
+        forAllNonCiculair $ not . isCirculair
    ]

@@ -99,6 +99,10 @@ bReplace (Bound i) a b@BruijnState {bruijnDepth = depth, bruijnMap = m} =
   assert (i < depth) $
   b {bruijnMap = IM.insert (depth - i - 1 ) a m}
 
+bDelete :: Bound -> BruijnEnv a -> BruijnEnv a
+bDelete (Bound i) b@BruijnState {bruijnDepth = depth, bruijnMap = m} =
+  b {bruijnMap = IM.delete(depth - i - 1 ) m}
+
 -- TODO ??? could remove duplecate cate by using bSplitAt
 bDrop :: Int -> BruijnEnv a -> BruijnEnv a
 bDrop n b = assert (n >= 0 && n <= bruijnDepth b) b {bruijnDepth = newDepth, bruijnMap = newM}

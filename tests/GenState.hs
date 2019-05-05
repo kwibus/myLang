@@ -26,6 +26,10 @@ defualtGenState = State
   , freeNames = letters
   }
 
+
+disableFromEnv :: Bound -> GenState n -> GenState n
+disableFromEnv b s@State {tEnv = env } = s{tEnv = bDelete b env}
+
 type Generater a = LogicGen (Env, Int) SearchTree a
 type Env = FreeEnv Type
 
@@ -57,6 +61,7 @@ newFreeVar = do
     (env, i) <- get
     put (env , i + 1)
     return $ Free i
+
 
 --TODO remove
 getMax :: Generater Int
