@@ -21,7 +21,7 @@ untypeString:: Int -> IO String
 untypeString size = fmap PrettyPrint.pShow (fixandsized size genUnTyped)
 
 typedAST :: Int -> IO (BruijnTerm () ())
-typedAST size =  fixandsized size genTyped
+typedAST size =  fixandsized size (genTyped defaultConf)
 
 main :: IO()
 main = defaultMain

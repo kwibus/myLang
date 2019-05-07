@@ -91,9 +91,10 @@ executable sample
                       ,containers
   default-language:    Haskell2010
 
-  -- exposed-modules:     MakeTerm
   other-modules:      ArbiRef
                       ,ArbitraryLambda
+  
+                      ,ShrinkLambda
                       ,ArbitraryValue
                       ,GenState
                       ,Logic
@@ -122,6 +123,7 @@ test-suite tests
 
   other-modules:      ArbiRef
                       ,ArbitraryLambda
+                      ,ShrinkLambda
                       ,ArbitraryType
                       ,ArbitraryValue
                       ,ExampleBruijn
@@ -180,6 +182,7 @@ Benchmark bench
 
   other-modules:    ArbiRef
                     ,ArbitraryLambda
+                    ,ShrinkLambda
                     ,ArbitraryValue
                     ,ExampleBruijn
                     ,GenState

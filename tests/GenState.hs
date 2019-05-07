@@ -6,6 +6,7 @@ import Control.Monad.State.Class
 import Control.Monad
 
 import Logic
+import Name
 import FreeEnvironment
 import BruijnEnvironment
 import Type
@@ -18,20 +19,17 @@ data GenState n = State
   , tEnv :: BruijnEnv (String, Free)
   } deriving Show
 
--- TODO rename defualtgenstate
 defualtGenState :: GenState n
 defualtGenState = State
   { tEnv = bEmtyEnv
-  , freeNames = [] --letters
+  , freeNames = letters -- TODO use or remove
   }
-
 
 disableFromEnv :: Bound -> GenState n -> GenState n
 disableFromEnv b s@State {tEnv = env } = s{tEnv = bDelete b env}
 
 -- TODO move to sepearte module
-type Generater a = LogicGen (Env, Int) SearchTree a
-type Env = FreeEnv Type
+type Generater a = LogicGen (TSubst Type, Int) SearchTree a
 
 runGenerartor :: Generater a -> SearchTree Gen a
 runGenerartor g = evalStateT g (fEmtyEnv, 0)
@@ -48,20 +46,19 @@ unifyGen (Just t1) t2 = do
     sub <- getSub
     case unify (apply sub t1) (apply sub t2) >>= unifySubs sub of
         Left {} -> mzero
-        (Right sub1) -> setEnv sub1
+        (Right sub1) -> setSub sub1
 
 getSub :: Generater (TSubst Type)
 getSub = liftM fst get
 
-setEnv :: FreeEnv Type -> Generater ()
-setEnv env = modify (\ (_, m) -> (env, m))
+setSub:: FreeEnv Type -> Generater ()
+setSub env = modify (\ (_, m) -> (env, m))
 
 newFreeVar :: Generater Free
 newFreeVar = do
     (env, i) <- get
     put (env , i + 1)
     return $ Free i
-
 
 --TODO remove
 getMax :: Generater Int

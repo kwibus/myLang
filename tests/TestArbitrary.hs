@@ -11,6 +11,7 @@ import ArbitraryLambda
 import BruijnTerm
 import MakeType
 import TypeCheck
+import ShrinkLambda
 
 testArbitrary :: TestTree
 testArbitrary = testGroup "arbitrary" [testGeneration, testshrink]
