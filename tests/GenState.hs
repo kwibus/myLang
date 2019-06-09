@@ -28,6 +28,9 @@ defualtGenState = State
 disableFromEnv :: Bound -> GenState n -> GenState n
 disableFromEnv b s@State {tEnv = env } = s{tEnv = bDelete b env}
 
+drobFromEnv :: Bound -> GenState n -> GenState n
+drobFromEnv (Bound n) s@State {tEnv = env } = s{tEnv = foldl (flip bDelete) env (Bound <$> [0..n]) } -- TODO dont drop but never insert
+
 -- TODO move to sepearte module
 type Generater a = LogicGen (TSubst Type, Int) SearchTree a
 

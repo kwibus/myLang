@@ -17,7 +17,6 @@ import Data.Maybe
 import Control.Monad
 import Control.Monad.Trans.Class
 import Test.QuickCheck
-import Test.QuickCheck.Property
 
 import Logic
 import GenState
@@ -34,28 +33,21 @@ import ArbiRef
 import ShrinkLambda
 import qualified ModificationTags as M
 
--- TODO dont why "again" is need here but otwersie test will stop after discard
 -- TODO generrate noncircular direct
+-- TODO renamed sorted
 forAllNonCiculair :: Testable prop => (BruijnTerm () () -> prop) -> Property
-forAllNonCiculair prop =again $ forAllShowShrink (genTyped defaultConf{limitCirculair = True}) show shrinkTypedBruijn $ \ e -> case sortTerm e of
+forAllNonCiculair prop = forAllShrinkShow (genTyped defaultConf{limitCirculair = True}) return BruijnTerm.pShow   $ \ e -> case sortTerm e of
           Left {} -> discard
           (Right newT) -> prop $ M.applyModify newT
 
 forAllTypedBruijn :: Testable prop => (BruijnTerm () () -> prop) -> Property
-forAllTypedBruijn = forAllShowShrink (genTyped defaultConf) {-BruijnTerm.pShow-}show shrinkTypedBruijn
+forAllTypedBruijn = forAllShrinkShow (genTyped defaultConf) shrinkTypedBruijn BruijnTerm.pShow
 
 forAllUnTypedLambda :: Testable prop => (LamTerm () () Name -> prop) -> Property
 forAllUnTypedLambda = forAllShrink genUnTyped shrinkUntypedLambda
 
 forAllUnTypedBruijn :: Testable prop => (BruijnTerm () () -> prop) -> Property
 forAllUnTypedBruijn = forAllShrink genUnTyped shrinkUntypedBruijn
-
-forAllShowShrink :: Testable prop => Gen a -> ( a -> String) -> (a -> [a]) -> (a -> prop) -> Property
-forAllShowShrink gen myShow shrinker pf = MkProperty $
-  gen >>= \ x ->
-    unProperty $
-    shrinking shrinker x $ \ x' ->
-      counterexample (myShow x') (pf x')
 
 genTyped :: ArbiRef n => Conf -> Gen (LamTerm () () n )
 genTyped conf = fromJust <$> genTerm conf (Just (tVar (-1)))
@@ -203,7 +195,7 @@ arbitraryLet conf size t maxlist state =
                       --      to prvent this you should add 5 empty to env,(does this work) and add real one to env after definition is generated
                       --      if you want the same distrobution you have to exclude function from this proces
                       then oneOfLogic
-                        [ arbitraryValue1 conf sizeTerm (t >> Just (TVar v ())) newMaxList (disableFromEnv b newState) --TODO use the correct frequency
+                        [ arbitraryValue1 conf sizeTerm (t >> Just (TVar v ())) newMaxList (drobFromEnv b newState) --TODO use the correct frequency
                         , arbitraryFunction conf sizeTerm (t >> Just (TVar v ())) newMaxList newState
                         ]
                       else arbitraryTerm conf sizeTerm (t >> Just (TVar v ())) newMaxList newState
